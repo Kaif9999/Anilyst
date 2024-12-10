@@ -1,19 +1,81 @@
 'use client'
 
 import { useState } from 'react'
-import { Upload } from 'lucide-react'
+import { Upload, Calendar, BarChart2, CandlestickChart } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
-import { ChartData } from '../types'
+import { ChartData, StockData, SimpleData } from '../types'
 
 export default function InputSection({ onResultReceived }: { onResultReceived: (chartData: ChartData) => void }) {
   const [file, setFile] = useState<File | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedYear, setSelectedYear] = useState<string>('all')
+  const [availableYears, setAvailableYears] = useState<string[]>([])
+  const [parsedData, setParsedData] = useState<StockData[] | SimpleData[]>([])
+  const [isStockData, setIsStockData] = useState(true)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       setFile(e.target.files[0])
+      // Reset states when new file is uploaded
+      setSelectedYear('all')
+      setAvailableYears([])
+      setParsedData([])
     }
+  }
+
+  const processStockData = (data: StockData[], year: string = 'all'): ChartData => {
+    // Filter data by year if specified
+    const filteredData = year === 'all' 
+      ? data 
+      : data.filter(row => new Date(row.Date).getFullYear().toString() === year)
+
+    // Sort data by date
+    const sortedData = [...filteredData].sort((a, b) => new Date(a.Date).getTime() - new Date(b.Date).getTime())
+
+    return {
+      labels: sortedData.map(row => new Date(row.Date).toLocaleDateString()),
+      datasets: [
+        {
+          label: 'Close Price',
+          data: sortedData.map(row => row.Close),
+          backgroundColor: ['rgba(75, 192, 192, 0.6)'],
+        },
+        {
+          label: 'Open Price',
+          data: sortedData.map(row => row.Open),
+          backgroundColor: ['rgba(255, 99, 132, 0.6)'],
+        },
+        {
+          label: 'High',
+          data: sortedData.map(row => row.High),
+          backgroundColor: ['rgba(54, 162, 235, 0.6)'],
+        },
+        {
+          label: 'Low',
+          data: sortedData.map(row => row.Low),
+          backgroundColor: ['rgba(255, 206, 86, 0.6)'],
+        }
+      ]
+    }
+  }
+
+  const processSimpleData = (data: SimpleData[]): ChartData => {
+    const keys = Object.keys(data[0])
+    return {
+      labels: data.map(row => String(row[keys[0]])),
+      datasets: [{
+        label: keys[1] || 'Value',
+        data: data.map(row => Number(row[keys[1]]) || 0),
+        backgroundColor: ['rgba(75, 192, 192, 0.6)'],
+      }]
+    }
+  }
+
+  const detectDataType = (data: any[]): boolean => {
+    const requiredFields = ['Date', 'Open', 'High', 'Low', 'Close']
+    const headers = Object.keys(data[0] || {})
+    return requiredFields.every(field => headers.includes(field))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -24,31 +86,44 @@ export default function InputSection({ onResultReceived }: { onResultReceived: (
       try {
         // Read and parse CSV file
         const text = await file.text()
-        const result = Papa.parse(text, { header: true })
+        const result = Papa.parse(text, { 
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true
+        })
         
-        // Transform CSV data into chart format
-        const chartData: ChartData = {
-          labels: result.data.map((row: any) => row[Object.keys(row)[0]]),
-          datasets: [{
-            label: 'Data',
-            data: result.data.map((row: any) => parseFloat(row[Object.keys(row)[1]]) || 0),
-            backgroundColor: [
-              'rgba(255, 99, 132, 0.6)',
-              'rgba(54, 162, 235, 0.6)',
-              'rgba(255, 206, 86, 0.6)',
-              'rgba(75, 192, 192, 0.6)',
-              'rgba(153, 102, 255, 0.6)',
-              'rgba(255, 159, 64, 0.6)',
-            ],
-          }]
+        const data = result.data as any[]
+        const isStock = detectDataType(data)
+        setIsStockData(isStock)
+        setParsedData(data)
+
+        if (isStock) {
+          // Extract available years from the data for stock data
+          const years = Array.from(new Set(
+            data.map(row => new Date(row.Date).getFullYear().toString())
+          )).sort()
+          setAvailableYears(years)
+          
+          const chartData = processStockData(data as StockData[], selectedYear)
+          onResultReceived(chartData)
+        } else {
+          setAvailableYears([])
+          const chartData = processSimpleData(data as SimpleData[])
+          onResultReceived(chartData)
         }
-        
-        onResultReceived(chartData)
       } catch (error) {
         console.error('Error parsing CSV:', error)
       } finally {
         setIsLoading(false)
       }
+    }
+  }
+
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year)
+    if (parsedData.length > 0 && isStockData) {
+      const chartData = processStockData(parsedData as StockData[], year)
+      onResultReceived(chartData)
     }
   }
 
@@ -78,7 +153,54 @@ export default function InputSection({ onResultReceived }: { onResultReceived: (
             <Upload className="mr-2 h-4 w-4" />
             {file ? file.name : 'Upload CSV'}
           </motion.label>
+          {file && (
+            <div className="text-white flex items-center space-x-2">
+              <span>Data Type:</span>
+              {isStockData ? (
+                <CandlestickChart className="w-5 h-5 text-green-400" />
+              ) : (
+                <BarChart2 className="w-5 h-5 text-blue-400" />
+              )}
+              <span>{isStockData ? 'Stock Market Data' : 'Simple X-Y Data'}</span>
+            </div>
+          )}
         </div>
+
+        {availableYears.length > 0 && isStockData && (
+          <div className="flex flex-wrap gap-2">
+            <motion.button
+              type="button"
+              onClick={() => handleYearChange('all')}
+              className={`px-4 py-2 rounded-full text-white transition-colors ${
+                selectedYear === 'all' 
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600' 
+                  : 'bg-gray-700 hover:bg-gray-600'
+              }`}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              View All
+            </motion.button>
+            {availableYears.map(year => (
+              <motion.button
+                key={year}
+                type="button"
+                onClick={() => handleYearChange(year)}
+                className={`px-4 py-2 rounded-full text-white transition-colors ${
+                  selectedYear === year 
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600' 
+                    : 'bg-gray-700 hover:bg-gray-600'
+                }`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Calendar className="inline-block w-4 h-4 mr-2" />
+                {year}
+              </motion.button>
+            ))}
+          </div>
+        )}
+
         <motion.button
           type="submit"
           disabled={!file || isLoading}

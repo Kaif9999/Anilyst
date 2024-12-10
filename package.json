@@ -21,7 +21,9 @@
     "react": "^18",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^18",
+    "regression": "^2.0.1",
     "replicate": "^1.0.1",
+    "simple-statistics": "^7.8.7",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7"
   },
