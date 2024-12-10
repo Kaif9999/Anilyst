@@ -1,6 +1,9 @@
 # Anilyst
 Analyse CSVs with eas with the power of AI, Your personal Data-Analist
 
+# Anilyst
+Analyse CSVs with eas with the power of AI, Your personal Data-Analist
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
