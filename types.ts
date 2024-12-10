@@ -16,8 +16,8 @@ export type ChartType =
 
 export interface ChartDataset {
   label: string;
-  data: number[];
-  backgroundColor: string | string[];
+  data: Array<number | { x: number; y: number; r?: number }>;
+  backgroundColor?: string | string[];
   borderColor?: string;
   borderWidth?: number;
   fill?: boolean;
@@ -27,6 +27,9 @@ export interface ChartDataset {
   tension?: number;
   pointRadius?: number;
   pointHoverRadius?: number;
+  pointBackgroundColor?: string;
+  pointBorderColor?: string;
+  pointBorderWidth?: number;
   trendline?: {
     type: 'linear' | 'exponential' | 'moving-average';
     data: number[];
