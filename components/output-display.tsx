@@ -183,7 +183,7 @@ const getChartTypeOptions = (type: ChartType) => {
             display: true,
             position: 'right',
             grid: {
-              drawOnChartArea: false,
+              drawOnChartArea: true,
             },
           },
         }

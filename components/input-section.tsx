@@ -72,7 +72,7 @@ export default function InputSection({ onResultReceived }: { onResultReceived: (
     }
   }
 
-  const detectDataType = (data: any[]): boolean => {
+  const detectDataType = (data: unknown[]): boolean => {
     const requiredFields = ['Date', 'Open', 'High', 'Low', 'Close']
     const headers = Object.keys(data[0] || {})
     return requiredFields.every(field => headers.includes(field))
@@ -134,7 +134,7 @@ export default function InputSection({ onResultReceived }: { onResultReceived: (
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-10"></div>
+      <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-20"></div>
       <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
         <div className="flex items-center space-x-4">
           <input
@@ -146,7 +146,7 @@ export default function InputSection({ onResultReceived }: { onResultReceived: (
           />
           <motion.label
             htmlFor="csv"
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full cursor-pointer hover:from-purple-700 hover:to-pink-700 transition-colors shadow-neon"
+            className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full cursor-pointer hover:from-purple-700 hover:to-pink-700 transition-colors"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -204,7 +204,7 @@ export default function InputSection({ onResultReceived }: { onResultReceived: (
         <motion.button
           type="submit"
           disabled={!file || isLoading}
-          className="w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:from-blue-700 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-neon"
+          className="w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:from-blue-700 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
