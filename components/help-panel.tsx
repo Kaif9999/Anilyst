@@ -1,7 +1,7 @@
 'use client'
 
 import { motion, AnimatePresence } from 'framer-motion'
-import { HelpCircle, X, ChevronRight } from 'lucide-react'
+import { X, ChevronRight } from 'lucide-react'
 import { 
   chartTypeDescriptions, 
   colorSchemeDescriptions, 

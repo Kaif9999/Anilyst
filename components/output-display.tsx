@@ -45,7 +45,6 @@ import {
   AlertTriangle,
   Brain,
   Clock,
-  Zap,
   BarChart,
   Activity,
   GitBranch,
