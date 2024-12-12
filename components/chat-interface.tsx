@@ -1,24 +1,24 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Send } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Card } from '@/components/ui/card'
+import { useState } from "react";
+import { Send } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 
 export default function ChatInterface() {
-  const [input, setInput] = useState('')
-  const [showResponse, setShowResponse] = useState(false)
+  const [input, setInput] = useState("");
+  const [showResponse, setShowResponse] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     if (input.trim()) {
       // Handle chat submission logic here
-      console.log('Submitting:', input)
-      setShowResponse(true)
-      setInput('')
+      console.log("Submitting:", input);
+      setShowResponse(true);
+      setInput("");
     }
-  }
+  };
 
   return (
     <div className="mt-8 space-y-4">
@@ -39,6 +39,5 @@ export default function ChatInterface() {
         </Card>
       )}
     </div>
-  )
+  );
 }
-

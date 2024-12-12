@@ -1,17 +1,17 @@
-'use client'
+"use client";
 
-import { useState, useRef, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { 
-  Bar, 
-  Line, 
-  Pie, 
+import { useState, useRef, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  Bar,
+  Line,
+  Pie,
   Doughnut,
   Radar,
   PolarArea,
   Scatter,
-  Bubble
-} from 'react-chartjs-2'
+  Bubble,
+} from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -26,15 +26,21 @@ import {
   RadialLinearScale,
   BubbleController,
   ScatterController,
-} from 'chart.js'
-import { ChartData, ChartType, AnalyticsResult, DataInsight, TimeSeriesAnalysis } from '../types'
-import { 
-  BarChart2, 
-  LineChart, 
-  PieChart, 
-  Radar as RadarIcon, 
-  Circle, 
-  Target, 
+} from "chart.js";
+import {
+  ChartData,
+  ChartType,
+  AnalyticsResult,
+  DataInsight,
+  TimeSeriesAnalysis,
+} from "../types";
+import {
+  BarChart2,
+  LineChart,
+  PieChart,
+  Radar as RadarIcon,
+  Circle,
+  Target,
   Palette,
   Download,
   Share2,
@@ -49,10 +55,10 @@ import {
   Activity,
   GitBranch,
   GitMerge,
-  GitPullRequest
-} from 'lucide-react'
-import regression from 'regression'
-import * as ss from 'simple-statistics'
+  GitPullRequest,
+} from "lucide-react";
+import regression from "regression";
+import * as ss from "simple-statistics";
 
 ChartJS.register(
   CategoryScale,
@@ -67,7 +73,7 @@ ChartJS.register(
   Title,
   Tooltip,
   Legend
-)
+);
 
 interface ChartSettings {
   showGrid: boolean;
@@ -89,7 +95,7 @@ const chartComponents = {
   radar: Radar,
   polarArea: PolarArea,
   scatter: Scatter,
-  bubble: Bubble
+  bubble: Bubble,
 } as const;
 
 const chartIcons = {
@@ -106,96 +112,96 @@ const chartIcons = {
   stackedBar: GitMerge,
   stackedArea: GitPullRequest,
   multiAxis: Activity,
-  combo: Activity
+  combo: Activity,
 } as const;
 
 // Vibrant color schemes
 const colorSchemes = {
   vibrant: {
-    close: 'rgba(255, 99, 132, 0.7)',   // Pink
-    open: 'rgba(54, 162, 235, 0.7)',    // Blue
-    high: 'rgba(75, 192, 192, 0.7)',    // Teal
-    low: 'rgba(153, 102, 255, 0.7)',    // Purple
+    close: "rgba(255, 99, 132, 0.7)", // Pink
+    open: "rgba(54, 162, 235, 0.7)", // Blue
+    high: "rgba(75, 192, 192, 0.7)", // Teal
+    low: "rgba(153, 102, 255, 0.7)", // Purple
   },
   pastel: {
-    close: 'rgba(255, 182, 193, 0.7)',  // Light Pink
-    open: 'rgba(173, 216, 230, 0.7)',   // Light Blue
-    high: 'rgba(176, 224, 230, 0.7)',   // Powder Blue
-    low: 'rgba(221, 160, 221, 0.7)',    // Plum
+    close: "rgba(255, 182, 193, 0.7)", // Light Pink
+    open: "rgba(173, 216, 230, 0.7)", // Light Blue
+    high: "rgba(176, 224, 230, 0.7)", // Powder Blue
+    low: "rgba(221, 160, 221, 0.7)", // Plum
   },
   neon: {
-    close: 'rgba(255, 0, 102, 0.7)',    // Neon Pink
-    open: 'rgba(0, 255, 255, 0.7)',     // Neon Cyan
-    high: 'rgba(0, 255, 0, 0.7)',       // Neon Green
-    low: 'rgba(255, 0, 255, 0.7)',      // Neon Magenta
+    close: "rgba(255, 0, 102, 0.7)", // Neon Pink
+    open: "rgba(0, 255, 255, 0.7)", // Neon Cyan
+    high: "rgba(0, 255, 0, 0.7)", // Neon Green
+    low: "rgba(255, 0, 255, 0.7)", // Neon Magenta
   },
   earth: {
-    close: 'rgba(139, 69, 19, 0.7)',    // Saddle Brown
-    open: 'rgba(160, 82, 45, 0.7)',     // Sienna
-    high: 'rgba(85, 107, 47, 0.7)',     // Dark Olive Green
-    low: 'rgba(165, 42, 42, 0.7)',      // Brown
+    close: "rgba(139, 69, 19, 0.7)", // Saddle Brown
+    open: "rgba(160, 82, 45, 0.7)", // Sienna
+    high: "rgba(85, 107, 47, 0.7)", // Dark Olive Green
+    low: "rgba(165, 42, 42, 0.7)", // Brown
   },
   ocean: {
-    close: 'rgba(0, 119, 190, 0.7)',    // Deep Blue
-    open: 'rgba(3, 169, 244, 0.7)',     // Light Blue
-    high: 'rgba(0, 188, 212, 0.7)',     // Cyan
-    low: 'rgba(0, 150, 136, 0.7)',      // Teal
-  }
+    close: "rgba(0, 119, 190, 0.7)", // Deep Blue
+    open: "rgba(3, 169, 244, 0.7)", // Light Blue
+    high: "rgba(0, 188, 212, 0.7)", // Cyan
+    low: "rgba(0, 150, 136, 0.7)", // Teal
+  },
 } as const;
 
 // Add chart type specific options
 const getChartTypeOptions = (type: ChartType) => {
   switch (type) {
-    case 'horizontalBar':
+    case "horizontalBar":
       return {
-        indexAxis: 'y' as const,
+        indexAxis: "y" as const,
       };
-    case 'stackedBar':
-      return {
-        scales: {
-          x: { stacked: true },
-          y: { stacked: true }
-        }
-      };
-    case 'stackedArea':
+    case "stackedBar":
       return {
         scales: {
           x: { stacked: true },
-          y: { stacked: true }
-        }
+          y: { stacked: true },
+        },
       };
-    case 'area':
+    case "stackedArea":
+      return {
+        scales: {
+          x: { stacked: true },
+          y: { stacked: true },
+        },
+      };
+    case "area":
       return {
         fill: true,
-        tension: 0.4
+        tension: 0.4,
       };
-    case 'multiAxis':
+    case "multiAxis":
       return {
         scales: {
           y: {
-            type: 'linear',
+            type: "linear",
             display: true,
-            position: 'left',
+            position: "left",
           },
           y2: {
-            type: 'linear',
+            type: "linear",
             display: true,
-            position: 'right',
+            position: "right",
             grid: {
               drawOnChartArea: true,
             },
           },
-        }
+        },
       };
-    case 'combo':
+    case "combo":
       return {
         scales: {
           y: {
-            type: 'linear',
+            type: "linear",
             display: true,
-            position: 'left',
-          }
-        }
+            position: "left",
+          },
+        },
       };
     default:
       return {};
@@ -203,33 +209,35 @@ const getChartTypeOptions = (type: ChartType) => {
 };
 
 export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
-  const [chartType, setChartType] = useState<ChartType>('bar')
-  const [colorScheme, setColorScheme] = useState<keyof typeof colorSchemes>('vibrant')
-  const [sortOrder, setSortOrder] = useState<'none' | 'asc' | 'desc'>('none')
-  const [showSettings, setShowSettings] = useState(false)
-  const [showInsights, setShowInsights] = useState(false)
+  const [chartType, setChartType] = useState<ChartType>("bar");
+  const [colorScheme, setColorScheme] =
+    useState<keyof typeof colorSchemes>("vibrant");
+  const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
+  const [showSettings, setShowSettings] = useState(false);
+  const [showInsights, setShowInsights] = useState(false);
   const [settings, setSettings] = useState<ChartSettings>({
     showGrid: true,
     showLegend: true,
     enableAnimation: true,
-    chartTitle: 'Data Visualization',
-    xAxisLabel: 'Categories',
-    yAxisLabel: 'Values',
+    chartTitle: "Data Visualization",
+    xAxisLabel: "Categories",
+    yAxisLabel: "Values",
     showTrendline: false,
     showOutliers: false,
-    showForecast: false
-  })
-  const chartRef = useRef<ChartJS | null>(null)
-  const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null)
-  const [insights, setInsights] = useState<DataInsight[]>([])
-  const [timeSeriesAnalysis, setTimeSeriesAnalysis] = useState<TimeSeriesAnalysis | null>(null)
+    showForecast: false,
+  });
+  const chartRef = useRef<ChartJS | null>(null);
+  const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
+  const [insights, setInsights] = useState<DataInsight[]>([]);
+  const [timeSeriesAnalysis, setTimeSeriesAnalysis] =
+    useState<TimeSeriesAnalysis | null>(null);
   const [sortedData, setSortedData] = useState<ChartData | null>(null);
 
   // Advanced Analytics Functions
   const performAnalytics = (data: number[]): AnalyticsResult | null => {
     if (!data || data.length === 0) return null;
-    
-    const validNumbers = data.filter(n => typeof n === 'number' && !isNaN(n));
+
+    const validNumbers = data.filter((n) => typeof n === "number" && !isNaN(n));
     if (validNumbers.length === 0) return null;
 
     // Basic Statistics
@@ -243,13 +251,14 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     // Trend Analysis
     const points = validNumbers.map((y, x) => [x, y]);
     const trend = regression.linear(points);
-    const trendType = trend.equation[0] > 0 ? 'increasing' as const : 'decreasing' as const;
+    const trendType =
+      trend.equation[0] > 0 ? ("increasing" as const) : ("decreasing" as const);
 
     // Outlier Detection
-    const zScores = validNumbers.map(v => (v - mean) / stdDev);
+    const zScores = validNumbers.map((v) => (v - mean) / stdDev);
     const outlierIndices = zScores
-      .map((z, i) => Math.abs(z) > 2 ? i : -1)
-      .filter(i => i !== -1);
+      .map((z, i) => (Math.abs(z) > 2 ? i : -1))
+      .filter((i) => i !== -1);
 
     // Simple Forecast (last 3 points trend continuation)
     const lastPoints = validNumbers.slice(-3);
@@ -260,24 +269,24 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
       trends: {
         type: trendType,
         slope: trend.equation[0],
-        confidence: trend.r2
+        confidence: trend.r2,
       },
       outliers: {
         indices: outlierIndices,
-        values: outlierIndices.map(i => validNumbers[i]),
-        zscore: outlierIndices.map(i => zScores[i])
+        values: outlierIndices.map((i) => validNumbers[i]),
+        zscore: outlierIndices.map((i) => zScores[i]),
       },
       forecast: {
         values: [nextValue],
         confidence: forecast.r2,
         range: {
           lower: [nextValue - stdDev],
-          upper: [nextValue + stdDev]
-        }
+          upper: [nextValue + stdDev],
+        },
       },
       correlations: {
         pearson: 1, // For single dataset
-        spearman: 1
+        spearman: 1,
       },
       statistics: {
         basic: {
@@ -287,14 +296,14 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
           stdDev,
           variance,
           skewness,
-          kurtosis
+          kurtosis,
         },
         distribution: {
-          type: Math.abs(skewness) < 0.5 ? 'normal' : 'skewed',
+          type: Math.abs(skewness) < 0.5 ? "normal" : "skewed",
           parameters: { mean, stdDev },
-          goodnessOfFit: 1 - Math.abs(skewness)
-        }
-      }
+          goodnessOfFit: 1 - Math.abs(skewness),
+        },
+      },
     } as unknown as AnalyticsResult;
   };
 
@@ -305,32 +314,44 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     // Trend Insight
     if (Math.abs(analytics.trends.slope) > 0.1) {
       insights.push({
-        type: 'trend',
-        title: `${analytics.trends.type.charAt(0).toUpperCase() + analytics.trends.type.slice(1)} Trend Detected`,
-        description: `The data shows a ${analytics.trends.type} trend with ${(analytics.trends.confidence * 100).toFixed(1)}% confidence.`,
+        type: "trend",
+        title: `${
+          analytics.trends.type.charAt(0).toUpperCase() +
+          analytics.trends.type.slice(1)
+        } Trend Detected`,
+        description: `The data shows a ${analytics.trends.type} trend with ${(
+          analytics.trends.confidence * 100
+        ).toFixed(1)}% confidence.`,
         confidence: analytics.trends.confidence,
-        importance: analytics.trends.confidence > 0.7 ? 'high' : 'medium'
+        importance: analytics.trends.confidence > 0.7 ? "high" : "medium",
       });
     }
 
     // Outlier Insight
     if (analytics.outliers.indices.length > 0) {
       insights.push({
-        type: 'anomaly',
-        title: 'Outliers Detected',
+        type: "anomaly",
+        title: "Outliers Detected",
         description: `Found ${analytics.outliers.indices.length} unusual values that deviate significantly from the norm.`,
         confidence: 0.9,
-        importance: 'high'
+        importance: "high",
       });
     }
 
     // Distribution Insight
     insights.push({
-      type: 'pattern',
-      title: `${analytics.statistics.distribution.type.charAt(0).toUpperCase() + analytics.statistics.distribution.type.slice(1)} Distribution`,
-      description: `The data follows a ${analytics.statistics.distribution.type} distribution with ${(analytics.statistics.distribution.goodnessOfFit * 100).toFixed(1)}% confidence.`,
+      type: "pattern",
+      title: `${
+        analytics.statistics.distribution.type.charAt(0).toUpperCase() +
+        analytics.statistics.distribution.type.slice(1)
+      } Distribution`,
+      description: `The data follows a ${
+        analytics.statistics.distribution.type
+      } distribution with ${(
+        analytics.statistics.distribution.goodnessOfFit * 100
+      ).toFixed(1)}% confidence.`,
       confidence: analytics.statistics.distribution.goodnessOfFit,
-      importance: 'medium'
+      importance: "medium",
     });
 
     return insights;
@@ -346,52 +367,59 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     const expTrend = regression.exponential(points);
 
     // Use the trend with better R2
-    const bestTrend = linearTrend.r2 > expTrend.r2 ? 
-      { type: 'linear' as const, ...linearTrend } : 
-      { type: 'exponential' as const, ...expTrend };
+    const bestTrend =
+      linearTrend.r2 > expTrend.r2
+        ? { type: "linear" as const, ...linearTrend }
+        : { type: "exponential" as const, ...expTrend };
 
     // Simple seasonality detection
     const diffs = data.slice(1).map((v, i) => v - data[i]);
-    const crossings = diffs.slice(1).map((v, i) => v * diffs[i] < 0).filter(Boolean).length;
+    const crossings = diffs
+      .slice(1)
+      .map((v, i) => v * diffs[i] < 0)
+      .filter(Boolean).length;
     const seasonalityStrength = crossings / data.length;
 
     return {
       seasonality: {
         detected: seasonalityStrength > 0.2,
         period: Math.round(data.length / (crossings + 1)),
-        strength: seasonalityStrength
+        strength: seasonalityStrength,
       },
       trend: {
         type: bestTrend.type,
         equation: bestTrend.string,
-        r2: bestTrend.r2
+        r2: bestTrend.r2,
       },
       decomposition: {
-        trend: points.map(p => bestTrend.predict(p[0])[1]),
+        trend: points.map((p) => bestTrend.predict(p[0])[1]),
         seasonal: new Array(data.length).fill(0), // Simplified
-        residual: data.map((v, i) => v - bestTrend.predict(i)[1])
-      }
+        residual: data.map((v, i) => v - bestTrend.predict(i)[1]),
+      },
     };
   };
 
   // Add sortData function
-  const sortData = (data: ChartData, order: 'asc' | 'desc' | 'none'): ChartData => {
-    if (order === 'none') return data;
+  const sortData = (
+    data: ChartData,
+    order: "asc" | "desc" | "none"
+  ): ChartData => {
+    if (order === "none") return data;
 
     const sortedIndices = data.datasets[0].data
       .map((_, index) => index)
       .sort((a, b) => {
         const valueA = data.datasets[0].data[a] as number;
         const valueB = data.datasets[0].data[b] as number;
-        return order === 'asc' ? valueA - valueB : valueB - valueA;
+        return order === "asc" ? valueA - valueB : valueB - valueA;
       });
 
     return {
-      labels: sortedIndices.map(i => data.labels[i]),
-      datasets: data.datasets.map(dataset => ({
+      labels: sortedIndices.map((i) => data.labels[i]),
+      datasets: data.datasets.map((dataset) => ({
         ...dataset,
-        data: sortedIndices.map(i => dataset.data[i])
-      }))
+        data: sortedIndices.map((i) => dataset.data[i]),
+      })),
     };
   };
 
@@ -406,7 +434,7 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
   // Update prepareChartData to use the current color scheme
   const prepareChartData = (type: ChartType, data: ChartData): ChartData => {
     const colors = colorSchemes[colorScheme];
-    
+
     return {
       labels: data.labels,
       datasets: data.datasets.map((dataset) => {
@@ -418,25 +446,25 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
         };
 
         // Assign colors based on dataset label
-        if (dataset.label?.toLowerCase().includes('close')) {
+        if (dataset.label?.toLowerCase().includes("close")) {
           return {
             ...baseDataset,
             backgroundColor: colors.close,
             borderColor: colors.close,
           };
-        } else if (dataset.label?.toLowerCase().includes('open')) {
+        } else if (dataset.label?.toLowerCase().includes("open")) {
           return {
             ...baseDataset,
             backgroundColor: colors.open,
             borderColor: colors.open,
           };
-        } else if (dataset.label?.toLowerCase().includes('high')) {
+        } else if (dataset.label?.toLowerCase().includes("high")) {
           return {
             ...baseDataset,
             backgroundColor: colors.high,
             borderColor: colors.high,
           };
-        } else if (dataset.label?.toLowerCase().includes('low')) {
+        } else if (dataset.label?.toLowerCase().includes("low")) {
           return {
             ...baseDataset,
             backgroundColor: colors.low,
@@ -450,9 +478,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
           backgroundColor: colors.close,
           borderColor: colors.close,
         };
-      })
+      }),
     };
-  }
+  };
 
   // Update renderChart to use sortedData
   const renderChart = () => {
@@ -461,29 +489,30 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
 
     // Map special chart types to base components
     switch (currentType) {
-      case 'area':
-      case 'stackedArea':
-      case 'multiAxis':
-      case 'combo':
+      case "area":
+      case "stackedArea":
+      case "multiAxis":
+      case "combo":
         Component = Line;
         break;
-      case 'horizontalBar':
-      case 'stackedBar':
+      case "horizontalBar":
+      case "stackedBar":
         Component = Bar;
         break;
       default:
-        Component = chartComponents[currentType as keyof typeof chartComponents] || Line;
+        Component =
+          chartComponents[currentType as keyof typeof chartComponents] || Line;
     }
 
     const dataToUse = sortedData || chartData;
     const preparedData = prepareChartData(currentType, dataToUse);
     const chartOptions = {
       ...getChartOptions(currentType),
-      ...getChartTypeOptions(currentType)
+      ...getChartTypeOptions(currentType),
     };
 
     return (
-      <Component 
+      <Component
         key={`${currentType}-${colorScheme}-${sortOrder}`}
         data={preparedData}
         options={chartOptions}
@@ -510,91 +539,94 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     plugins: {
       legend: {
         display: settings.showLegend,
-        position: 'top' as const,
+        position: "top" as const,
         labels: {
-          color: 'white',
-          font: { size: 12 }
-        }
+          color: "white",
+          font: { size: 12 },
+        },
       },
       title: {
         display: true,
         text: settings.chartTitle,
-        color: 'white',
+        color: "white",
         font: {
           size: 16,
-          weight: 'bold' as const
-        }
-      }
-    },
-    scales: type === 'radar' ? {
-      r: {
-        ticks: { color: 'white' },
-        grid: { 
-          display: settings.showGrid,
-          color: 'rgba(255, 255, 255, 0.1)' 
-        },
-        pointLabels: { color: 'white' },
-      }
-    } : {
-      x: {
-        title: {
-          display: true,
-          text: settings.xAxisLabel,
-          color: 'white'
-        },
-        ticks: { 
-          color: 'white',
-          maxRotation: 45,
-          minRotation: 45
-        },
-        grid: { 
-          display: settings.showGrid,
-          color: 'rgba(255, 255, 255, 0.1)' 
+          weight: "bold" as const,
         },
       },
-      y: {
-        title: {
-          display: true,
-          text: settings.yAxisLabel,
-          color: 'white'
-        },
-        ticks: { color: 'white' },
-        grid: { 
-          display: settings.showGrid,
-          color: 'rgba(255, 255, 255, 0.1)' 
-        },
-      }
-    }
-  })
+    },
+    scales:
+      type === "radar"
+        ? {
+            r: {
+              ticks: { color: "white" },
+              grid: {
+                display: settings.showGrid,
+                color: "rgba(255, 255, 255, 0.1)",
+              },
+              pointLabels: { color: "white" },
+            },
+          }
+        : {
+            x: {
+              title: {
+                display: true,
+                text: settings.xAxisLabel,
+                color: "white",
+              },
+              ticks: {
+                color: "white",
+                maxRotation: 45,
+                minRotation: 45,
+              },
+              grid: {
+                display: settings.showGrid,
+                color: "rgba(255, 255, 255, 0.1)",
+              },
+            },
+            y: {
+              title: {
+                display: true,
+                text: settings.yAxisLabel,
+                color: "white",
+              },
+              ticks: { color: "white" },
+              grid: {
+                display: settings.showGrid,
+                color: "rgba(255, 255, 255, 0.1)",
+              },
+            },
+          },
+  });
 
   const handleDownload = () => {
     if (chartRef.current) {
-      const link = document.createElement('a')
-      link.download = `${settings.chartTitle}.png`
-      link.href = chartRef.current.toBase64Image()
-      link.click()
+      const link = document.createElement("a");
+      link.download = `${settings.chartTitle}.png`;
+      link.href = chartRef.current.toBase64Image();
+      link.click();
     }
-  }
+  };
 
   const handleExportData = () => {
     const csvContent = [
       // Header
-      ['Category', ...chartData.datasets.map(ds => ds.label)].join(','),
+      ["Category", ...chartData.datasets.map((ds) => ds.label)].join(","),
       // Data rows
-      ...chartData.labels.map((label, i) => 
-        [label, ...chartData.datasets.map(ds => ds.data[i])].join(',')
-      )
-    ].join('\n')
+      ...chartData.labels.map((label, i) =>
+        [label, ...chartData.datasets.map((ds) => ds.data[i])].join(",")
+      ),
+    ].join("\n");
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `${settings.chartTitle}.csv`
-    link.click()
-  }
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${settings.chartTitle}.csv`;
+    link.click();
+  };
 
   return (
-    <motion.div 
+    <motion.div
       className="flex-grow space-y-8 mb-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -608,7 +640,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
       >
         {/* Chart Header */}
         <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700 flex justify-between items-center">
-          <h2 className="text-2xl font-semibold text-blue-400">Data Visualization</h2>
+          <h2 className="text-2xl font-semibold text-blue-400">
+            Data Visualization
+          </h2>
           <div className="flex space-x-2">
             <motion.button
               onClick={handleDownload}
@@ -630,7 +664,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
             </motion.button>
             <motion.button
               onClick={() => setShowSettings(!showSettings)}
-              className={`p-2 rounded-full ${showSettings ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
+              className={`p-2 rounded-full ${
+                showSettings ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"
+              } text-white`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Chart Settings"
@@ -639,7 +675,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
             </motion.button>
             <motion.button
               onClick={() => setShowInsights(!showInsights)}
-              className={`p-2 rounded-full ${showInsights ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
+              className={`p-2 rounded-full ${
+                showInsights ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"
+              } text-white`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Show AI Insights"
@@ -647,8 +685,14 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
               <Brain className="w-4 h-4" />
             </motion.button>
             <motion.button
-              onClick={() => setSettings(s => ({ ...s, showTrendline: !s.showTrendline }))}
-              className={`p-2 rounded-full ${settings.showTrendline ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
+              onClick={() =>
+                setSettings((s) => ({ ...s, showTrendline: !s.showTrendline }))
+              }
+              className={`p-2 rounded-full ${
+                settings.showTrendline
+                  ? "bg-blue-600"
+                  : "bg-gray-700 hover:bg-gray-600"
+              } text-white`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Show Trendline"
@@ -656,8 +700,14 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
               <TrendingUp className="w-4 h-4" />
             </motion.button>
             <motion.button
-              onClick={() => setSettings(s => ({ ...s, showForecast: !s.showForecast }))}
-              className={`p-2 rounded-full ${settings.showForecast ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'} text-white`}
+              onClick={() =>
+                setSettings((s) => ({ ...s, showForecast: !s.showForecast }))
+              }
+              className={`p-2 rounded-full ${
+                settings.showForecast
+                  ? "bg-blue-600"
+                  : "bg-gray-700 hover:bg-gray-600"
+              } text-white`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Show Forecast"
@@ -674,21 +724,27 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
               <input
                 type="text"
                 value={settings.chartTitle}
-                onChange={(e) => setSettings({ ...settings, chartTitle: e.target.value })}
+                onChange={(e) =>
+                  setSettings({ ...settings, chartTitle: e.target.value })
+                }
                 placeholder="Chart Title"
                 className="bg-gray-700 text-white px-3 py-2 rounded-lg"
               />
               <input
                 type="text"
                 value={settings.xAxisLabel}
-                onChange={(e) => setSettings({ ...settings, xAxisLabel: e.target.value })}
+                onChange={(e) =>
+                  setSettings({ ...settings, xAxisLabel: e.target.value })
+                }
                 placeholder="X-Axis Label"
                 className="bg-gray-700 text-white px-3 py-2 rounded-lg"
               />
               <input
                 type="text"
                 value={settings.yAxisLabel}
-                onChange={(e) => setSettings({ ...settings, yAxisLabel: e.target.value })}
+                onChange={(e) =>
+                  setSettings({ ...settings, yAxisLabel: e.target.value })
+                }
                 placeholder="Y-Axis Label"
                 className="bg-gray-700 text-white px-3 py-2 rounded-lg"
               />
@@ -696,7 +752,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
                 <input
                   type="checkbox"
                   checked={settings.showGrid}
-                  onChange={(e) => setSettings({ ...settings, showGrid: e.target.checked })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, showGrid: e.target.checked })
+                  }
                   className="form-checkbox"
                 />
                 <span>Show Grid</span>
@@ -705,7 +763,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
                 <input
                   type="checkbox"
                   checked={settings.showLegend}
-                  onChange={(e) => setSettings({ ...settings, showLegend: e.target.checked })}
+                  onChange={(e) =>
+                    setSettings({ ...settings, showLegend: e.target.checked })
+                  }
                   className="form-checkbox"
                 />
                 <span>Show Legend</span>
@@ -714,7 +774,12 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
                 <input
                   type="checkbox"
                   checked={settings.enableAnimation}
-                  onChange={(e) => setSettings({ ...settings, enableAnimation: e.target.checked })}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      enableAnimation: e.target.checked,
+                    })
+                  }
                   className="form-checkbox"
                 />
                 <span>Enable Animation</span>
@@ -726,7 +791,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
         {/* AI Insights Panel */}
         {showInsights && insights.length > 0 && (
           <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
-            <h3 className="text-lg font-semibold text-white mb-3">AI Insights</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">
+              AI Insights
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {insights.map((insight, index) => (
                 <motion.div
@@ -737,21 +804,31 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
                   transition={{ delay: index * 0.1 }}
                 >
                   <div className="flex items-center space-x-2 mb-2">
-                    {insight.type === 'trend' && <TrendingUp className="w-4 h-4 text-blue-400" />}
-                    {insight.type === 'anomaly' && <AlertTriangle className="w-4 h-4 text-yellow-400" />}
-                    {insight.type === 'pattern' && <Brain className="w-4 h-4 text-purple-400" />}
-                    <h4 className="text-white font-semibold">{insight.title}</h4>
+                    {insight.type === "trend" && (
+                      <TrendingUp className="w-4 h-4 text-blue-400" />
+                    )}
+                    {insight.type === "anomaly" && (
+                      <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                    )}
+                    {insight.type === "pattern" && (
+                      <Brain className="w-4 h-4 text-purple-400" />
+                    )}
+                    <h4 className="text-white font-semibold">
+                      {insight.title}
+                    </h4>
                   </div>
                   <p className="text-gray-300 text-sm">{insight.description}</p>
                   <div className="mt-2 flex items-center space-x-2">
                     <div className="text-xs text-gray-400">Confidence:</div>
                     <div className="flex-1 bg-gray-700 rounded-full h-1">
-                      <div 
+                      <div
                         className="bg-blue-500 rounded-full h-1"
                         style={{ width: `${insight.confidence * 100}%` }}
                       />
                     </div>
-                    <div className="text-xs text-gray-400">{(insight.confidence * 100).toFixed(0)}%</div>
+                    <div className="text-xs text-gray-400">
+                      {(insight.confidence * 100).toFixed(0)}%
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -760,15 +837,19 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
         )}
 
         {/* Time Series Analysis Panel */}
-        {timeSeriesAnalysis && chartType === 'line' && (
+        {timeSeriesAnalysis && chartType === "line" && (
           <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
-            <h3 className="text-lg font-semibold text-white mb-3">Time Series Analysis</h3>
+            <h3 className="text-lg font-semibold text-white mb-3">
+              Time Series Analysis
+            </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-800 bg-opacity-50 rounded-lg p-4">
                 <h4 className="text-white font-semibold mb-2">Trend</h4>
                 <p className="text-gray-300 text-sm">
-                  Type: {timeSeriesAnalysis.trend.type}<br />
-                  Equation: {timeSeriesAnalysis.trend.equation}<br />
+                  Type: {timeSeriesAnalysis.trend.type}
+                  <br />
+                  Equation: {timeSeriesAnalysis.trend.equation}
+                  <br />
                   R²: {timeSeriesAnalysis.trend.r2.toFixed(3)}
                 </p>
               </div>
@@ -777,19 +858,32 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
                 <p className="text-gray-300 text-sm">
                   {timeSeriesAnalysis.seasonality.detected ? (
                     <>
-                      Period: {timeSeriesAnalysis.seasonality.period} points<br />
-                      Strength: {(timeSeriesAnalysis.seasonality.strength * 100).toFixed(1)}%
+                      Period: {timeSeriesAnalysis.seasonality.period} points
+                      <br />
+                      Strength:{" "}
+                      {(timeSeriesAnalysis.seasonality.strength * 100).toFixed(
+                        1
+                      )}
+                      %
                     </>
                   ) : (
-                    'No significant seasonality detected'
+                    "No significant seasonality detected"
                   )}
                 </p>
               </div>
               <div className="bg-gray-800 bg-opacity-50 rounded-lg p-4">
-                <h4 className="text-white font-semibold mb-2">Quality Metrics</h4>
+                <h4 className="text-white font-semibold mb-2">
+                  Quality Metrics
+                </h4>
                 <p className="text-gray-300 text-sm">
-                  Trend Strength: {(timeSeriesAnalysis.trend.r2 * 100).toFixed(1)}%<br />
-                  Residual Variation: {ss.standardDeviation(timeSeriesAnalysis.decomposition.residual).toFixed(2)}
+                  Trend Strength:{" "}
+                  {(timeSeriesAnalysis.trend.r2 * 100).toFixed(1)}%<br />
+                  Residual Variation:{" "}
+                  {ss
+                    .standardDeviation(
+                      timeSeriesAnalysis.decomposition.residual
+                    )
+                    .toFixed(2)}
                 </p>
               </div>
             </div>
@@ -797,17 +891,17 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
         )}
 
         {/* Chart */}
-        <div className="p-4 relative z-10">
-          {renderChart()}
-        </div>
+        <div className="p-4 relative z-10">{renderChart()}</div>
 
         {/* Data Controls */}
         <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
           <div className="flex flex-wrap gap-2 justify-center">
             <motion.button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'none' : 'asc')}
+              onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
               className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
-                sortOrder === 'asc' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                sortOrder === "asc"
+                  ? "bg-blue-600"
+                  : "bg-gray-700 hover:bg-gray-600"
               }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -816,9 +910,13 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
               <span>Sort Ascending</span>
             </motion.button>
             <motion.button
-              onClick={() => setSortOrder(sortOrder === 'desc' ? 'none' : 'desc')}
+              onClick={() =>
+                setSortOrder(sortOrder === "desc" ? "none" : "desc")
+              }
               className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
-                sortOrder === 'desc' ? 'bg-blue-600' : 'bg-gray-700 hover:bg-gray-600'
+                sortOrder === "desc"
+                  ? "bg-blue-600"
+                  : "bg-gray-700 hover:bg-gray-600"
               }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -835,11 +933,13 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
             {Object.keys(colorSchemes).map((scheme) => (
               <motion.button
                 key={scheme}
-                onClick={() => setColorScheme(scheme as keyof typeof colorSchemes)}
+                onClick={() =>
+                  setColorScheme(scheme as keyof typeof colorSchemes)
+                }
                 className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
                   colorScheme === scheme
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600'
-                    : 'bg-gray-700 hover:bg-gray-600'
+                    ? "bg-gradient-to-r from-blue-600 to-purple-600"
+                    : "bg-gray-700 hover:bg-gray-600"
                 }`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
@@ -855,15 +955,16 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
         <div className="p-4 bg-black bg-opacity-30 relative z-10">
           <div className="flex flex-wrap gap-2 justify-center">
             {Object.entries(chartComponents).map(([type, _]) => {
-              const Icon = chartIcons[type as keyof typeof chartIcons] || Activity;
+              const Icon =
+                chartIcons[type as keyof typeof chartIcons] || Activity;
               return (
                 <motion.button
                   key={type}
                   onClick={() => setChartType(type as ChartType)}
                   className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
                     chartType === type
-                      ? 'bg-gradient-to-r from-blue-600 to-purple-600'
-                      : 'bg-gray-700 hover:bg-gray-600'
+                      ? "bg-gradient-to-r from-blue-600 to-purple-600"
+                      : "bg-gray-700 hover:bg-gray-600"
                   }`}
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -871,13 +972,11 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
                   <Icon className="w-4 h-4" />
                   <span className="capitalize">{type}</span>
                 </motion.button>
-              )
+              );
             })}
           </div>
         </div>
       </motion.div>
     </motion.div>
-  )
+  );
 }
-
-

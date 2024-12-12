@@ -1,26 +1,26 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import { Upload } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { useState } from "react";
+import { Upload } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function FileUpload() {
-  const [file, setFile] = useState<File | null>(null)
+  const [file, setFile] = useState<File | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setFile(e.target.files[0])
+      setFile(e.target.files[0]);
     }
-  }
+  };
 
   const handleUpload = () => {
     if (file) {
       // Handle file upload logic here
-      console.log('Uploading file:', file.name)
+      console.log("Uploading file:", file.name);
     }
-  }
+  };
 
   return (
     <div className="space-y-4">
@@ -33,6 +33,5 @@ export default function FileUpload() {
         <Upload className="mr-2 h-4 w-4" /> Upload CSV
       </Button>
     </div>
-  )
+  );
 }
-
