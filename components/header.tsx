@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Link from "next/link";
 
 export default function Header() {
   return (
@@ -17,8 +18,11 @@ export default function Header() {
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2, duration: 0.5 }}
         >
-          AI Data Analyzer
+          Anilyst
         </motion.h1>
+      </div>
+      <div className="text-blue-500 my-auto mx-auto py-2 px-28 hover:underline">
+        <Link href="/main">back to home</Link>
       </div>
     </motion.header>
   );

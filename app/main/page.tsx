@@ -5,6 +5,7 @@ import Header from '@/components/header'
 import OutputDisplay from '@/components/output-display'
 import InputSection from '@/components/input-section'
 import { ChartData } from '@/types'
+import Link from 'next/link'
 
 export default function Home() {
   const [chartData, setChartData] = useState<ChartData | null>(null)
