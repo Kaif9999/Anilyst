@@ -22,7 +22,7 @@ export default function Header() {
         </motion.h1>
       </div>
       <div className="text-blue-500 my-auto mx-auto py-2 px-28 hover:underline">
-        <Link href="/main">back to home</Link>
+        <Link href="/">back to home</Link>
       </div>
     </motion.header>
   );

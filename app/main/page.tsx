@@ -5,7 +5,7 @@ import Header from '@/components/header'
 import OutputDisplay from '@/components/output-display'
 import InputSection from '@/components/input-section'
 import { ChartData } from '@/types'
-import Link from 'next/link'
+import StarryBackground from '@/components/starry-background'
 
 export default function Home() {
   const [chartData, setChartData] = useState<ChartData | null>(null)
@@ -15,8 +15,9 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen relative">
+    <div className="flex bg-black flex-col min-h-screen relative">
       <Header />
+      <StarryBackground />
       <main className="flex-grow container mx-auto px-4 py-8 flex flex-col space-y-8 relative z-10">
         <OutputDisplay chartData={chartData || { 
           labels: [], 
