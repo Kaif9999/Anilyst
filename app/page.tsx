@@ -42,7 +42,7 @@ export default function Home() {
       {/* Content */}
       <div className="relative z-20">
         {/* Navbar */}
-        <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[90%] py-10 max-w-7xl z-50">
+        <nav className="fixed top-4 left-1/2 -translate-x-1/2 w-[90%] py-10 max-w-5xl z-50">
           <div className="bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl">
             <div className="container mx-auto px-8 py-4">
               <div className="flex items-center justify-between">
