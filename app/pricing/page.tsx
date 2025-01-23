@@ -71,7 +71,7 @@ export default function PricingPage() {
       </div>
 
       {/* Navbar */}
-      <nav className="fixed py-8 top-0 md:top-4 left-1/2 -translate-x-1/2 w-[85%] md:w-[85%] max-w-7xl z-40">
+      <nav className="fixed py-8 top-0 md:top-2 left-1/2 -translate-x-1/2 w-[85%] md:w-[85%] max-w-7xl z-40">
         <div className="bg-black backdrop-blur-lg border border-white/20 rounded-2xl">
           <div className="container mx-auto px-4 md:px-8 py-4">
             <div className="flex items-center justify-between">
@@ -134,7 +134,7 @@ export default function PricingPage() {
           transition={{ duration: 0.8 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 text-white">Plans & Pricing</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-6 py-16 pb-4 text-white">Plans & Pricing</h1>
           <p className="text-xl text-gray-200 max-w-2xl mx-auto">
             Choose the perfect plan for your data analysis needs
           </p>
@@ -235,9 +235,10 @@ export default function PricingPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
+            // className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-90"
             className="relative rounded-2xl p-8 border border-white/20 bg-gradient-to-br from-purple-600/20 via-blue-600/20 to-pink-600/20 backdrop-blur-lg"
           >
-            <div className="absolute inset-0 rounded-2xl bg-white/5 backdrop-blur-sm -z-10"></div>
+            <div className="absolute inset-0 rounded-2xl opacity-80 bg-gradient-to-br from-purple-700 via-red-500 to-green-500 -z-10"></div>
             <h3 className="text-2xl font-bold text-white mb-4">Teams</h3>
             <p className="text-gray-300 mb-6">
               Small marketing teams who need to generate, create, and repurpose content
