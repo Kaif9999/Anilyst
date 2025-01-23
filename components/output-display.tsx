@@ -440,6 +440,7 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
       datasets: data.datasets.map((dataset) => {
         const baseDataset = {
           ...dataset,
+          type,
           borderWidth: 2,
           pointRadius: 4,
           pointHoverRadius: 6,
@@ -524,11 +525,13 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
   // Effect to run analytics when data changes
   useEffect(() => {
     if (chartData.datasets[0]?.data) {
-      const analyticsResult = performAnalytics(chartData.datasets[0].data);
+      const numericData = chartData.datasets[0].data.filter((d): d is number => typeof d === "number");
+      const analyticsResult = performAnalytics(numericData);
       if (analyticsResult) {
         setAnalytics(analyticsResult);
         setInsights(generateInsights(analyticsResult));
-        setTimeSeriesAnalysis(analyzeTimeSeries(chartData.datasets[0].data));
+        const numericData = chartData.datasets[0].data.filter((d): d is number => typeof d === "number");
+        setTimeSeriesAnalysis(analyzeTimeSeries(numericData));
       }
     }
   }, [chartData]);

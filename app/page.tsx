@@ -53,7 +53,7 @@ export default function Home() {
           </button>
           <div className="flex flex-col space-y-8 mt-16">
             <Link href="#features" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Features</Link>
-            <Link href="#pricing" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Pricing</Link>
+            <Link href="/pricing" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Pricing</Link>
             <Link href="#docs" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Docs</Link>
             <Link href="#blog" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Blog</Link>
             <div className="pt-8 border-t border-white/10">
@@ -86,7 +86,7 @@ export default function Home() {
                 {/* Navigation Links */}
                 <div className="hidden md:flex items-center space-x-10">
                   <Link href="#features" className="text-white/80 hover:text-white transition-colors">Features</Link>
-                  <Link href="#pricing" className="text-white/80 hover:text-white transition-colors">Pricing</Link>
+                  <Link href="/pricing" className="text-white/80 hover:text-white transition-colors">Pricing</Link>
                   <Link href="#docs" className="text-white/80 hover:text-white transition-colors">Docs</Link>
                   <Link href="#blog" className="text-white/80 hover:text-white transition-colors">Blog</Link>
                 </div>
