@@ -31,16 +31,16 @@ export default function Home() {
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
       {/* Animated gradient background */}
-      {/* <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-90" /> */}
+      {/* <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-80" /> */}
       
       {/* Enhanced glowing orbs */}
-      {/* <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[15%] left-[20%] w-96 h-96 bg-purple-600/30 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" />
-        <div className="absolute top-[45%] right-[20%] w-[30rem] h-[30rem] bg-pink-500/30 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-2000" />
-        <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/30 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
-        <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/30 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
-        <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/30 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
-      </div> */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[15%] left-[20%] w-96 h-96 bg-purple-600/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" />
+        <div className="absolute top-[45%] right-[20%] w-[30rem] h-[30rem] bg-pink-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-2000" />
+        <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
+        <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
+        <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
+      </div>
 
       {/* Mobile Menu */}
       <div className={`fixed inset-0 bg-black/90 backdrop-blur-lg z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:hidden`}>
