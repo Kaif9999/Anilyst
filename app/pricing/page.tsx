@@ -169,7 +169,7 @@ export default function PricingPage() {
                 }`}
               >
                 Yearly billing
-                <span className="block text-xs text-blue-400">Save 20%</span>
+                <span className="block text-xs md: text-blue-400">Save 20%,Save more Do more</span>
               </label>
             </div>
           </RadioGroup>
