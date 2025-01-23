@@ -78,46 +78,99 @@
   }
   body {
     @apply bg-background text-foreground;
+    scroll-behavior: smooth;
+  }
+  section {
+    scroll-snap-align: start;
   }
 }
 
 .background-animate {
-  background-size: 400%;
+  background-size: 400% 400%;
   animation: gradient 15s ease infinite;
+  background: linear-gradient(
+    130deg,
+    rgb(96, 0, 150) 0%,    /* Deep purple */
+    rgb(255, 0, 128) 25%,  /* Hot pink */
+    rgb(255, 94, 0) 50%,   /* Orange */
+    rgb(0, 180, 80) 75%,   /* Green */
+    rgb(0, 150, 255) 100%  /* Blue */
+  );
+  filter: saturate(120%) brightness(110%);
 }
 
 @keyframes gradient {
-  0%, 100% {
-    background-position: 0% 50%;
+  0% {
+    background-position: 0% 0%;
   }
   50% {
-    background-position: 100% 50%;
+    background-position: 100% 100%;
+  }
+  100% {
+    background-position: 0% 0%;
   }
 }
 
 @keyframes blob {
-  0% {
-    transform: translate(0px, 0px) scale(1);
+  0%, 100% {
+    transform: translate(0, 0) scale(1);
+    opacity: 0.7;
   }
-  33% {
-    transform: translate(30px, -50px) scale(1.1);
+  25% {
+    transform: translate(20px, -30px) scale(1.2);
+    opacity: 0.8;
   }
-  66% {
+  50% {
     transform: translate(-20px, 20px) scale(0.9);
+    opacity: 0.6;
   }
-  100% {
-    transform: translate(0px, 0px) scale(1);
+  75% {
+    transform: translate(30px, 30px) scale(1.1);
+    opacity: 0.7;
   }
 }
 
 .animate-blob {
-  animation: blob 7s infinite;
+  animation: blob 20s infinite cubic-bezier(0.4, 0, 0.2, 1);
+  filter: blur(30px);
 }
 
 .animation-delay-2000 {
   animation-delay: 2s;
 }
 
+.animation-delay-3000 {
+  animation-delay: 3s;
+}
+
 .animation-delay-4000 {
   animation-delay: 4s;
+}
+
+.animation-delay-5000 {
+  animation-delay: 5s;
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+* {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }

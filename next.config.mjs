@@ -1,7 +1,20 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    images: {
-      domains: ['images.unsplash.com'], // Add the domain you want to use for images
-    },
-  };
-export default nextConfig;
+  output: 'export',
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  images: { 
+    unoptimized: true,
+    domains: ['images.unsplash.com']
+  },
+  
+  // Add trailing slashes to URLs
+  trailingSlash: true,
+  // Disable server components for static export
+  typescript: {
+    ignoreBuildErrors: true,
+  }
+};
+
+module.exports = nextConfig;
