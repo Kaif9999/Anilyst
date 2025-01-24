@@ -32,7 +32,7 @@ export default function Home() {
     <div className="relative bg-black min-h-screen overflow-hidden">
       {/* Animated gradient background */}
       {/* <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-80" /> */}
-      
+
       {/* Enhanced glowing orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[15%] left-[20%] w-96 h-96 bg-purple-600/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" />
@@ -43,24 +43,54 @@ export default function Home() {
       </div>
 
       {/* Mobile Menu */}
-      <div className={`fixed inset-0 bg-black/90 backdrop-blur-lg z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:hidden`}>
+      <div
+        className={`fixed inset-0 bg-black/90 backdrop-blur-lg z-50 transition-transform duration-300 ${
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
+        } md:hidden`}
+      >
         <div className="p-6">
-          <button 
+          <button
             onClick={() => setIsMobileMenuOpen(false)}
             className="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-lg"
           >
             <X className="w-6 h-6" />
           </button>
           <div className="flex flex-col space-y-8 mt-16">
-            <Link href="#features" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Features</Link>
-            <Link href="/pricing" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Pricing</Link>
-            <Link href="#docs" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Docs</Link>
-            <Link href="#blog" className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors">Blog</Link>
+            <Link
+              href="#features"
+              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+            >
+              Features
+            </Link>
+            <Link
+              href="/pricing"
+              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+            >
+              Pricing
+            </Link>
+            <Link
+              href="#docs"
+              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+            >
+              Docs
+            </Link>
+            <Link
+              href="#blog"
+              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+            >
+              Blog
+            </Link>
             <div className="pt-8 border-t border-white/10">
-              <Link href="/login" className="block w-full py-3 text-center text-xl text-white hover:bg-white/10 rounded-lg mb-4">
+              <Link
+                href="/login"
+                className="block w-full py-3 text-center text-xl text-white hover:bg-white/10 rounded-lg mb-4"
+              >
                 Sign In
               </Link>
-              <Link href="/signup" className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-white/90 rounded-lg">
+              <Link
+                href="/signup"
+                className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-white/90 rounded-lg"
+              >
                 Get Started
               </Link>
             </div>
@@ -80,29 +110,57 @@ export default function Home() {
                   <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/20 flex items-center justify-center">
                     <Brain className="w-6 h-6 md:w-7 md:h-7 text-white" />
                   </div>
-                  <span className="text-xl md:text-2xl font-bold text-white">Anilyst</span>
+                  <span className="text-xl md:text-2xl font-bold text-white">
+                    Anilyst
+                  </span>
                 </Link>
 
                 {/* Navigation Links */}
                 <div className="hidden md:flex items-center space-x-10">
-                  <Link href="#features" className="text-white/80 hover:text-white transition-colors">Features</Link>
-                  <Link href="/pricing" className="text-white/80 hover:text-white transition-colors">Pricing</Link>
-                  <Link href="#docs" className="text-white/80 hover:text-white transition-colors">Docs</Link>
-                  <Link href="#blog" className="text-white/80 hover:text-white transition-colors">Blog</Link>
+                  <Link
+                    href="#features"
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    Features
+                  </Link>
+                  <Link
+                    href="/pricing"
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    Pricing
+                  </Link>
+                  <Link
+                    href="#docs"
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    Docs
+                  </Link>
+                  <Link
+                    href="#blog"
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    Blog
+                  </Link>
                 </div>
 
                 {/* CTA Buttons */}
                 <div className="hidden md:flex items-center space-x-6">
-                  <Link href="/login" className="px-5 py-2.5 text-white/80 hover:text-white transition-colors">
+                  <Link
+                    href="/login"
+                    className="px-5 py-2.5 text-white/80 hover:text-white transition-colors"
+                  >
                     Sign In
                   </Link>
-                  <Link href="/signup" className="px-5 py-2.5 bg-white text-gray-900 rounded-xl hover:bg-white/90 transition-colors">
+                  <Link
+                    href="/signup"
+                    className="px-5 py-2.5 bg-white text-gray-900 rounded-xl hover:bg-white/90 transition-colors"
+                  >
                     Get Started
                   </Link>
                 </div>
 
                 {/* Mobile Menu Button */}
-                <button 
+                <button
                   onClick={() => setIsMobileMenuOpen(true)}
                   className="md:hidden p-2.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
                 >
@@ -149,17 +207,20 @@ export default function Home() {
                   {
                     icon: <Cpu className="w-6 h-6" />,
                     title: "AI-Powered Analysis",
-                    description: "Advanced machine learning algorithms analyze your data in real-time",
+                    description:
+                      "Advanced machine learning algorithms analyze your data in real-time",
                   },
                   {
                     icon: <Terminal className="w-6 h-6" />,
                     title: "Natural Language",
-                    description: "Query your data using plain English, get instant insights",
+                    description:
+                      "Query your data using plain English, get instant insights",
                   },
                   {
                     icon: <GitBranch className="w-6 h-6" />,
                     title: "Version Control",
-                    description: "Track changes and collaborate with your team seamlessly",
+                    description:
+                      "Track changes and collaborate with your team seamlessly",
                   },
                   {
                     icon: <Code className="w-6 h-6" />,
@@ -173,7 +234,9 @@ export default function Home() {
                     whileHover={{ y: -5 }}
                   >
                     <div className="text-white mb-4">{feature.icon}</div>
-                    <h3 className="text-xl font-semibold text-white mb-2">{feature.title}</h3>
+                    <h3 className="text-xl font-semibold text-white mb-2">
+                      {feature.title}
+                    </h3>
                     <p className="text-gray-200">{feature.description}</p>
                   </motion.div>
                 ))}
@@ -189,8 +252,20 @@ export default function Home() {
               {/* Decorative Chart Shapes */}
               <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-32 h-32 border-4 border-purple-500/20 rounded-full" />
-                <div className="absolute top-40 right-20 w-48 h-48 border-4 border-green-500/20" style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }} />
-                <div className="absolute bottom-20 left-1/4 w-40 h-40 border-4 border-red-500/20" style={{ clipPath: 'path("M 0,10 L 10,0 L 90,0 L 100,10 L 100,90 L 90,100 L 10,100 L 0,90 Z")' }} />
+                <div
+                  className="absolute top-40 right-20 w-48 h-48 border-4 border-green-500/20"
+                  style={{
+                    clipPath:
+                      "polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)",
+                  }}
+                />
+                <div
+                  className="absolute bottom-20 left-1/4 w-40 h-40 border-4 border-red-500/20"
+                  style={{
+                    clipPath:
+                      'path("M 0,10 L 10,0 L 90,0 L 100,10 L 100,90 L 90,100 L 10,100 L 0,90 Z")',
+                  }}
+                />
                 <PieChart className="absolute top-1/4 right-1/3 w-24 h-24 text-blue-500/20" />
                 <BarChart2 className="absolute bottom-1/3 left-1/3 w-32 h-32 text-green-500/20" />
                 <LineChart className="absolute top-2/3 right-1/4 w-28 h-28 text-purple-500/20" />
@@ -206,7 +281,8 @@ export default function Home() {
                   Powerful Features for Data Analysis
                 </h2>
                 <p className="text-xl text-gray-200 max-w-2xl mx-auto px-4">
-                  Everything you need to analyze, visualize, and understand your data
+                  Everything you need to analyze, visualize, and understand your
+                  data
                 </p>
               </motion.div>
 
@@ -214,36 +290,42 @@ export default function Home() {
                 {[
                   {
                     title: "Data Processing",
-                    description: "Process large datasets efficiently with our distributed computing engine",
+                    description:
+                      "Process large datasets efficiently with our distributed computing engine",
                     features: [
                       "Automatic data cleaning and preprocessing",
                       "Support for multiple file formats",
                       "Real-time data streaming",
                       "Custom data transformations",
                     ],
-                    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop",
+                    image:
+                      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop",
                   },
                   {
                     title: "Visualization",
-                    description: "Create beautiful, interactive visualizations that tell your data's story",
+                    description:
+                      "Create beautiful, interactive visualizations that tell your data's story",
                     features: [
                       "Interactive dashboards",
                       "Custom chart types",
                       "Real-time updates",
                       "Export capabilities",
                     ],
-                    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop",
+                    image:
+                      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop",
                   },
                   {
                     title: "AI Integration",
-                    description: "Leverage advanced AI capabilities for deeper insights",
+                    description:
+                      "Leverage advanced AI capabilities for deeper insights",
                     features: [
                       "Predictive analytics",
                       "Anomaly detection",
                       "Pattern recognition",
                       "Automated reporting",
                     ],
-                    image: "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop",
+                    image:
+                      "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop",
                   },
                 ].map((section, index) => (
                   <motion.div
@@ -261,11 +343,18 @@ export default function Home() {
                       className="w-full object-cover h-48"
                     />
                     <div className="p-6 md:p-8">
-                      <h3 className="text-2xl font-bold text-white mb-4">{section.title}</h3>
-                      <p className="text-gray-300 mb-6">{section.description}</p>
+                      <h3 className="text-2xl font-bold text-white mb-4">
+                        {section.title}
+                      </h3>
+                      <p className="text-gray-300 mb-6">
+                        {section.description}
+                      </p>
                       <ul className="space-y-3">
                         {section.features.map((feature, i) => (
-                          <li key={i} className="flex items-center text-gray-200">
+                          <li
+                            key={i}
+                            className="flex items-center text-gray-200"
+                          >
                             <ChevronRight className="w-5 h-5 text-blue-400 mr-2 flex-shrink-0" />
                             <span>{feature}</span>
                           </li>
@@ -306,26 +395,28 @@ export default function Home() {
               >
                 <div className="flex items-center gap-3 mb-8">
                   <Brain className="w-8 h-8 text-purple-400" />
-                  <h3 className="text-3xl font-bold text-purple-300">What We Offer</h3>
+                  <h3 className="text-3xl font-bold text-purple-300">
+                    What We Offer
+                  </h3>
                 </div>
                 <div className="space-y-4">
                   {[
                     {
                       icon: <BarChart2 className="w-6 h-6" />,
-                      text: "Advanced AI-powered data analysis"
+                      text: "Advanced AI-powered data analysis",
                     },
                     {
                       icon: <Clock className="w-6 h-6" />,
-                      text: "Instant insights from your CSV files"
+                      text: "Instant insights from your CSV files",
                     },
                     {
                       icon: <LineChart className="w-6 h-6" />,
-                      text: "Beautiful and interactive data visualizations"
+                      text: "Beautiful and interactive data visualizations",
                     },
                     {
                       icon: <Sparkles className="w-6 h-6" />,
-                      text: "Natural language querying of your data"
-                    }
+                      text: "Natural language querying of your data",
+                    },
                   ].map((item, index) => (
                     <div
                       key={index}
@@ -347,30 +438,32 @@ export default function Home() {
               >
                 <div className="flex items-center gap-3 mb-8">
                   <ArrowRight className="w-8 h-8 text-blue-400" />
-                  <h3 className="text-3xl font-bold text-blue-300">How It Works</h3>
+                  <h3 className="text-3xl font-bold text-blue-300">
+                    How It Works
+                  </h3>
                 </div>
                 <div className="space-y-4">
                   {[
                     {
                       number: "1",
-                      text: "Upload your CSV file"
+                      text: "Upload your CSV file",
                     },
                     {
                       number: "2",
-                      text: "Ask questions about your data in plain English"
+                      text: "Ask questions about your data in plain English",
                     },
                     {
                       number: "3",
-                      text: "Our AI analyzes your data and generates insights"
+                      text: "Our AI analyzes your data and generates insights",
                     },
                     {
                       number: "4",
-                      text: "View the results with interactive charts and graphs"
+                      text: "View the results with interactive charts and graphs",
                     },
                     {
                       number: "5",
-                      text: "Export or share your findings easily"
-                    }
+                      text: "Export or share your findings easily",
+                    },
                   ].map((step, index) => (
                     <div
                       key={index}
@@ -401,8 +494,8 @@ export default function Home() {
                 Ready to Transform Your Data Analysis?
               </h2>
               <p className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto px-4">
-                Join thousands of data scientists and analysts who have already discovered
-                the power of AI-driven analysis.
+                Join thousands of data scientists and analysts who have already
+                discovered the power of AI-driven analysis.
               </p>
               <Link href="/main">
                 <button className="px-8 py-4 bg-white text-gray-900 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center gap-2">
@@ -420,38 +513,93 @@ export default function Home() {
               <div>
                 <h3 className="text-white font-bold text-lg mb-4">Anilyst</h3>
                 <p className="text-gray-400">
-                  Advanced AI-powered data analysis platform for modern businesses.
+                  Advanced AI-powered data analysis platform for modern
+                  businesses.
                 </p>
               </div>
               <div>
                 <h4 className="text-white font-bold mb-4">Product</h4>
                 <ul className="space-y-2">
-                  <li><Link href="#" className="text-gray-400 hover:text-white transition-colors">Features</Link></li>
-                  <li><Link href="#" className="text-gray-400 hover:text-white transition-colors">Pricing</Link></li>
-                  <li><Link href="#" className="text-gray-400 hover:text-white transition-colors">Documentation</Link></li>
+                  <li>
+                    <Link
+                      href="#"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      Features
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="#"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      Pricing
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="#"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      Documentation
+                    </Link>
+                  </li>
                 </ul>
               </div>
               <div>
                 <h4 className="text-white font-bold mb-4">Company</h4>
                 <ul className="space-y-2">
-                  <li><Link href="#" className="text-gray-400 hover:text-white transition-colors">About</Link></li>
-                  <li><Link href="#" className="text-gray-400 hover:text-white transition-colors">Blog</Link></li>
-                  <li><Link href="#" className="text-gray-400 hover:text-white transition-colors">Careers</Link></li>
+                  <li>
+                    <Link
+                      href="#"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      About
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="#"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      Blog
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      href="#"
+                      className="text-gray-400 hover:text-white transition-colors"
+                    >
+                      Careers
+                    </Link>
+                  </li>
                 </ul>
               </div>
               <div>
                 <h4 className="text-white font-bold mb-4">Connect</h4>
                 <div className="flex space-x-4">
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <Link
+                    href="#"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
                     <Github className="w-5 h-5" />
                   </Link>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <Link
+                    href="#"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
                     <Twitter className="w-5 h-5" />
                   </Link>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <Link
+                    href="#"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
                     <Linkedin className="w-5 h-5" />
                   </Link>
-                  <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                  <Link
+                    href="#"
+                    className="text-gray-400 hover:text-white transition-colors"
+                  >
                     <Mail className="w-5 h-5" />
                   </Link>
                 </div>
