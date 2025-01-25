@@ -3,7 +3,9 @@
 import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { signIn, signOut, getSession, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   BarChart2,
@@ -26,7 +28,15 @@ import {
 } from "lucide-react";
 
 export default function Home() {
+  // const { data: session } = useSession();
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // useEffect(() => {
+  //   if (session) {
+  //     router.push("/main");
+  //   }
+  // },[session, router]);
 
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
@@ -81,12 +91,13 @@ export default function Home() {
               Blog
             </Link>
             <div className="pt-8 border-t border-white/10">
-              <Link
-                href="/login"
+              <button
+              onClick={()=> signIn("google", {callbackUrl:"/main"})}
+    
                 className="block w-full py-3 text-center text-xl text-white hover:bg-white/10 rounded-lg mb-4"
               >
                 Sign In
-              </Link>
+              </button>
               <Link
                 href="/signup"
                 className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-white/90 rounded-lg"
@@ -145,12 +156,12 @@ export default function Home() {
 
                 {/* CTA Buttons */}
                 <div className="hidden md:flex items-center space-x-6">
-                  <Link
-                    href="/login"
+                  <button
+                    onClick={()=> signIn("google", {callbackUrl:"/main"})}
                     className="px-5 py-2.5 text-white/80 hover:text-white transition-colors"
                   >
                     Sign In
-                  </Link>
+                  </button>
                   <Link
                     href="/signup"
                     className="px-5 py-2.5 bg-white text-gray-900 rounded-xl hover:bg-white/90 transition-colors"
