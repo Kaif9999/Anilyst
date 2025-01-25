@@ -29,7 +29,7 @@ import {
 
 export default function Home() {
   // const { data: session } = useSession();
-  const router = useRouter();
+  // const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // useEffect(() => {
