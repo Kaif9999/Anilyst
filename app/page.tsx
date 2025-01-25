@@ -41,7 +41,7 @@ export default function Home() {
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
       {/* Animated gradient background */}
-      {/* <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-80" /> */}
+      <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-80" />
 
       {/* Enhanced glowing orbs */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
