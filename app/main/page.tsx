@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { useState } from 'react'
 import Header from '@/components/header'
@@ -6,9 +6,10 @@ import OutputDisplay from '@/components/output-display'
 import InputSection from '@/components/input-section'
 import { ChartData } from '@/types'
 import StarryBackground from '@/components/starry-background'
-import { signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { signOut } from "next-auth/react";
+// import { useRouter } from "next/navigation";
+// import { useEffect } from "react";
+
 
 export default function Home() {
   const [chartData, setChartData] = useState<ChartData | null>(null)
@@ -17,19 +18,7 @@ export default function Home() {
     setChartData(newChartData)
   }
 
-  const { data: session, status } = useSession();
-  const router = useRouter();
 
-  // Redirect to the landing page if not logged in
-  useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/");
-    }
-  }, [status, router]);
-
-  if (status === "loading") {
-    return <div>Loading...</div>;
-  }
 
   return (
     <div className="flex bg-black flex-col min-h-screen relative">
