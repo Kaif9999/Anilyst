@@ -31,6 +31,16 @@ export default function Home() {
   // const { data: session } = useSession();
   // const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // useEffect(() => {
   //   if (session) {
@@ -112,7 +122,9 @@ export default function Home() {
       {/* Content */}
       <div className="relative z-20">
         {/* Navbar */}
-        <nav className="fixed py-8 top-0 md:top-2 left-1/2 -translate-x-1/2 w-[85%] md:w-[85%] max-w-7xl z-40">
+        <nav className={`fixed py-8 top-0 left-1/2 -translate-x-1/2 w-[85%] md:w-[85%] max-w-7xl z-50 transition-all duration-300 ${
+        isScrolled ? 'py-2 scale-95 opacity-90 hover:opacity-100' : 'md:top-2'
+      }`}>
           <div className="bg-black backdrop-blur-lg border border-white/20 rounded-2xl">
             <div className="container mx-auto px-4 md:px-8 py-4">
               <div className="flex items-center justify-between">
