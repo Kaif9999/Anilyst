@@ -6,7 +6,7 @@ import OutputDisplay from '@/components/output-display'
 import InputSection from '@/components/input-section'
 import { ChartData } from '@/types'
 import StarryBackground from '@/components/starry-background'
-import { LogOut, Brain, Menu, X, ArrowDown, BarChart2 } from 'lucide-react'
+import { LogOut, Brain, Menu, X, ArrowDown, BarChart2, Send } from 'lucide-react'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
 import { signOut } from "next-auth/react"
@@ -165,12 +165,39 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.2 }}
-              className="max-w-6xl mx-auto"
+              className="max-w-6xl mx-auto space-y-6"
             >
+              {/* CSV Upload Section */}
               <div className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 p-8">
                 <h2 className="text-2xl font-bold text-white mb-6">Upload Data can be .csv file</h2>
                 <InputSection onResultReceived={handleChartData} />
               </div>
+
+              {/* Question Input Section */}
+              {chartData && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 p-8"
+                >
+                  <h2 className="text-2xl font-bold text-white mb-6">Ask Questions About Your Data</h2>
+                  <form onSubmit={(e) => e.preventDefault()} className="space-y-4">
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Ask a question about your data..."
+                        className="w-full bg-black/50 text-white placeholder-gray-400 rounded-xl px-4 py-3 border border-white/10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-all"
+                      />
+                      <button 
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors"
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </form>
+                </motion.div>
+              )}
             </motion.div>
           </div>
         </section>
