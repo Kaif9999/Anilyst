@@ -120,7 +120,7 @@ export default function Home() {
               </p>
             </motion.div>
 
-            {/* Visualization Section - Now Above */}
+            {/* Visualization Section */}
             <div className="mb-16">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -131,10 +131,23 @@ export default function Home() {
                 {chartData ? (
                   <div className="space-y-8">
                     {/* Main Chart */}
-                    <div className="aspect-[16/9] w-full bg-black rounded-2xl p-4">
-                      <OutputDisplay 
-                        chartData={chartData} 
-                      />
+                    <div className="w-full bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6">
+                      <div className="h-[600px] w-full">
+                        <OutputDisplay 
+                          chartData={{
+                            ...chartData,
+                            datasets: chartData.datasets.map((dataset, datasetIndex) => ({
+                              ...dataset,
+                              backgroundColor: `hsla(${datasetIndex * 60}, 70%, 60%, 0.8)`,
+                              borderColor: `hsl(${datasetIndex * 60}, 70%, 60%)`,
+                              borderWidth: 2,
+                              hoverBackgroundColor: `hsla(${datasetIndex * 60}, 70%, 70%, 0.9)`,
+                              hoverBorderColor: `hsl(${datasetIndex * 60}, 70%, 70%)`,
+                              hoverBorderWidth: 3,
+                            }))
+                          }} 
+                        />
+                      </div>
                     </div>
 
                     {/* Stats Grid */}

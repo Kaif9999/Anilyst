@@ -5,7 +5,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { signIn, signOut, getSession, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import {
   ChevronRight,
   BarChart2,
@@ -28,8 +27,6 @@ import {
 } from "lucide-react";
 
 export default function Home() {
-  // const { data: session } = useSession();
-  // const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
 
@@ -42,11 +39,6 @@ export default function Home() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // useEffect(() => {
-  //   if (session) {
-  //     router.push("/main");
-  //   }
-  // },[session, router]);
 
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
@@ -59,7 +51,8 @@ export default function Home() {
         <div className="absolute top-[45%] right-[20%] w-[30rem] h-[30rem] bg-pink-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-2000" />
         <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
         <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
-        <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
+        <div className="absolute bottom-[45%] left-[15%] w-[32rem] h-[32rem] bg-red-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
+        <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-6000" />
       </div>
 
       {/* Mobile Menu */}
@@ -123,7 +116,7 @@ export default function Home() {
       <div className="relative z-20">
         {/* Navbar */}
         <nav className={`fixed py-8 top-0 left-1/2 -translate-x-1/2 w-[85%] md:w-[85%] max-w-7xl z-50 transition-all duration-300 ${
-        isScrolled ? 'py-2 scale-95 opacity-90 hover:opacity-100' : 'md:top-2'
+        isScrolled ? 'py-2 scale-95 hover:opacity-100' : 'md:top-2'
       }`}>
           <div className="bg-black backdrop-blur-lg border border-white/20 rounded-2xl">
             <div className="container mx-auto px-4 md:px-8 py-4">
