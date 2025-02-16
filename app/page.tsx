@@ -25,6 +25,8 @@ import {
   Clock,
   X,
 } from "lucide-react";
+import Navbar from "@/components/Navbar";
+import Footer from "@/components/Footer";
 
 export default function Home() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -55,137 +57,10 @@ export default function Home() {
         <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
       </div>
 
-      {/* Mobile Menu */}
-      <div
-        className={`fixed inset-0 bg-black/90 backdrop-blur-lg z-50 transition-transform duration-300 ${
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"
-        } md:hidden`}
-      >
-        <div className="p-6">
-          <button
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-lg"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <div className="flex flex-col space-y-8 mt-16">
-            <Link
-              href="#features"
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
-            >
-              Features
-            </Link>
-            <Link
-              href="/pricing"
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
-            >
-              Pricing
-            </Link>
-            <Link
-              href="#docs"
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
-            >
-              Docs
-            </Link>
-            <Link
-              href="#blog"
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
-            >
-              Blog
-            </Link>
-            <div className="pt-8 border-t border-white/10">
-              <button
-              onClick={()=> signIn("google", {callbackUrl:"/main"})}
-    
-                className="block w-full py-3 text-center text-xl text-white hover:bg-white/10 rounded-lg mb-4"
-              >
-                Sign In
-              </button>
-              <Link
-                href="/signup"
-                className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-white/90 rounded-lg"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-
+      <Navbar />
       {/* Content */}
-      <div className="relative z-20">
-        {/* Navbar */}
-        <nav className={`fixed py-8 top-0 left-1/2 -translate-x-1/2 w-[85%] md:w-[85%] max-w-7xl z-50 transition-all duration-300 ${
-        isScrolled ? 'py-2 scale-95 hover:opacity-100' : 'md:top-2'
-      }`}>
-          <div className="bg-black backdrop-blur-lg border border-white/20 rounded-2xl">
-            <div className="container mx-auto px-4 md:px-8 py-4">
-              <div className="flex items-center justify-between">
-                {/* Logo Area */}
-                <Link href="/" className="flex items-center space-x-3">
-                  <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                    <Brain className="w-6 h-6 md:w-7 md:h-7 text-white" />
-                  </div>
-                  <span className="text-xl md:text-2xl font-bold text-white">
-                    Anilyst
-                  </span>
-                </Link>
+      <div className="relative z-100">
 
-                {/* Navigation Links */}
-                <div className="hidden md:flex items-center space-x-10">
-                  <Link
-                    href="#features"
-                    className="text-white/80 hover:text-white transition-colors"
-                  >
-                    Features
-                  </Link>
-                  <Link
-                    href="/pricing"
-                    className="text-white/80 hover:text-white transition-colors"
-                  >
-                    Pricing
-                  </Link>
-                  <Link
-                    href="#docs"
-                    className="text-white/80 hover:text-white transition-colors"
-                  >
-                    Docs
-                  </Link>
-                  <Link
-                    href="#blog"
-                    className="text-white/80 hover:text-white transition-colors"
-                  >
-                    Blog
-                  </Link>
-                </div>
-
-                {/* CTA Buttons */}
-                <div className="hidden md:flex items-center space-x-6">
-                  <button
-                    onClick={()=> signIn("google", {callbackUrl:"/main"})}
-                    className="px-5 py-2.5 text-white/80 hover:text-white transition-colors"
-                  >
-                    Sign In
-                  </button>
-                  <Link
-                    href="/signup"
-                    className="px-5 py-2.5 bg-white text-gray-900 rounded-xl hover:bg-white/90 transition-colors"
-                  >
-                    Get Started
-                  </Link>
-                </div>
-
-                {/* Mobile Menu Button */}
-                <button
-                  onClick={() => setIsMobileMenuOpen(true)}
-                  className="md:hidden p-2.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-                >
-                  <Menu className="w-6 h-6 text-white" />
-                </button>
-              </div>
-            </div>
-          </div>
-        </nav>
 
         {/* Hero Section */}
         <section className="min-h-screen py-10 flex items-center justify-center">
@@ -521,113 +396,7 @@ export default function Home() {
             </motion.div>
           </div>
         </section>
-
-        {/* Footer */}
-        <footer className="bg-black border-t border-white/10">
-          <div className="container mx-auto px-4 py-12">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-              <div>
-                <h3 className="text-white font-bold text-lg mb-4">Anilyst</h3>
-                <p className="text-gray-400">
-                  Advanced AI-powered data analysis platform for modern
-                  businesses.
-                </p>
-              </div>
-              <div>
-                <h4 className="text-white font-bold mb-4">Product</h4>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      href="#"
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      Features
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="#"
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      Pricing
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="#"
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      Documentation
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-white font-bold mb-4">Company</h4>
-                <ul className="space-y-2">
-                  <li>
-                    <Link
-                      href="#"
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      About
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="#"
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      Blog
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      href="#"
-                      className="text-gray-400 hover:text-white transition-colors"
-                    >
-                      Careers
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div>
-                <h4 className="text-white font-bold mb-4">Connect</h4>
-                <div className="flex space-x-4">
-                  <Link
-                    href="#"
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    <Github className="w-5 h-5" />
-                  </Link>
-                  <Link
-                    href="#"
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    <Twitter className="w-5 h-5" />
-                  </Link>
-                  <Link
-                    href="#"
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    <Linkedin className="w-5 h-5" />
-                  </Link>
-                  <Link
-                    href="#"
-                    className="text-gray-400 hover:text-white transition-colors"
-                  >
-                    <Mail className="w-5 h-5" />
-                  </Link>
-                </div>
-              </div>
-            </div>
-            <div className="border-t border-white/10 pt-8">
-              <p className="text-center text-gray-400 text-sm">
-                © {new Date().getFullYear()} Anilyst. All rights reserved.
-              </p>
-            </div>
-          </div>
-        </footer>
+        <Footer />
       </div>
     </div>
   );
