@@ -11,7 +11,6 @@ import Footer from "./Footer"
 export default function Pricing() {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
   
-  // Calculate prices based on billing interval
   const getPrice = (basePrice: number) => {
     return billingInterval === "yearly" ? basePrice * 0.8 : basePrice
   }
