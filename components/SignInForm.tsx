@@ -1,6 +1,9 @@
+"use client";
+
 import { signIn } from "next-auth/react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FcGoogle } from "react-icons/fc";
 
 export default function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -34,6 +37,35 @@ export default function SignInForm() {
       }
     } catch (error) {
       setError("An error occurred during sign in");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsLoading(true);
+      const result = await signIn("google", {
+        callbackUrl: "/main",
+        redirect: false,
+      });
+
+      if (result?.error === "OAuthAccountNotLinked") {
+        setError("This email is already associated with a different sign-in method. Please use your original sign-in method.");
+        return;
+      }
+
+      if (result?.error) {
+        setError("Failed to sign in with Google");
+        return;
+      }
+
+      if (result?.ok) {
+        router.push("/main");
+        router.refresh();
+      }
+    } catch (error) {
+      setError("An error occurred during Google sign in");
     } finally {
       setIsLoading(false);
     }
@@ -83,10 +115,13 @@ export default function SignInForm() {
       
       <button
         type="button"
-        onClick={() => signIn("google", { callbackUrl: "/main" })}
-        className="w-full py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors"
+        onClick={handleGoogleSignIn}
+        disabled={isLoading}
+        className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/10 
+          hover:bg-white/20 text-white rounded-lg transition-colors"
       >
-        Sign in with Google
+        <FcGoogle className="w-5 h-5" />
+        {isLoading ? "Signing in..." : "Sign in with Google"}
       </button>
     </form>
   );

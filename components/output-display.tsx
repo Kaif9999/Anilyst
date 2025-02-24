@@ -515,9 +515,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     return (
       <Component
         key={`${currentType}-${colorScheme}-${sortOrder}`}
-        data={preparedData}
-        options={chartOptions}
-        ref={chartRef}
+        data={preparedData as any}
+        options={chartOptions as any}
+        ref={chartRef as any}
       />
     );
   };

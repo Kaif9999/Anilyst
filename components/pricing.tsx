@@ -126,8 +126,8 @@ export default function Pricing() {
               <p className="font-medium text-white">For students and hobbyists</p>
               <ul className="space-y-3 text-gray-300">
                 {[
-                  { feature: "10 Free Visualizations per day", available: true },
-                  { feature: "1 Analysis per day", available: true },
+                  { feature: "1 Free Visualizations per day", available: true },
+                  { feature: "4 Free Analyses per day", available: true },
                   { feature: "Advanced Features", available: false },
                   { feature: "Customization", available: false },
                   { feature: "Support", available: false },
@@ -190,25 +190,28 @@ export default function Pricing() {
                 </motion.div>
                 <div className="text-gray-300">
                   {billingInterval === "yearly" ? (
-                    <span className="text-green-400">$96/year (Save $24)</span>
+                    <>
+                      <span className="text-green-400">$96/year (Save 20%)</span>
+                      <span className="block text-sm text-gray-400 mt-1">Billed yearly</span>
+                    </>
                   ) : (
                     "Billed monthly"
                   )}
                 </div>
               </div>
               <button className="w-full py-3 px-4 rounded-xl bg-white text-black hover:bg-white/90 transition-colors mb-8">
-                Start Your 7-Day Free Trial
+                Upgrade to Pro
               </button>
               <div className="space-y-4">
                 <p className="font-medium text-white">Everything in Free, plus:</p>
                 <ul className="space-y-3 text-gray-300">
                   {[
                     "Unlimited Visualizations",
-                    "100 Analyses per day",
+                    "Unlimited Analyses per day",
                     "Priority Support",
                     "Beta Access",
                     "Data Export",
-                    "Customizable Dashboards"
+                  
                   ].map((feature, i) => (
                     <li key={i} className="flex items-center gap-3">
                       <Check className="w-5 h-5 text-blue-400" />
@@ -220,16 +223,16 @@ export default function Pricing() {
             </div>
           </motion.div>
 
-          {/* Pro +  Plan */}
+          {/* Lifetime Plan */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
             className="relative bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
           >
-            <h3 className="text-2xl font-bold text-white mb-4">Pro +</h3>
+            <h3 className="text-2xl font-bold text-white mb-4">Lifetime</h3>
             <p className="text-gray-300 mb-6">
-              Large Businesses and Enterprises, Data Scientists and Analysts
+              Buy once, use forever
             </p>
             <div className="mb-6">
               <motion.div 
@@ -242,24 +245,20 @@ export default function Pricing() {
                 transition={{ duration: 0.3 }}
                 key={billingInterval}
               >
-                ${getPrice(20)}
+                $149
                 <span className="text-lg font-normal text-gray-400">
-                  /{billingInterval === "yearly" ? "mo" : "mo"}
+                  /lifetime
                 </span>
               </motion.div>
               <div className="text-gray-300">
-                {billingInterval === "yearly" ? (
-                  <span className="text-green-400">$192/year (Save $48)</span>
-                ) : (
-                  "Billed monthly"
-                )}
+                One-time payment
               </div>
             </div>
             <button className="w-full py-3 px-4 rounded-xl bg-white text-black border border-white/20 hover:bg-white/90 transition-colors mb-8">
-              Start Your 7-Day Free Trial
+              Get Lifetime Access
             </button>
             <div className="space-y-4">
-              <p className="font-medium text-white">Everything in Pro, plus:</p>
+              <p className="font-medium text-white">Everything in Pro, for lifetime:</p>
               <ul className="space-y-3 text-gray-300">
                 {[
                   "Unlimited Visualizations",
@@ -267,8 +266,10 @@ export default function Pricing() {
                   "Priority Support",
                   "Beta Access",
                   "Data Export",
-                  "Customizable Dashboards",
-                  
+                  "Lifetime Updates",
+                  "Priority Support",
+                  "Dedicated Account Manager",
+                  "Enterprise-grade Security",
                 ].map((feature, i) => (
                   <li key={i} className="flex items-center gap-3">
                     <Check className="w-5 h-5 text-yellow-400" />

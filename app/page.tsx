@@ -4,7 +4,6 @@ import { motion } from "framer-motion";
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { signIn, signOut, getSession, useSession } from "next-auth/react";
 import {
   ChevronRight,
   BarChart2,
@@ -17,20 +16,14 @@ import {
   Cpu,
   GitBranch,
   Terminal,
-  Github,
-  Twitter,
-  Linkedin,
-  Mail,
-  Menu,
   Clock,
-  X,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 
 export default function Home() {
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,7 +33,6 @@ export default function Home() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
 
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
