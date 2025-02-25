@@ -67,7 +67,7 @@ export default function WaitlistForm() {
   }
 
   return (
-    <main className="relative min-h-screen bg-black overflow-hidden">
+    <main className="relative min-h-screen bg-black overflow-x-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -82,11 +82,11 @@ export default function WaitlistForm() {
         <div className="absolute bottom-[15%] left-[35%] w-64 md:w-[28rem] h-64 md:h-[28rem] bg-blue-500/30 rounded-full mix-blend-overlay filter blur-3xl opacity-50 animate-blob animation-delay-4000" />
       </div>
       
-      {/* Content */}
-      <div className="relative z-10 container mx-auto px-4 h-screen flex items-center justify-center">
-        <article className="w-full max-w-3xl backdrop-blur-xl bg-black/30 p-6 md:p-8 rounded-3xl border border-white/10">
+      {/* Content - Updated padding and height */}
+      <div className="relative z-10 container mx-auto px-4 py-8 md:py-0 min-h-screen flex items-center justify-center">
+        <article className="w-full max-w-3xl backdrop-blur-xl bg-black/30 p-4 md:p-8 rounded-3xl border border-white/10 my-4 md:my-0">
           <motion.div 
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/20 mb-6"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-purple-500/20 to-pink-500/20 border border-purple-500/20 mb-4 md:mb-6"
             whileHover={{ scale: 1.05 }}
             transition={{ type: "spring", stiffness: 400, damping: 10 }}
           >
@@ -98,7 +98,7 @@ export default function WaitlistForm() {
 
           <header>
             <h1 
-              className="text-3xl md:text-5xl font-bold mb-4 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent"
+              className="text-2xl md:text-5xl font-bold mb-3 md:mb-4 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
@@ -110,7 +110,7 @@ export default function WaitlistForm() {
           </header>
           
           <motion.p 
-            className="text-base md:text-lg text-gray-300/90 mb-8 max-w-2xl mx-auto"
+            className="text-sm md:text-lg text-gray-300/90 mb-6 md:mb-8 max-w-2xl mx-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
@@ -121,7 +121,7 @@ export default function WaitlistForm() {
           {!submitted ? (
             <motion.form 
               onSubmit={handleSubmit}
-              className="flex flex-col sm:flex-row gap-3 w-full max-w-md mx-auto mb-8"
+              className="flex flex-col sm:flex-row gap-2 md:gap-3 w-full max-w-md mx-auto mb-6 md:mb-8"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
@@ -177,7 +177,7 @@ export default function WaitlistForm() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center"
+            className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 text-center"
           >
             {[
               {
@@ -205,18 +205,18 @@ export default function WaitlistForm() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.6 + i * 0.1 }}
                 whileHover={{ scale: 1.05, transition: { type: "spring", stiffness: 400, damping: 10 } }}
-                className={`p-4 rounded-2xl bg-gradient-to-b ${benefit.gradient} border border-white/10 backdrop-blur-sm hover:border-purple-500/30 transition-all duration-300 hover:shadow-[0_0_30px_-12px_rgba(255,255,255,0.2)]`}
+                className={`p-3 md:p-4 rounded-2xl bg-gradient-to-b ${benefit.gradient} border border-white/10 backdrop-blur-sm hover:border-purple-500/30 transition-all duration-300 hover:shadow-[0_0_30px_-12px_rgba(255,255,255,0.2)]`}
               >
                 <motion.div 
-                  className="text-2xl mb-2"
+                  className="text-xl md:text-2xl mb-1 md:mb-2"
                   initial={{ scale: 1 }}
                   whileHover={{ scale: 1.2 }}
                   transition={{ type: "spring", stiffness: 400, damping: 10 }}
                 >
                   {benefit.icon}
                 </motion.div>
-                <h3 className="text-base font-semibold text-white mb-1">{benefit.title}</h3>
-                <p className="text-sm text-gray-400">{benefit.description}</p>
+                <h3 className="text-sm md:text-base font-semibold text-white mb-0.5 md:mb-1">{benefit.title}</h3>
+                <p className="text-xs md:text-sm text-gray-400">{benefit.description}</p>
               </motion.div>
             ))}
           </motion.div>
