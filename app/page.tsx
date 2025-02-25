@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import WaitlistForm from "@/components/WaitlistForm";
 
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -35,27 +36,29 @@ export default function Home() {
   }, []);
 
   return (
-    <div className="relative bg-black min-h-screen overflow-hidden">
+    <>
+   {/* <div className="relative bg-black min-h-screen overflow-hidden"> */}
       {/* Animated gradient background */}
       {/* <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-80" /> */}
 
       {/* Enhanced glowing orbs */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      {/* <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[15%] left-[20%] w-96 h-96 bg-purple-600/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" />
         <div className="absolute top-[45%] right-[20%] w-[30rem] h-[30rem] bg-pink-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-2000" />
         <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
         <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
-        {/* <div className="absolute bottom-[45%] left-[15%] w-[32rem] h-[32rem] bg-red-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" /> */}
+        
         <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
-      </div>
+      </div> */}
 
-      <Navbar />
+      {/* <Navbar /> */}
+      <WaitlistForm />
       {/* Content */}
-      <div className="relative z-100">
+      {/* <div className="relative z-100"> */}
 
 
         {/* Hero Section */}
-        <section className="min-h-screen py-10 flex items-center justify-center">
+        {/* <section className="min-h-screen py-10 flex items-center justify-center">
           <div className="container mx-auto px-4 pt-32 pb-20">
             <motion.div
               className="text-center"
@@ -76,10 +79,10 @@ export default function Home() {
                   Launch Analyzer <ArrowRight className="w-5 h-5" />
                 </button>
               </Link>
-            </motion.div>
+            </motion.div> */}
 
             {/* Main Features */}
-            <motion.div
+            {/* <motion.div
               className="mt-20"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -126,14 +129,14 @@ export default function Home() {
               </div>
             </motion.div>
           </div>
-        </section>
+        </section> */}
 
         {/* Features Section */}
-        <section className="min-h-screen flex items-center bg-black py-32">
+        {/* <section className="min-h-screen flex items-center bg-black py-32">
           <div className="container mx-auto px-4">
-            <div className="relative">
+            <div className="relative"> */}
               {/* Decorative Chart Shapes */}
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              {/* <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-32 h-32 border-4 border-purple-500/20 rounded-full" />
                 <div
                   className="absolute top-40 right-20 w-48 h-48 border-4 border-green-500/20"
@@ -249,10 +252,10 @@ export default function Home() {
               </div>
             </div>
           </div>
-        </section>
+        </section> */}
 
         {/* How It Works Section */}
-        <section className="min-h-screen flex items-center bg-black py-6">
+        {/* <section className="min-h-screen flex items-center bg-black py-6">
           <div className="container mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -270,7 +273,7 @@ export default function Home() {
 
             <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
               {/* What We Offer */}
-              <motion.div
+              {/* <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6 }}
@@ -310,10 +313,10 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              </motion.div>
+              </motion.div> */}
 
               {/* How It Works Steps */}
-              <motion.div
+              {/* <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.8 }}
@@ -361,35 +364,38 @@ export default function Home() {
                 </div>
               </motion.div>
             </div>
-          </div>
-        </section>
+          </div> */}
+        {/* </div>
+      </div>  */}
+      {/* </section> */}
 
-        {/* Call to Action */}
-        <section className="min-h-[70vh] flex items-center bg-black">
-          <div className="container mx-auto px-4 py-16">
-            <motion.div
-              className="text-center"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">
-                Ready to Transform Your Data Analysis?
-              </h2>
-              <p className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto px-4">
-                Join thousands of data scientists and analysts who have already
-                discovered the power of AI-driven analysis.
-              </p>
-              <Link href="/main">
-                <button className="px-8 py-4 bg-white text-gray-900 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center gap-2">
-                  Get Started Now <ArrowRight className="w-5 h-5" />
-                </button>
-              </Link>
-            </motion.div>
-          </div>
-        </section>
-        <Footer />
-      </div>
-    </div>
+      {/* Call to Action */}
+      {/* <section className="min-h-[70vh] flex items-center bg-black">
+        <div className="container mx-auto px-4 py-16">
+          <motion.div
+            className="text-center"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+          >
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">
+              Ready to Transform Your Data Analysis?
+            </h2>
+            <p className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto px-4">
+              Join thousands of data scientists and analysts who have already
+              discovered the power of AI-driven analysis.
+            </p>
+            <Link href="/main">
+              <button className="px-8 py-4 bg-white text-gray-900 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center gap-2">
+                Get Started Now <ArrowRight className="w-5 h-5" />
+              </button>
+            </Link>
+          </motion.div>
+        </div>
+      </section> */}
+      {/* <Footer /> */}
+    {/* </div> */}
+    {/* </div> */}
+    </>
   );
 }

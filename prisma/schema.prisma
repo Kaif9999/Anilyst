@@ -54,3 +54,9 @@ model VerificationToken {
 
   @@unique([identifier, token])
 }
+
+model Waitlist {
+  id       String   @id @default(cuid())
+  email    String   @unique
+  joinedAt DateTime @default(now())
+}

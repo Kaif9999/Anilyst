@@ -45,6 +45,13 @@ export default function Navbar() {
             >
               Pricing
             </Link>
+            <Link
+              href="/waitlist"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+            >
+              Join Waitlist
+            </Link>
             <div className="pt-8 border-t border-white/10">
               <button
                 onClick={() => {
@@ -90,6 +97,12 @@ export default function Navbar() {
                 </Link>
                 <Link href="/pricing" className="text-white/80 hover:text-white transition-colors">
                   Pricing
+                </Link>
+                <Link
+                  href="/waitlist"
+                  className="text-white/80 hover:text-white transition-colors"
+                >
+                  Join Waitlist
                 </Link>
               </div>
 
