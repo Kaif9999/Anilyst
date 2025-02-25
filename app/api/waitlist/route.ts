@@ -7,6 +7,18 @@ export async function POST(request: Request) {
   try {
     const { email } = await request.json()
 
+    // Check if email already exists
+    const existingEntry = await prisma.waitlist.findUnique({
+      where: { email }
+    })
+
+    if (existingEntry) {
+      return NextResponse.json(
+        { success: false, error: 'Email already registered' },
+        { status: 400 }
+      )
+    }
+
     const waitlistEntry = await prisma.waitlist.create({
       data: {
         email,
