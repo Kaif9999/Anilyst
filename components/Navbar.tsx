@@ -21,51 +21,44 @@ export default function Navbar() {
             onClick={() => setIsMobileMenuOpen(false)}
             className="absolute top-6 right-6 p-2 text-white hover:bg-white/10 rounded-lg"
           >
-            <X className="w-6 h-6" />
+            <X className="w-6 h-6 hover:text-red-500" />
           </button>
           <div className="flex flex-col space-y-8 mt-16">
             <Link 
               href="/" 
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+              className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
             >
               Home
             </Link>
             <Link
               href="#features"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+              className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
             >
               Features
             </Link>
             <Link 
               href="/pricing"
               onClick={() => setIsMobileMenuOpen(false)}
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
+              className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
             >
               Pricing
             </Link>
-            <Link
-              href="/waitlist"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="text-2xl font-semibold text-white hover:text-purple-400 transition-colors"
-            >
-              Join Waitlist
-            </Link>
-            <div className="pt-8 border-t border-white/10">
+            <div className="border-t border-white/10 pt-40">
               <button
                 onClick={() => {
                   setIsMobileMenuOpen(false);
                   signIn(undefined, { callbackUrl: "/main" });
                 }}
-                className="block w-full py-3 text-center text-xl text-white hover:bg-white/10 rounded-lg mb-4"
+                className="block w-full py-3 text-center text-xl text-black bg-white hover:bg-green-400 rounded-lg mb-4"
               >
                 Sign In
               </button>
               <Link
                 href="/signup"
                 onClick={() => setIsMobileMenuOpen(false)}
-                className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-white/90 rounded-lg"
+                className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-orange-400 rounded-lg"
               >
                 Get Started
               </Link>
@@ -98,12 +91,7 @@ export default function Navbar() {
                 <Link href="/pricing" className="text-white/80 hover:text-white transition-colors">
                   Pricing
                 </Link>
-                <Link
-                  href="/waitlist"
-                  className="text-white/80 hover:text-white transition-colors"
-                >
-                  Join Waitlist
-                </Link>
+              
               </div>
 
               {/* CTA Buttons */}
