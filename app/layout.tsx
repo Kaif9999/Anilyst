@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     description: "Transform your data analysis with AI-powered insights. Join the waitlist for early access.",
     images: [
       {
-        url: "/og-image.jpg",
+        url: "/landing_page.jpg",
         width: 1200,
         height: 630,
         alt: "Anilyst Platform Preview",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Anilyst - Advanced Data Analysis with AI",
     description: "Transform your data analysis with AI-powered insights. Join the waitlist for early access.",
-    images: ["/twitter-image.jpg"],
+    images: ["/landing_page.jpg"],
   },
 };
 
