@@ -25,19 +25,18 @@ import WaitlistForm from "@/components/WaitlistForm";
 export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
 
-
   useEffect(() => {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
     };
 
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
     <>
-   {/* <div className="relative bg-black min-h-screen overflow-hidden"> */}
+      {/* <div className="relative bg-black min-h-screen overflow-hidden"> */}
       {/* Animated gradient background */}
       {/* <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-80" /> */}
 
@@ -51,14 +50,17 @@ export default function Home() {
         <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
       </div> */}
 
-      {/* <Navbar /> */}
-      <WaitlistForm />
+      <div className="min-h-screen bg-black">
+        <Navbar />
+        <div className="pt-32 md:pt-22">
+          <WaitlistForm />
+        </div>
+      </div>
       {/* Content */}
       {/* <div className="relative z-100"> */}
 
-
-        {/* Hero Section */}
-        {/* <section className="min-h-screen py-10 flex items-center justify-center">
+      {/* Hero Section */}
+      {/* <section className="min-h-screen py-10 flex items-center justify-center">
           <div className="container mx-auto px-4 pt-32 pb-20">
             <motion.div
               className="text-center"
@@ -81,8 +83,8 @@ export default function Home() {
               </Link>
             </motion.div> */}
 
-            {/* Main Features */}
-            {/* <motion.div
+      {/* Main Features */}
+      {/* <motion.div
               className="mt-20"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -131,12 +133,12 @@ export default function Home() {
           </div>
         </section> */}
 
-        {/* Features Section */}
-        {/* <section className="min-h-screen flex items-center bg-black py-32">
+      {/* Features Section */}
+      {/* <section className="min-h-screen flex items-center bg-black py-32">
           <div className="container mx-auto px-4">
             <div className="relative"> */}
-              {/* Decorative Chart Shapes */}
-              {/* <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Decorative Chart Shapes */}
+      {/* <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-20 left-10 w-32 h-32 border-4 border-purple-500/20 rounded-full" />
                 <div
                   className="absolute top-40 right-20 w-48 h-48 border-4 border-green-500/20"
@@ -254,8 +256,8 @@ export default function Home() {
           </div>
         </section> */}
 
-        {/* How It Works Section */}
-        {/* <section className="min-h-screen flex items-center bg-black py-6">
+      {/* How It Works Section */}
+      {/* <section className="min-h-screen flex items-center bg-black py-6">
           <div className="container mx-auto px-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -273,7 +275,7 @@ export default function Home() {
 
             <div className="grid md:grid-cols-2 gap-8 lg:gap-16">
               {/* What We Offer */}
-              {/* <motion.div
+      {/* <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6 }}
@@ -315,8 +317,8 @@ export default function Home() {
                 </div>
               </motion.div> */}
 
-              {/* How It Works Steps */}
-              {/* <motion.div
+      {/* How It Works Steps */}
+      {/* <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.8 }}
@@ -365,7 +367,7 @@ export default function Home() {
               </motion.div>
             </div>
           </div> */}
-        {/* </div>
+      {/* </div>
       </div>  */}
       {/* </section> */}
 
@@ -394,8 +396,8 @@ export default function Home() {
         </div>
       </section> */}
       {/* <Footer /> */}
-    {/* </div> */}
-    {/* </div> */}
+      {/* </div> */}
+      {/* </div> */}
     </>
   );
 }
