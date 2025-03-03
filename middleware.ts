@@ -10,7 +10,7 @@ export default withAuth({
 export const config = {
   matcher: [
     "/main/:path*",
-    "/pricing",
+    "/api/user/:path*", 
     "/api/auth/:path*",
   ]
 }; 
