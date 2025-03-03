@@ -222,9 +222,9 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     chartTitle: "Data Visualization",
     xAxisLabel: "Categories",
     yAxisLabel: "Values",
-    showTrendline: false,
-    showOutliers: false,
-    showForecast: false,
+    showTrendline: true,
+    showOutliers: true,
+    showForecast: true,
   });
   const chartRef = useRef<ChartJS | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
