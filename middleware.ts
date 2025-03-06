@@ -13,7 +13,7 @@ export const config = {
     "/api/analyze",
     "/api/query",
     "/api/visualize",
-    // "/main/:path*",
+    "/main/:path*",
     "/api/user/:path*",
     "/api/auth/:path*",
   ]
