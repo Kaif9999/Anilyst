@@ -159,7 +159,13 @@ export default function Home() {
 
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
-      <Popup show={popup.show} message={popup.message} />
+      <div
+        className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-white/10 backdrop-blur-lg border border-white/10 rounded-lg p-4 text-center ${
+          popup.show ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
+      >
+        {popup.message}
+      </div>
       {/* Animated gradient background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[15%] left-[20%] w-96 h-96 bg-purple-600/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" />
