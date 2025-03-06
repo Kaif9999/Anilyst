@@ -46,13 +46,6 @@ export default function Navbar() {
             >
               Pricing
             </Link>
-            <Link
-              href="/privacy_policy"
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
-            >
-              Privacy Policy
-            </Link>
             <div className="relative bg-black/10 rounded-lg md:hidden">
                   <button
                     className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
