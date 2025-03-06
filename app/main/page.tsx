@@ -17,9 +17,10 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
 
 export default function Home() {
+  const { data: session } = useSession();
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalyticsResult | null>(
     null
@@ -42,6 +43,12 @@ export default function Home() {
   }, []);
 
   const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
+    if (!session) {
+      alert('Please sign in to continue.');
+      window.location.href = '/signin';
+      return false;
+    }
+
     try {
       const response = await fetch('/api/usage', {
         method: 'POST',
@@ -55,11 +62,11 @@ export default function Home() {
       if (!response.ok) {
         const data = await response.json();
         if (response.status === 403) {
-          alert(`You've reached your daily ${type} limit. Please upgrade to Pro for unlimited access.`);
+          alert(data.error || `You've reached your ${type} limit. Please upgrade to Pro for unlimited access.`);
           window.location.href = '/pricing';
-        } else if (response.status === 401) {
-          alert('Please sign in to continue.');
-          window.location.href = '/signin';
+        // } else if (response.status === 401) {
+        //   alert('Please sign in to continue.');
+        //   window.location.href = '/signin';
         } else {
           alert('An error occurred while checking usage limits.');
         }

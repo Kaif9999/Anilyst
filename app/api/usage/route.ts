@@ -2,36 +2,16 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
+import { headers } from 'next/headers';
 
-const DAILY_LIMITS = {
-  FREE: {
-    visualizations: 5,
-    analyses: 5
-  }
+const FREE_LIMITS = {
+  visualizations: 5,
+  analyses: 5
 };
-
-async function resetDailyLimitsIfNeeded(usageLimit: any) {
-  const lastReset = new Date(usageLimit.lastResetDate);
-  const now = new Date();
-  
-  if (lastReset.getDate() !== now.getDate() || 
-      lastReset.getMonth() !== now.getMonth() || 
-      lastReset.getFullYear() !== now.getFullYear()) {
-    await prisma.usageLimit.update({
-      where: { id: usageLimit.id },
-      data: {
-        visualizations: 0,
-        analyses: 0,
-        lastResetDate: now
-      }
-    });
-    return true;
-  }
-  return false;
-}
 
 export async function GET() {
   const session = await getServerSession(authOptions);
+  const headersList = headers();
   
   if (!session?.user) {
     return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -57,17 +37,16 @@ export async function GET() {
     user.usageLimit = usageLimit;
   }
 
-  await resetDailyLimitsIfNeeded(user.usageLimit);
-
   return new NextResponse(JSON.stringify({
     subscriptionType: user.subscriptionType,
     usage: user.usageLimit,
-    limits: user.subscriptionType === 'FREE' ? DAILY_LIMITS.FREE : null
+    limits: user.subscriptionType === 'FREE' ? FREE_LIMITS : null
   }));
 }
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
+  const headersList = headers();
   
   if (!session?.user) {
     return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), { status: 401 });
@@ -98,9 +77,6 @@ export async function POST(req: Request) {
       }
     });
   }
-
-  // Reset daily limits if needed
-  const wasReset = await resetDailyLimitsIfNeeded(user.usageLimit);
   
   // If user is PRO or LIFETIME, allow unlimited usage
   if (user.subscriptionType === 'PRO' || user.subscriptionType === 'LIFETIME') {
@@ -125,15 +101,15 @@ export async function POST(req: Request) {
     ? user.usageLimit.visualizations 
     : user.usageLimit.analyses;
   const limit = type === 'visualization' 
-    ? DAILY_LIMITS.FREE.visualizations 
-    : DAILY_LIMITS.FREE.analyses;
+    ? FREE_LIMITS.visualizations 
+    : FREE_LIMITS.analyses;
 
   if (currentCount >= limit) {
     return new NextResponse(JSON.stringify({
-      error: 'Daily limit reached',
+      error: `You've reached your total ${type} limit. Please upgrade to Pro for unlimited access.`,
       redirectTo: '/pricing',
       usage: user.usageLimit,
-      limits: DAILY_LIMITS.FREE
+      limits: FREE_LIMITS
     }), { status: 403 });
   }
 
@@ -150,6 +126,6 @@ export async function POST(req: Request) {
   return new NextResponse(JSON.stringify({
     success: true,
     usage: updatedUsage,
-    limits: DAILY_LIMITS.FREE
+    limits: FREE_LIMITS
   }));
 }
