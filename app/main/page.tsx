@@ -5,6 +5,7 @@ import OutputDisplay from "@/components/output-display";
 import InputSection from "@/components/input-section";
 import AIAnalysisPanel from "@/components/AIAnalysisPanel";
 import { ChartData, AnalyticsResult } from "@/types";
+import Popup from "@/components/alertpopup";
 import StarryBackground from "@/components/starry-background";
 import {
   LogOut,
@@ -18,17 +19,9 @@ import {
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import AlertDialog from "@/components/AlertDialog";
 
 export default function Home() {
   const { data: session } = useSession();
-  const [alertState, setAlertState] = useState<{
-    isOpen: boolean;
-    message: string;
-    type: 'error' | 'warning' | 'info';
-    actionLabel?: string;
-    onAction?: () => void;
-  }>({ isOpen: false, message: '', type: 'info' });
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalyticsResult | null>(
     null
@@ -50,19 +43,21 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const showAlert = (config: typeof alertState) => {
-    setAlertState({ ...config, isOpen: true });
-  };
+  const [popup, setPopup] = useState<{ show: boolean; message: string }>({
+    show: false,
+    message: "",
+  });
+
 
   const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
     if (!session) {
-      showAlert({
-        isOpen: false,
-        message: 'Please sign in to continue your analysis journey.',
-        type: 'info',
-        actionLabel: 'Sign In',
-        onAction: () => window.location.href = '/signin'
+      setPopup({
+        show: true,
+        message: 'Please sign in to continue.'
       });
+      setTimeout(() => {
+        window.location.href = '/signin';
+      }, 2000);
       return false;
     }
 
@@ -79,18 +74,17 @@ export default function Home() {
       if (!response.ok) {
         const data = await response.json();
         if (response.status === 403) {
-          showAlert({
-            isOpen: false,
-            message: data.error || `You've reached your ${type} limit. Upgrade to Pro for unlimited AI-powered analysis and visualizations.`,
-            type: 'warning',
-            actionLabel: 'Upgrade Now',
-            onAction: () => window.location.href = '/pricing'
+          setPopup({
+            show: true,
+            message: data.error || `You've reached your ${type} limit. Please upgrade to Pro for unlimited access.`
           });
+          setTimeout(() => {
+            window.location.href = '/pricing';
+          }, 2000);
         } else {
-          showAlert({
-            isOpen: false,
-            message: 'We encountered an issue while checking your usage limits. Please try again.',
-            type: 'error'
+          setPopup({
+            show: true,
+            message: 'An error occurred while checking usage limits.'
           });
         }
         return false;
@@ -99,10 +93,9 @@ export default function Home() {
       return true;
     } catch (error) {
       console.error('Usage check failed:', error);
-      showAlert({
-        isOpen: false,
-        message: 'We encountered an issue while checking your usage limits. Please try again.',
-        type: 'error'
+      setPopup({
+        show: true,
+        message: 'An error occurred while checking usage limits.'
       });
       return false;
     }
@@ -175,22 +168,13 @@ export default function Home() {
       </div>
 
       <StarryBackground />
-
-      <AlertDialog
-        isOpen={alertState.isOpen}
-        onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
-        message={alertState.message}
-        type={alertState.type}
-        actionLabel={alertState.actionLabel}
-        onAction={alertState.onAction}
-      />
-      
-      {/* Prevent scrolling when alert is open */}
-      <style jsx global>{`
-        body {
-          overflow: ${alertState.isOpen ? 'hidden' : 'auto'};
-        }
-      `}</style>
+      {/* Popup */}
+      {popup.show && (
+        <Popup 
+          message={popup.message} 
+          onClose={() => setPopup({ show: false, message: "" })} 
+        />
+      )}
 
       {/* Navbar */}
       <nav
