@@ -43,6 +43,16 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // Auto-hide popup after 3 seconds
+  useEffect(() => {
+    if (popup.show) {
+      const timer = setTimeout(() => {
+        setPopup(prev => ({ ...prev, show: false }));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [popup.show]);
+
   const [popup, setPopup] = useState<{ show: boolean; message: string }>({
     show: false,
     message: "You have exhausted your quota. Please upgrade to Pro for unlimited access.",
@@ -73,9 +83,12 @@ export default function Home() {
       if (!response.ok) {
         const data = await response.json();
         if (response.status === 403) {
+          const message = type === 'visualization' 
+            ? "You've used all 5 visualizations. Upgrade to Pro for unlimited charts and insights!"
+            : "You've used all 5 analyses. Upgrade to Pro for unlimited AI-powered analysis!";
           setPopup({
             show: true,
-            message: data.error || `You've reached your ${type} limit. Please upgrade to Pro for unlimited access.`
+            message: message
           });
           setTimeout(() => {
             window.location.href = '/pricing';
@@ -160,11 +173,13 @@ export default function Home() {
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
       <div
-        className={`fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-50 bg-white/10 backdrop-blur-lg border border-white/10 rounded-lg p-4 text-center ${
-          popup.show ? "opacity-100" : "opacity-0 pointer-events-none"
+        className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ${
+          popup.show ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
         }`}
       >
-        {popup.message}
+        <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-xl px-6 py-4 shadow-lg min-w-[300px]">
+          <p className="text-white text-center font-medium">{popup.message}</p>
+        </div>
       </div>
       {/* Animated gradient background */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
