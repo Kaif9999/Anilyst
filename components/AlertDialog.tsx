@@ -10,6 +10,8 @@ interface AlertDialogProps {
   onAction?: () => void;
 }
 
+import { AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
+
 export default function AlertDialog({
   isOpen,
   onClose,
@@ -31,14 +33,26 @@ export default function AlertDialog({
     onClose();
   };
 
-  const getTypeStyles = () => {
+  const getTypeConfig = () => {
     switch (type) {
       case 'error':
-        return 'bg-red-500/10 text-red-500 border-red-500/20';
+        return {
+          icon: AlertCircle,
+          styles: 'bg-gradient-to-br from-red-500/10 to-red-500/5 text-red-400 border-red-500/20',
+          buttonStyle: 'bg-red-500/20 hover:bg-red-500/30 text-red-400'
+        };
       case 'warning':
-        return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+        return {
+          icon: AlertTriangle,
+          styles: 'bg-gradient-to-br from-yellow-500/10 to-yellow-500/5 text-yellow-400 border-yellow-500/20',
+          buttonStyle: 'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400'
+        };
       case 'info':
-        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+        return {
+          icon: Info,
+          styles: 'bg-gradient-to-br from-blue-500/10 to-blue-500/5 text-blue-400 border-blue-500/20',
+          buttonStyle: 'bg-blue-500/20 hover:bg-blue-500/30 text-blue-400'
+        };
     }
   };
 
@@ -54,25 +68,37 @@ export default function AlertDialog({
             onClick={onClose}
           />
           <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            className={`relative px-6 py-4 rounded-2xl border ${getTypeStyles()} shadow-lg max-w-md w-full mx-4 backdrop-blur-lg`}
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            className={`relative px-8 py-6 rounded-2xl border ${getTypeConfig()?.styles} shadow-xl max-w-md w-full mx-4 backdrop-blur-xl`}
           >
-            <div className="flex flex-col items-center text-center space-y-4">
-              <p className="text-lg font-medium">{message}</p>
-              <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="absolute top-4 right-4 p-1 rounded-lg hover:bg-white/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            
+            <div className="flex flex-col items-center text-center space-y-5">
+              {getTypeConfig()?.icon && (
+                <div className="p-3 rounded-xl bg-white/10">
+                  <getTypeConfig()?.icon className="w-6 h-6" />
+                </div>
+              )}
+              <p className="text-lg font-medium leading-relaxed">{message}</p>
+              <div className="flex gap-3 w-full">
                 {actionLabel && (
                   <button
                     onClick={handleAction}
-                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition-colors text-white font-medium"
+                    className={`flex-1 px-4 py-2.5 rounded-xl ${getTypeConfig()?.buttonStyle} transition-colors font-medium backdrop-blur-lg`}
                   >
                     {actionLabel}
                   </button>
                 )}
                 <button
                   onClick={onClose}
-                  className="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/80 font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 transition-colors text-white/90 font-medium backdrop-blur-lg"
                 >
                   Close
                 </button>
