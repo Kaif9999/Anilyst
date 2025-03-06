@@ -103,6 +103,14 @@ export const authOptions: AuthOptions = {
               name: profile?.name,
               image: profile?.image,
               emailVerified: new Date(),
+              subscriptionType: 'FREE',
+              usageLimit: {
+                create: {
+                  visualizations: 0,
+                  analyses: 0,
+                  lastResetDate: new Date()
+                }
+              },
               accounts: {
                 create: {
                   type: account.type,

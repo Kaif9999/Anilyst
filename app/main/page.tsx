@@ -41,7 +41,42 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
+    try {
+      const response = await fetch('/api/usage', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ type })
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        if (response.status === 403) {
+          alert(`You've reached your daily ${type} limit. Please upgrade to Pro for unlimited access.`);
+          window.location.href = '/pricing';
+        } else if (response.status === 401) {
+          alert('Please sign in to continue.');
+          window.location.href = '/signin';
+        } else {
+          alert('An error occurred while checking usage limits.');
+        }
+        return false;
+      }
+
+      return true;
+    } catch (error) {
+      console.error('Usage check failed:', error);
+      alert('An error occurred while checking usage limits.');
+      return false;
+    }
+  };
+
   const handleDataAnalysis = async (data: ChartData) => {
+    if (!await checkUsageLimit('visualization')) return;
+
     setChartData(data);
     setIsAnalyzing(true);
 
@@ -64,6 +99,8 @@ export default function Home() {
   const handleQuery = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim()) return;
+
+    if (!await checkUsageLimit('analysis')) return;
 
     try {
       const response = await fetch("/api/query", {

@@ -16,8 +16,25 @@ model User {
   password       String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  subscriptionType SubscriptionType @default(FREE)
+  usageLimit     UsageLimit?
   accounts       Account[]
   sessions       Session[]
+}
+
+enum SubscriptionType {
+  FREE
+  PRO
+  LIFETIME
+}
+
+model UsageLimit {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visualizations  Int      @default(0)
+  analyses        Int      @default(0)
+  lastResetDate   DateTime @default(now())
 }
 
 model Account {
