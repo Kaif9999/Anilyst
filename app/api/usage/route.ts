@@ -130,7 +130,9 @@ export async function POST(req: Request) {
 
   if (currentCount >= limit) {
     return new NextResponse(JSON.stringify({
-      error: 'Daily limit reached',
+      error: type === "visualization"
+        ? "Wow! You've created 5 amazing visualizations today. Ready to unlock unlimited creativity with Pro?"
+        : "You've explored 5 powerful analyses today. Upgrade to Pro for unlimited AI insights!"
       redirectTo: '/pricing',
       usage: user.usageLimit,
       limits: DAILY_LIMITS.FREE

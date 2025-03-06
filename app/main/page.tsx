@@ -92,7 +92,7 @@ export default function Home() {
           });
           setTimeout(() => {
             window.location.href = '/pricing';
-          }, 2000);
+          }, 9000);
         } else {
           setPopup({
             show: true,
