@@ -50,12 +50,16 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const showAlert = (config: typeof alertState) => {
+    setAlertState({ ...config, isOpen: true });
+  };
+
   const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
     if (!session) {
-      setAlertState({
-        isOpen: true,
-        message: 'Please sign in to continue.',
-        type: 'warning',
+      showAlert({
+        isOpen: false,
+        message: 'Please sign in to continue your analysis journey.',
+        type: 'info',
         actionLabel: 'Sign In',
         onAction: () => window.location.href = '/signin'
       });
@@ -75,17 +79,17 @@ export default function Home() {
       if (!response.ok) {
         const data = await response.json();
         if (response.status === 403) {
-          setAlertState({
-            isOpen: true,
-            message: data.error || `You've reached your ${type} limit. Please upgrade to Pro for unlimited access.`,
+          showAlert({
+            isOpen: false,
+            message: data.error || `You've reached your ${type} limit. Upgrade to Pro for unlimited AI-powered analysis and visualizations.`,
             type: 'warning',
             actionLabel: 'Upgrade Now',
             onAction: () => window.location.href = '/pricing'
           });
         } else {
-          setAlertState({
-            isOpen: true,
-            message: 'An error occurred while checking usage limits.',
+          showAlert({
+            isOpen: false,
+            message: 'We encountered an issue while checking your usage limits. Please try again.',
             type: 'error'
           });
         }
@@ -95,9 +99,9 @@ export default function Home() {
       return true;
     } catch (error) {
       console.error('Usage check failed:', error);
-      setAlertState({
-        isOpen: true,
-        message: 'An error occurred while checking usage limits.',
+      showAlert({
+        isOpen: false,
+        message: 'We encountered an issue while checking your usage limits. Please try again.',
         type: 'error'
       });
       return false;
