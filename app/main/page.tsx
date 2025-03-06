@@ -18,9 +18,17 @@ import {
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
+import AlertDialog from "@/components/AlertDialog";
 
 export default function Home() {
   const { data: session } = useSession();
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    message: string;
+    type: 'error' | 'warning' | 'info';
+    actionLabel?: string;
+    onAction?: () => void;
+  }>({ isOpen: false, message: '', type: 'info' });
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalyticsResult | null>(
     null
@@ -44,8 +52,13 @@ export default function Home() {
 
   const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
     if (!session) {
-      alert('Please sign in to continue.');
-      window.location.href = '/signin';
+      setAlertState({
+        isOpen: true,
+        message: 'Please sign in to continue.',
+        type: 'warning',
+        actionLabel: 'Sign In',
+        onAction: () => window.location.href = '/signin'
+      });
       return false;
     }
 
@@ -62,13 +75,19 @@ export default function Home() {
       if (!response.ok) {
         const data = await response.json();
         if (response.status === 403) {
-          alert(data.error || `You've reached your ${type} limit. Please upgrade to Pro for unlimited access.`);
-          window.location.href = '/pricing';
-        // } else if (response.status === 401) {
-        //   alert('Please sign in to continue.');
-        //   window.location.href = '/signin';
+          setAlertState({
+            isOpen: true,
+            message: data.error || `You've reached your ${type} limit. Please upgrade to Pro for unlimited access.`,
+            type: 'warning',
+            actionLabel: 'Upgrade Now',
+            onAction: () => window.location.href = '/pricing'
+          });
         } else {
-          alert('An error occurred while checking usage limits.');
+          setAlertState({
+            isOpen: true,
+            message: 'An error occurred while checking usage limits.',
+            type: 'error'
+          });
         }
         return false;
       }
@@ -76,7 +95,11 @@ export default function Home() {
       return true;
     } catch (error) {
       console.error('Usage check failed:', error);
-      alert('An error occurred while checking usage limits.');
+      setAlertState({
+        isOpen: true,
+        message: 'An error occurred while checking usage limits.',
+        type: 'error'
+      });
       return false;
     }
   };
@@ -148,6 +171,22 @@ export default function Home() {
       </div>
 
       <StarryBackground />
+
+      <AlertDialog
+        isOpen={alertState.isOpen}
+        onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+        message={alertState.message}
+        type={alertState.type}
+        actionLabel={alertState.actionLabel}
+        onAction={alertState.onAction}
+      />
+      
+      {/* Prevent scrolling when alert is open */}
+      <style jsx global>{`
+        body {
+          overflow: ${alertState.isOpen ? 'hidden' : 'auto'};
+        }
+      `}</style>
 
       {/* Navbar */}
       <nav
