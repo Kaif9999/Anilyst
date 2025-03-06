@@ -45,7 +45,7 @@ export default function Home() {
 
   const [popup, setPopup] = useState<{ show: boolean; message: string }>({
     show: false,
-    message: "",
+    message: "You have exhausted your quota. Please upgrade to Pro for unlimited access.",
   });
 
   const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
