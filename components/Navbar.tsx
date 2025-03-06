@@ -46,7 +46,7 @@ export default function Navbar() {
             >
               Pricing
             </Link>
-            <div className="relative bg-black/10 rounded-lg md:hidden">
+          <div className="relative bg-black/10 rounded-lg md:hidden">
                   <button
                     className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}

@@ -22,6 +22,11 @@ import { signOut, useSession } from "next-auth/react";
 
 export default function Home() {
   const { data: session } = useSession();
+  const [popup, setPopup] = useState<{ show: boolean; message: string }>({
+    show: false,
+    message: "You have exhausted your quota. Please upgrade to Pro for unlimited access.",
+  });
+
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalyticsResult | null>(
     null
@@ -52,11 +57,6 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [popup.show]);
-
-  const [popup, setPopup] = useState<{ show: boolean; message: string }>({
-    show: false,
-    message: "You have exhausted your quota. Please upgrade to Pro for unlimited access.",
-  });
 
   const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
     if (!session) {
