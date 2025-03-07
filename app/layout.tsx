@@ -4,16 +4,18 @@ import { Inter } from "next/font/google";
 import { AuthProvider } from "@/providers/auth-provider";
 import { Analytics } from "@vercel/analytics/react";
 import { PostHogProvider } from "./providers";
+import { Toaster } from '@/components/ui/toaster';
+import PostHogPageView from './PostHogPageView';
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Anilyst - Advanced Data Analysis with AI",
-  description: "Transform your data analysis with Anilyst. AI-powered insights, interactive visualizations, and automated reporting. Join the waitlist for early access and 20% off.",
+  title: "Anilyst - AI-Powered Data Analysis",
+  description: "Transform your data into actionable insights with AI-powered analysis and visualization.",
   keywords: ["data analysis", "AI analytics", "business intelligence", "data visualization", "machine learning"],
   openGraph: {
-    title: "Anilyst - Advanced Data Analysis with AI",
-    description: "Transform your data analysis with AI-powered insights. Join the waitlist for early access.",
+    title: "Anilyst - AI-Powered Data Analysis",
+    description: "Transform your data into actionable insights with AI-powered analysis and visualization.",
     images: [
       {
         url: "/landing_page.jpg",
@@ -26,10 +28,11 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Anilyst - Advanced Data Analysis with AI",
-    description: "Transform your data analysis with AI-powered insights. Join the waitlist for early access.",
+    title: "Anilyst - AI-Powered Data Analysis",
+    description: "Transform your data into actionable insights with AI-powered analysis and visualization.",
     images: ["/landing_page.jpg"],
   },
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
 };
 
 export default function RootLayout({
@@ -38,12 +41,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head />
       <body className={inter.className}>
-      <Analytics />
-      <PostHogProvider>
-        <AuthProvider>{children}</AuthProvider>
-      </PostHogProvider>
+        <PostHogProvider>
+          <AuthProvider>
+            {children}
+            <Toaster />
+            <Analytics />
+            <PostHogPageView />
+          </AuthProvider>
+        </PostHogProvider>
       </body>
     </html>
   );

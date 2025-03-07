@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import formidable from "formidable";
 import { join } from "path";
 import { mkdir, stat, writeFile } from "fs/promises";
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+// New configuration format for Next.js App Router
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 const uploadDir = join(process.cwd(), "uploads");
 
@@ -71,7 +68,6 @@ export async function POST(req: Request) {
     const filePath = join(uploadDir, fileName);
 
     // Process file and return data
-    let processedData;
     try {
       // File processing logic will be handled by the frontend
       // We just need to save the file and return its path

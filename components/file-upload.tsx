@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import pdfjs from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist';
 
 const MAX_FILE_SIZE = 75 * 1024 * 1024; // 75MB in bytes
 const ALLOWED_FILE_TYPES = ['.csv', '.xlsx', '.xls', '.pdf'];
@@ -115,10 +115,10 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
   const processPDF = async (file: File): Promise<ProcessedData[]> => {
     try {
       // Initialize PDF.js worker
-      pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
+      pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
       
       const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
       
       let textContent = '';
       

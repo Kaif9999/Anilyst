@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, TrendingUp, AlertTriangle, ChartBar, ArrowRight, Lightbulb, LineChart, User } from 'lucide-react';
+import { Brain, TrendingUp, AlertTriangle, BarChart, ArrowRight, Lightbulb, LineChart, User } from 'lucide-react';
 
 interface AIAnalysisPanelProps {
   insights: {
@@ -37,7 +37,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
     { id: 'insights', label: 'Key Insights', icon: Brain },
     { id: 'trends', label: 'Trends', icon: TrendingUp },
     { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle },
-    { id: 'correlations', label: 'Correlations', icon: ChartBar },
+    { id: 'correlations', label: 'Correlations', icon: BarChart },
   ];
 
   return (
@@ -293,7 +293,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
           {activeTab === 'correlations' && (
             <div className="space-y-4">
               <div className="flex items-center gap-2 mb-4">
-                <ChartBar className="w-6 h-6 text-green-400" />
+                <BarChart className="w-6 h-6 text-green-400" />
                 <h3 className="text-xl font-semibold text-white">Data Correlations</h3>
               </div>
               <div className="grid gap-4">
@@ -304,7 +304,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
                   >
                     <div className="flex items-start gap-3">
                       <div className="p-2 bg-green-500/20 rounded-lg shrink-0">
-                        <ChartBar className="w-5 h-5 text-green-400" />
+                        <BarChart className="w-5 h-5 text-green-400" />
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between mb-2">
