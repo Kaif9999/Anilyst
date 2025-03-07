@@ -217,14 +217,14 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
 
   return (
     <div className="space-y-4">
-      <div className="grid w-full max-w-sm items-center gap-1.5">
+      <div className="grid w-full max-w-sm items-center gap-1.5 text-gray-500">
         <Label htmlFor="file">Upload Data File (CSV, Excel, or PDF)</Label>
         <Input 
           id="file" 
           type="file" 
           accept=".csv,.xlsx,.xls,.pdf" 
           onChange={handleFileChange}
-          className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+          className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-400 file:text-violet-900 hover:file:bg-violet-300"
         />
         <p className="text-sm text-gray-500">
           Maximum file size: 75MB
@@ -241,7 +241,7 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
       <Button 
         onClick={handleUpload} 
         disabled={!file || isProcessing}
-        className="w-full"
+        className="w-full bg-gray-300 text-gray-900 hover:bg-gray-400"
       >
         <Upload className="mr-2 h-4 w-4" />
         {isProcessing ? "Processing..." : "Analyze Data"}

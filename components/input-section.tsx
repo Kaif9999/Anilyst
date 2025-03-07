@@ -269,7 +269,7 @@ export default function InputSection({
 
   return (
     <motion.div
-      className="backdrop-blur-md bg-white/5 p-8 rounded-3xl shadow-2xl border border-white/10 relative overflow-hidden"
+      className="backdrop-blur-md bg-gray-950 p-8 rounded-3xl shadow-2xl border border-white/10 relative overflow-hidden"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}

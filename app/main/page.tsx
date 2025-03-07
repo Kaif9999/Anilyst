@@ -395,12 +395,12 @@ export default function Home() {
               )}
 
               {/* CSV Upload Section */}
-              <div className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 p-8">
-                <h2 className="text-2xl font-bold text-white mb-6">
-                  Upload Data can be .csv file
-                </h2>
+              {/* <div className="bg-gray-950 backdrop-blur-lg rounded-3xl border border-white/10 p-8"> */}
+                {/* <h2 className="text-2xl font-bold text-white mb-6"> */}
+                  {/* Upload Data can be .csv, .xlsx, .xls, or .pdf file */}
+                {/* </h2> */}
                 <InputSection onResultReceived={handleDataAnalysis} />
-              </div>
+              {/* </div> */}
             </motion.div>
           </div>
         </section>
