@@ -20,6 +20,7 @@ model User {
   usageLimit     UsageLimit?
   accounts       Account[]
   sessions       Session[]
+  analyses       Analysis[]
 }
 
 enum SubscriptionType {
@@ -76,4 +77,17 @@ model Waitlist {
   id       String   @id @default(cuid())
   email    String   @unique
   joinedAt DateTime @default(now())
+}
+
+model Analysis {
+  id        String   @id @default(cuid())
+  userId    String
+  content   String   @db.Text
+  fileName  String
+  fileType  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
 }

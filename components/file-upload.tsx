@@ -16,7 +16,7 @@ interface ProcessedData {
   [key: string]: string | number;
 }
 
-export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data: ProcessedData[]) => void }) {
+export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data: ProcessedData[], file: File) => void }) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -77,21 +77,38 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       
       // Convert to JSON with headers
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+        header: 1,
+        raw: false, // Convert all data to strings
+        dateNF: 'yyyy-mm-dd' // Format dates consistently
+      });
       
       // Process the data to ensure it has headers
       const headers = jsonData[0] as string[];
+      if (!headers || headers.length === 0) {
+        throw new Error("No headers found in Excel file");
+      }
+
       const data = jsonData.slice(1).map((row: any) => {
         const obj: ProcessedData = {};
         headers.forEach((header, index) => {
-          obj[header] = row[index] || '';
+          let value = row[index];
+          // Try to convert numeric strings to numbers
+          if (typeof value === 'string' && !isNaN(Number(value))) {
+            value = Number(value);
+          }
+          obj[header] = value || '';
         });
         return obj;
       });
 
+      if (data.length === 0) {
+        throw new Error("No data rows found in Excel file");
+      }
+
       return data;
     } catch (error) {
-      throw new Error("Error processing Excel file");
+      throw new Error(`Error processing Excel file: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   };
 
@@ -124,24 +141,40 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
         throw new Error("No readable text found in PDF");
       }
 
-      // Try to detect CSV-like structure (comma or tab separated)
-      const headers = lines[0].split(/[,\t]/).map(header => header.trim());
-      
-      if (headers.length <= 1) {
+      // Try to detect table structure (comma, tab, or multiple spaces separated)
+      const possibleDelimiters = [/\t/, /\s{2,}/, /,/];
+      let headers: string[] = [];
+      let delimiter: RegExp | null = null;
+
+      // Find the most likely delimiter
+      for (const d of possibleDelimiters) {
+        const split = lines[0].split(d).map(h => h.trim()).filter(h => h);
+        if (split.length > headers.length) {
+          headers = split;
+          delimiter = d;
+        }
+      }
+
+      if (!delimiter || headers.length <= 1) {
         throw new Error("Could not detect table structure in PDF");
       }
 
       const data = lines.slice(1).map(line => {
-        const values = line.split(/[,\t]/).map(value => value.trim());
+        const values = line.split(delimiter!).map(value => value.trim());
         return headers.reduce((obj: ProcessedData, header, index) => {
-          obj[header] = values[index] || '';
+          let value = values[index] || '';
+          // Try to convert numeric strings to numbers
+          if (typeof value === 'string' && !isNaN(Number(value))) {
+            value = Number(value);
+          }
+          obj[header] = value;
           return obj;
         }, {});
       });
 
       return data;
     } catch (error) {
-      throw new Error("Error processing PDF file. Make sure it contains table-like data.");
+      throw new Error(`Error processing PDF: ${error instanceof Error ? error.message : "Unknown error"}. Make sure the PDF contains table-like data.`);
     }
   };
 
@@ -174,7 +207,7 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
         throw new Error("No data found in file");
       }
 
-      onDataProcessed(processedData);
+      onDataProcessed(processedData, file);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error processing file");
     } finally {
