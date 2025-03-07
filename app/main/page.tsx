@@ -173,7 +173,7 @@ export default function Home() {
   return (
     <div className="relative bg-black min-h-screen overflow-hidden">
       <div
-        className={`fixed top-48 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-3000 ${
+        className={`fixed top-48 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-8000 ${
           popup.show ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
         }`}
       >

@@ -197,7 +197,10 @@ export default function Pricing() {
                   )}
                 </div>
               </div>
-              <button className="w-full py-3 px-4 rounded-xl bg-white text-black hover:bg-white/90 transition-colors mb-8">
+              <button 
+                onClick={() => window.location.href = `https://checkout.dodopayments.com/buy/pdt_17wlMmBaE7Klqk5QnB0Up?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F&billing_cycle=${billingInterval}`}
+                className="w-full py-3 px-4 rounded-xl bg-white text-black hover:bg-white/90 transition-colors mb-8"
+              >
                 Upgrade to Pro
               </button>
               <div className="space-y-4">
