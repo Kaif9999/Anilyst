@@ -12,11 +12,11 @@ interface ProcessedData {
 
 interface DataRow {
   [key: string]: any;
-  Date?: string;
-  Open?: number;
-  High?: number;
-  Low?: number;
-  Close?: number;
+  Date: string;
+  Open: number;
+  High: number;
+  Low: number;
+  Close: number;
 }
 
 export default function InputSection({
@@ -112,7 +112,7 @@ export default function InputSection({
     }
   };
 
-  const detectDataType = (data: DataRow[]): boolean => {
+  const detectDataType = (data: ProcessedData[]): boolean => {
     if (!Array.isArray(data) || data.length === 0) return false;
     
     const requiredFields = ["Date", "Open", "High", "Low", "Close"];
@@ -125,11 +125,17 @@ export default function InputSection({
       
       // For Date field, check if it's a valid date
       if (field === "Date") {
-        return data.every(row => !isNaN(new Date(row[field]).getTime()));
+        return data.every(row => {
+          const dateValue = row[field];
+          return typeof dateValue === 'string' && !isNaN(new Date(dateValue).getTime());
+        });
       }
       
       // For numeric fields, check if they contain valid numbers
-      return data.every(row => !isNaN(Number(row[field])));
+      return data.every(row => {
+        const value = row[field];
+        return typeof value === 'number' || (typeof value === 'string' && !isNaN(Number(value)));
+      });
     });
   };
 
@@ -138,7 +144,7 @@ export default function InputSection({
     setError("");
     
     try {
-      const isStock = detectDataType(data as DataRow[]);
+      const isStock = detectDataType(data);
       setIsStockData(isStock);
       setParsedData(data);
 
