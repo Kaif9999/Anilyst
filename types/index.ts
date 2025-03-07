@@ -5,11 +5,12 @@ export interface ChartData {
     data: number[]
     backgroundColor?: string
     borderColor?: string
+    fill?: boolean
   }[]
+  type: string
 }
 
 export interface AnalyticsResult {
-  chartData: ChartData
   insights: {
     trends: string[]
     anomalies: string[]
@@ -30,5 +31,7 @@ export interface AnalyticsResult {
       timestamp: string
     }
   }
-  recommendations: string[]
+  recommendations?: string[]
+  chatHistory?: { question: string; answer: string }[]
+  error?: string
 } 
