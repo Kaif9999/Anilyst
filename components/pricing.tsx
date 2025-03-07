@@ -6,13 +6,23 @@ import { Check, Brain, Menu, X, ArrowRight, Mail, Linkedin, Twitter, Github } fr
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import Navbar from "./Navbar"
 import Footer from "./Footer"
+import { useSession } from "next-auth/react"
 
 export default function Pricing() {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
+  const { data: session } = useSession()
   
   const getPrice = (basePrice: number) => {
     return billingInterval === "yearly" ? basePrice * 0.8 : basePrice
   }
+
+  const handleProSubscription = () => {
+    window.location.href = "https://checkout.dodopayments.com/buy/pdt_17wlMmBaE7Klqk5QnB0Up?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F";
+  };
+
+  const handleLifetimeSubscription = () => {
+    window.location.href = "https://checkout.dodopayments.com/buy/pdt_6iGXPJ0iAZjGLv0lINYR4?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F";
+  };
 
   return (
     <div className="relative min-h-screen bg-black overflow-hidden">
@@ -198,7 +208,7 @@ export default function Pricing() {
                 </div>
               </div>
               <button 
-                onClick={() => window.location.href = `https://checkout.dodopayments.com/buy/pdt_17wlMmBaE7Klqk5QnB0Up?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F&billing_cycle=${billingInterval}`}
+                onClick={handleProSubscription}
                 className="w-full py-3 px-4 rounded-xl bg-white text-black hover:bg-white/90 transition-colors mb-8"
               >
                 Upgrade to Pro
@@ -255,7 +265,10 @@ export default function Pricing() {
                 One-time payment
               </div>
             </div>
-            <button className="w-full py-3 px-4 rounded-xl bg-white text-black border border-white/20 hover:bg-white/90 transition-colors mb-8">
+            <button 
+              onClick={handleLifetimeSubscription}
+              className="w-full py-3 px-4 rounded-xl bg-white text-black border border-white/20 hover:bg-white/90 transition-colors mb-8"
+            >
               Get Lifetime Access
             </button>
             <div className="space-y-4">

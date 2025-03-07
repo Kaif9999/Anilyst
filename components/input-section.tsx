@@ -1,32 +1,35 @@
 "use client";
 
 import { useState } from "react";
-import { Upload, Calendar, BarChart2, CandlestickChart } from "lucide-react";
+import { Calendar, CandlestickChart, BarChart2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
-import Papa from "papaparse";
 import { ChartData, StockData, SimpleData } from "../types";
+import FileUpload from "./file-upload";
+
+interface ProcessedData {
+  [key: string]: string | number;
+}
+
+interface DataRow {
+  [key: string]: any;
+  Date?: string;
+  Open?: number;
+  High?: number;
+  Low?: number;
+  Close?: number;
+}
 
 export default function InputSection({
   onResultReceived,
 }: {
   onResultReceived: (chartData: ChartData) => void;
 }) {
-  const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [parsedData, setParsedData] = useState<StockData[] | SimpleData[]>([]);
   const [isStockData, setIsStockData] = useState(true);
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) {
-      setFile(e.target.files[0]);
-      // Reset states when new file is uploaded
-      setSelectedYear("all");
-      setAvailableYears([]);
-      setParsedData([]);
-    }
-  };
+  const [error, setError] = useState<string>("");
 
   const processStockData = (
     data: StockData[],
@@ -73,65 +76,93 @@ export default function InputSection({
   };
 
   const processSimpleData = (data: SimpleData[]): ChartData => {
-    const keys = Object.keys(data[0]);
-    return {
-      labels: data.map((row) => String(row[keys[0]])),
-      datasets: [
-        {
-          label: keys[1] || "Value",
-          data: data.map((row) => Number(row[keys[1]]) || 0),
-          backgroundColor: ["rgba(75, 192, 192, 0.6)"],
-        },
-      ],
-    };
+    try {
+      const keys = Object.keys(data[0]);
+      
+      // Check if we have at least two columns
+      if (keys.length < 2) {
+        throw new Error("Data must have at least two columns");
+      }
+
+      // Try to detect numeric columns for Y-axis
+      const numericColumns = keys.filter(key => 
+        data.every(row => !isNaN(Number(row[key])))
+      );
+
+      if (numericColumns.length === 0) {
+        throw new Error("No numeric columns found for visualization");
+      }
+
+      // Use first non-numeric column as labels, first numeric column as values
+      const labelColumn = keys.find(key => !numericColumns.includes(key)) || keys[0];
+      const valueColumn = numericColumns[0];
+
+      return {
+        labels: data.map((row) => String(row[labelColumn])),
+        datasets: [
+          {
+            label: valueColumn,
+            data: data.map((row) => Number(row[valueColumn]) || 0),
+            backgroundColor: ["rgba(75, 192, 192, 0.6)"],
+          },
+        ],
+      };
+    } catch (error) {
+      throw new Error("Error processing data for visualization: " + (error instanceof Error ? error.message : "Unknown error"));
+    }
   };
 
-  const detectDataType = (data: unknown[]): boolean => {
+  const detectDataType = (data: DataRow[]): boolean => {
+    if (!Array.isArray(data) || data.length === 0) return false;
+    
     const requiredFields = ["Date", "Open", "High", "Low", "Close"];
     const headers = Object.keys(data[0] || {});
-    return requiredFields.every((field) => headers.includes(field));
+    
+    // Check if all required fields exist and contain valid data
+    return requiredFields.every((field) => {
+      const hasField = headers.includes(field);
+      if (!hasField) return false;
+      
+      // For Date field, check if it's a valid date
+      if (field === "Date") {
+        return data.every(row => !isNaN(new Date(row[field]).getTime()));
+      }
+      
+      // For numeric fields, check if they contain valid numbers
+      return data.every(row => !isNaN(Number(row[field])));
+    });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (file) {
-      setIsLoading(true);
+  const handleDataProcessed = (data: ProcessedData[]) => {
+    setIsLoading(true);
+    setError("");
+    
+    try {
+      const isStock = detectDataType(data as DataRow[]);
+      setIsStockData(isStock);
+      setParsedData(data);
 
-      try {
-        // Read and parse CSV file
-        const text = await file.text();
-        const result = Papa.parse(text, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-        });
+      if (isStock) {
+        // Extract available years from the data for stock data
+        const years = Array.from(
+          new Set(
+            data.map((row) => new Date(row.Date).getFullYear().toString())
+          )
+        ).sort();
+        setAvailableYears(years);
 
-        const data = result.data as any[];
-        const isStock = detectDataType(data);
-        setIsStockData(isStock);
-        setParsedData(data);
-
-        if (isStock) {
-          // Extract available years from the data for stock data
-          const years = Array.from(
-            new Set(
-              data.map((row) => new Date(row.Date).getFullYear().toString())
-            )
-          ).sort();
-          setAvailableYears(years);
-
-          const chartData = processStockData(data as StockData[], selectedYear);
-          onResultReceived(chartData);
-        } else {
-          setAvailableYears([]);
-          const chartData = processSimpleData(data as SimpleData[]);
-          onResultReceived(chartData);
-        }
-      } catch (error) {
-        console.error("Error parsing CSV:", error);
-      } finally {
-        setIsLoading(false);
+        const chartData = processStockData(data as StockData[], selectedYear);
+        onResultReceived(chartData);
+      } else {
+        setAvailableYears([]);
+        const chartData = processSimpleData(data as SimpleData[]);
+        onResultReceived(chartData);
       }
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "Error processing data");
+      console.error("Error processing data:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -151,25 +182,18 @@ export default function InputSection({
       transition={{ duration: 0.5 }}
     >
       <div className="absolute inset-0 bg-gradient-to-r from-purple-500 to-pink-500 opacity-20"></div>
-      <form onSubmit={handleSubmit} className="space-y-4 relative z-10">
-        <div className="flex items-center space-x-4">
-          <input
-            id="csv"
-            type="file"
-            accept=".csv"
-            onChange={handleFileChange}
-            className="hidden"
-          />
-          <motion.label
-            htmlFor="csv"
-            className="flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-full cursor-pointer hover:from-purple-700 hover:to-pink-700 transition-colors"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            {file ? file.name : "Upload CSV"}
-          </motion.label>
-          {file && (
+      <div className="space-y-4 relative z-10">
+        <div className="flex flex-col space-y-4">
+          <FileUpload onDataProcessed={handleDataProcessed} />
+          
+          {error && (
+            <div className="flex items-center gap-2 text-red-500 text-sm bg-red-500/10 p-3 rounded-lg">
+              <AlertCircle className="h-4 w-4" />
+              <span>{error}</span>
+            </div>
+          )}
+          
+          {parsedData.length > 0 && !error && (
             <div className="text-white flex items-center space-x-2">
               <span>Data Type:</span>
               {isStockData ? (
@@ -218,17 +242,7 @@ export default function InputSection({
             ))}
           </div>
         )}
-
-        <motion.button
-          type="submit"
-          disabled={!file || isLoading}
-          className="w-auto px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full hover:from-blue-700 hover:to-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-        >
-          {isLoading ? "Processing..." : "Generate Chart"}
-        </motion.button>
-      </form>
+      </div>
     </motion.div>
   );
 }
