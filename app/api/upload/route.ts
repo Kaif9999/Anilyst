@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { join } from "path";
-import { mkdir, stat, writeFile } from "fs/promises";
+import { mkdir, stat, writeFile, chmod } from "fs/promises";
 
 // New configuration format for Next.js App Router
 export const runtime = 'nodejs';
@@ -8,16 +8,24 @@ export const dynamic = 'force-dynamic';
 
 const uploadDir = join(process.cwd(), "uploads");
 
-// Ensure upload directory exists
+// Ensure upload directory exists with proper permissions
 async function ensureUploadDir() {
   try {
-    await stat(uploadDir);
-  } catch (error: any) {
-    if (error.code === "ENOENT") {
-      await mkdir(uploadDir, { recursive: true });
-    } else {
-      throw error;
+    try {
+      await stat(uploadDir);
+    } catch (error: any) {
+      if (error.code === "ENOENT") {
+        await mkdir(uploadDir, { recursive: true, mode: 0o755 });
+      } else {
+        throw error;
+      }
     }
+    
+    // Ensure proper permissions
+    await chmod(uploadDir, 0o755);
+  } catch (error) {
+    console.error("Error setting up upload directory:", error);
+    throw new Error("Failed to set up upload directory");
   }
 }
 
@@ -59,23 +67,22 @@ export async function POST(req: Request) {
       );
     }
 
-    // Convert file to buffer for processing
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    // Save file
-    const fileName = `${Date.now()}-${file.name}`;
-    const filePath = join(uploadDir, fileName);
-
-    // Process file and return data
     try {
-      // File processing logic will be handled by the frontend
-      // We just need to save the file and return its path
-      await writeFile(filePath, buffer);
+      // Convert file to buffer for processing
+      const bytes = await file.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+
+      // Generate a safe filename
+      const timestamp = Date.now();
+      const safeFileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+      const filePath = join(uploadDir, safeFileName);
+
+      // Save file with proper permissions
+      await writeFile(filePath, buffer, { mode: 0o644 });
       
       return NextResponse.json({
         success: true,
-        filePath: `/uploads/${fileName}`,
+        filePath: `/uploads/${safeFileName}`,
         originalName: file.name,
         type: file.type,
       });

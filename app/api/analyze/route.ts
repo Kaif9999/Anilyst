@@ -19,7 +19,8 @@ export async function POST(req: Request) {
       );
     }
 
-    const { filePath, type } = await req.json();
+    const body = await req.json();
+    const { filePath, type } = body;
 
     if (!filePath) {
       return NextResponse.json(
@@ -28,13 +29,37 @@ export async function POST(req: Request) {
       );
     }
 
+    if (!type) {
+      return NextResponse.json(
+        { error: "No file type provided" },
+        { status: 400 }
+      );
+    }
+
+    // Validate file path
+    const cleanPath = filePath.replace(/^\//, '');
+    if (!cleanPath.startsWith('uploads/')) {
+      return NextResponse.json(
+        { error: "Invalid file path" },
+        { status: 400 }
+      );
+    }
+
     // Read file
-    const absolutePath = join(process.cwd(), filePath.replace(/^\//, ''));
-    const fileContent = await readFile(absolutePath);
+    const absolutePath = join(process.cwd(), cleanPath);
+    let fileContent;
+    try {
+      fileContent = await readFile(absolutePath);
+    } catch (error) {
+      console.error("Error reading file:", error);
+      return NextResponse.json(
+        { error: "File not found or inaccessible" },
+        { status: 404 }
+      );
+    }
 
     // Process file based on type
     let textContent = '';
-    let analysis = '';
 
     try {
       switch (type) {
@@ -56,7 +81,14 @@ export async function POST(req: Request) {
           break;
 
         default:
-          throw new Error("Unsupported file type");
+          return NextResponse.json(
+            { error: "Unsupported file type" },
+            { status: 400 }
+          );
+      }
+
+      if (!textContent) {
+        throw new Error("No content extracted from file");
       }
 
       // Generate AI analysis using Gemini
@@ -76,14 +108,18 @@ export async function POST(req: Request) {
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      analysis = response.text();
+      const analysis = response.text();
+
+      if (!analysis) {
+        throw new Error("No analysis generated");
+      }
 
       // Save analysis to database
       await prisma.analysis.create({
         data: {
           userId: session.user.id,
           content: analysis,
-          fileName: filePath.split('/').pop(),
+          fileName: filePath.split('/').pop() || 'unknown',
           fileType: type,
         }
       });
@@ -96,7 +132,7 @@ export async function POST(req: Request) {
     } catch (error) {
       console.error("Analysis error:", error);
       return NextResponse.json(
-        { error: "Error analyzing file" },
+        { error: error instanceof Error ? error.message : "Error analyzing file" },
         { status: 500 }
       );
     }

@@ -65,81 +65,80 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
 
       {/* Chat History Section */}
       <div className="chat-history bg-gradient-to-br from-gray-900 to-black rounded-2xl border border-white/10 p-6 max-h-[500px] overflow-y-auto">
-        {chatHistory && chatHistory.map((chat, index) => (
-          <motion.div
-            key={index}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="mb-6 last:mb-0"
-          >
-            {/* Question */}
-            <div className="flex items-start gap-3 mb-4">
-              <div className="p-2 bg-blue-500/20 rounded-lg">
-                <User className="w-5 h-5 text-blue-400" />
-              </div>
-              <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex-1">
-                <p className="text-white/80">Q: {chat.question}</p>
-              </div>
-            </div>
-            
-            {/* Answer */}
-            <div className="flex items-start gap-3 pl-12">
-              <div className="p-2 bg-purple-500/20 rounded-lg">
-                <Brain className="w-5 h-5 text-purple-400" />
-              </div>
-              <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex-1">
-                {/* Title */}
-                <h3 className="text-lg font-semibold text-white/90 mb-4">
-                  Analysis Results
-                </h3>
-                
-                {/* Direct Answer */}
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-purple-400 mb-2">
-                    1. Direct Answer
-                  </h4>
-                  <p className="text-white/80 leading-relaxed">
-                    {chat.answer.split('**1. Direct Answer:**')[1]?.split('**2.')[0] || ''}
-                  </p>
+        {chatHistory && chatHistory.length > 0 ? (
+          chatHistory.map((chat, index) => (
+            <motion.div
+              key={index}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+              className="mb-6 last:mb-0"
+            >
+              {/* Question */}
+              <div className="flex items-start gap-3 mb-4">
+                <div className="p-2 bg-blue-500/20 rounded-lg">
+                  <User className="w-5 h-5 text-blue-400" />
                 </div>
-
-                {/* Key Insights */}
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-blue-400 mb-2">
-                    2. Key Insights
-                  </h4>
-                  <p className="text-white/80 leading-relaxed">
-                    {chat.answer.split('**2. Key Insights:**')[1]?.split('**3.')[0] || ''}
-                  </p>
-                </div>
-
-                {/* Relevant Trends */}
-                <div className="mb-4">
-                  <h4 className="text-sm font-medium text-green-400 mb-2">
-                    3. Relevant Trends
-                  </h4>
-                  <p className="text-white/80 leading-relaxed">
-                    {chat.answer.split('**3. Relevant Trends')[1]?.split('**4.')[0] || ''}
-                  </p>
-                </div>
-
-                {/* Statistical Significance */}
-                <div>
-                  <h4 className="text-sm font-medium text-yellow-400 mb-2">
-                    4. Statistical Significance
-                  </h4>
-                  <p className="text-white/80 leading-relaxed">
-                    {chat.answer.split('**4. Statistical Significance:**')[1] || ''}
-                  </p>
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex-1">
+                  <p className="text-white/80">Q: {chat.question}</p>
                 </div>
               </div>
-            </div>
-          </motion.div>
-        ))}
+              
+              {/* Answer */}
+              <div className="flex items-start gap-3 pl-12">
+                <div className="p-2 bg-purple-500/20 rounded-lg">
+                  <Brain className="w-5 h-5 text-purple-400" />
+                </div>
+                <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex-1">
+                  {/* Title */}
+                  <h3 className="text-lg font-semibold text-white/90 mb-4">
+                    Analysis Results
+                  </h3>
+                  
+                  {/* Direct Answer */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-purple-400 mb-2">
+                      1. Direct Answer
+                    </h4>
+                    <p className="text-white/80 leading-relaxed">
+                      {chat.answer.split('**1. Direct Answer:**')[1]?.split('**2.')[0] || 'No direct answer available'}
+                    </p>
+                  </div>
 
-        {/* Current Query Response - Only show if there's no chat history */}
-        {insights.queryResponse && chatHistory.length === 0 && (
+                  {/* Key Insights */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-blue-400 mb-2">
+                      2. Key Insights
+                    </h4>
+                    <p className="text-white/80 leading-relaxed">
+                      {chat.answer.split('**2. Key Insights:**')[1]?.split('**3.')[0] || 'No insights available'}
+                    </p>
+                  </div>
+
+                  {/* Relevant Trends */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-medium text-green-400 mb-2">
+                      3. Relevant Trends
+                    </h4>
+                    <p className="text-white/80 leading-relaxed">
+                      {chat.answer.split('**3. Relevant Trends')[1]?.split('**4.')[0] || 'No trends available'}
+                    </p>
+                  </div>
+
+                  {/* Statistical Significance */}
+                  <div>
+                    <h4 className="text-sm font-medium text-yellow-400 mb-2">
+                      4. Statistical Significance
+                    </h4>
+                    <p className="text-white/80 leading-relaxed">
+                      {chat.answer.split('**4. Statistical Significance:**')[1] || 'No statistical analysis available'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))
+        ) : insights.queryResponse ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -161,7 +160,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
               </div>
             </div>
           </motion.div>
-        )}
+        ) : null}
       </div>
       
       {/* Tab Content Section */}
