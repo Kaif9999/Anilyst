@@ -23,9 +23,9 @@ export const authOptions: AuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          prompt: "consent",
           access_type: "offline",
-          response_type: "code"
+          response_type: "code",
+          prompt: "select_account"
         }
       }
     }),
@@ -71,8 +71,13 @@ export const authOptions: AuthOptions = {
     async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
         try {
+          if (!profile?.email) {
+            console.error("No email provided by Google");
+            return false;
+          }
+
           const existingUser = await prisma.user.findUnique({
-            where: { email: profile?.email },
+            where: { email: profile.email },
             include: { accounts: true }
           });
 
@@ -81,7 +86,7 @@ export const authOptions: AuthOptions = {
               await prisma.account.create({
                 data: {
                   userId: existingUser.id,
-                  type: account.type,
+                  type: account.type || "oauth",
                   provider: account.provider,
                   providerAccountId: account.providerAccountId,
                   refresh_token: account.refresh_token,
@@ -99,9 +104,9 @@ export const authOptions: AuthOptions = {
 
           await prisma.user.create({
             data: {
-              email: profile?.email,
-              name: profile?.name,
-              image: profile?.image,
+              email: profile.email,
+              name: profile.name,
+              image: profile.image,
               emailVerified: new Date(),
               subscriptionType: 'FREE',
               usageLimit: {
@@ -113,7 +118,7 @@ export const authOptions: AuthOptions = {
               },
               accounts: {
                 create: {
-                  type: account.type,
+                  type: account.type || "oauth",
                   provider: account.provider,
                   providerAccountId: account.providerAccountId,
                   refresh_token: account.refresh_token,
@@ -153,7 +158,8 @@ export const authOptions: AuthOptions = {
     }
   },
   session: {
-    strategy: "jwt"
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
