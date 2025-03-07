@@ -8,6 +8,24 @@ import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
+// Default response structure
+const defaultAnalysis = {
+  trends: [],
+  anomalies: [],
+  correlations: [],
+  statistics: {
+    mean: 0,
+    median: 0,
+    mode: 0,
+    outliers: [],
+  },
+  queryResponse: {
+    question: "",
+    answer: "",
+    timestamp: new Date().toISOString(),
+  },
+};
+
 export async function POST(req: Request) {
   try {
     // Check authentication
@@ -53,7 +71,7 @@ export async function POST(req: Request) {
     } catch (error) {
       console.error("Error reading file:", error);
       return NextResponse.json(
-        { error: "File not found or inaccessible" },
+        { error: "File not found or inaccessible", ...defaultAnalysis },
         { status: 404 }
       );
     }
@@ -82,7 +100,7 @@ export async function POST(req: Request) {
 
         default:
           return NextResponse.json(
-            { error: "Unsupported file type" },
+            { error: "Unsupported file type", ...defaultAnalysis },
             { status: 400 }
           );
       }
@@ -99,12 +117,18 @@ export async function POST(req: Request) {
       const prompt = `Analyze this data and provide insights:
       ${textContent.substring(0, 30000)} // Limit text length for API
       
-      Please provide:
-      1. Key trends and patterns
-      2. Statistical analysis
-      3. Notable insights
-      4. Recommendations based on the data
-      5. Potential visualizations that would be helpful`;
+      Please provide your response in the following format:
+      **1. Direct Answer:**
+      [Your direct answer here]
+
+      **2. Key Insights:**
+      [Your key insights here]
+
+      **3. Relevant Trends:**
+      [Your trends analysis here]
+
+      **4. Statistical Significance:**
+      [Your statistical analysis here]`;
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
@@ -124,22 +148,38 @@ export async function POST(req: Request) {
         }
       });
 
+      // Structure the response
+      const analysisResponse = {
+        ...defaultAnalysis,
+        queryResponse: {
+          question: "Please analyze this data",
+          answer: analysis,
+          timestamp: new Date().toISOString(),
+        },
+      };
+
       return NextResponse.json({
         success: true,
-        analysis,
+        ...analysisResponse,
       });
 
     } catch (error) {
       console.error("Analysis error:", error);
       return NextResponse.json(
-        { error: error instanceof Error ? error.message : "Error analyzing file" },
+        { 
+          error: error instanceof Error ? error.message : "Error analyzing file",
+          ...defaultAnalysis
+        },
         { status: 500 }
       );
     }
   } catch (error) {
     console.error("Request error:", error);
     return NextResponse.json(
-      { error: "Error processing request" },
+      { 
+        error: "Error processing request",
+        ...defaultAnalysis
+      },
       { status: 500 }
     );
   }

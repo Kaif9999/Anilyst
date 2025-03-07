@@ -6,30 +6,51 @@ import { Brain, TrendingUp, AlertTriangle, BarChart, ArrowRight, Lightbulb, Line
 
 interface AIAnalysisPanelProps {
   insights: {
-    trends: string[]
-    anomalies: string[]
+    trends: string[];
+    anomalies: string[];
     correlations: {
-      variables: [string, string]
-      strength: number
-      description: string
-    }[]
+      variables: [string, string];
+      strength: number;
+      description: string;
+    }[];
     statistics: {
-      mean: number
-      median: number
-      mode: number
-      outliers: number[]
-    }
+      mean: number;
+      median: number;
+      mode: number;
+      outliers: number[];
+    };
     queryResponse?: {
       question: string;
       answer: string;
       timestamp: string;
     };
-  }
-  recommendations: string[]
-  chatHistory: { question: string; answer: string }[]
+  };
+  recommendations?: string[];
+  chatHistory?: { question: string; answer: string }[];
 }
 
-export default function AIAnalysisPanel({ insights, recommendations, chatHistory }: AIAnalysisPanelProps) {
+const defaultInsights = {
+  trends: [],
+  anomalies: [],
+  correlations: [],
+  statistics: {
+    mean: 0,
+    median: 0,
+    mode: 0,
+    outliers: [],
+  },
+  queryResponse: {
+    question: "",
+    answer: "",
+    timestamp: new Date().toISOString(),
+  },
+};
+
+export default function AIAnalysisPanel({ 
+  insights = defaultInsights,
+  recommendations = [],
+  chatHistory = []
+}: AIAnalysisPanelProps) {
   const [activeTab, setActiveTab] = useState('insights');
   const [isChatHistoryOpen, setIsChatHistoryOpen] = useState(false);
   
@@ -39,6 +60,15 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
     { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle },
     { id: 'correlations', label: 'Correlations', icon: BarChart },
   ];
+
+  // Safely extract sections from the answer
+  const extractSection = (text: string, section: string) => {
+    try {
+      return text.split(`**${section}:**`)[1]?.split('**')[0]?.trim() || `No ${section.toLowerCase()} available`;
+    } catch (error) {
+      return `No ${section.toLowerCase()} available`;
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -65,7 +95,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
 
       {/* Chat History Section */}
       <div className="chat-history bg-gradient-to-br from-gray-900 to-black rounded-2xl border border-white/10 p-6 max-h-[500px] overflow-y-auto">
-        {chatHistory && chatHistory.length > 0 ? (
+        {chatHistory.length > 0 ? (
           chatHistory.map((chat, index) => (
             <motion.div
               key={index}
@@ -101,7 +131,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
                       1. Direct Answer
                     </h4>
                     <p className="text-white/80 leading-relaxed">
-                      {chat.answer.split('**1. Direct Answer:**')[1]?.split('**2.')[0] || 'No direct answer available'}
+                      {extractSection(chat.answer, '1. Direct Answer')}
                     </p>
                   </div>
 
@@ -111,7 +141,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
                       2. Key Insights
                     </h4>
                     <p className="text-white/80 leading-relaxed">
-                      {chat.answer.split('**2. Key Insights:**')[1]?.split('**3.')[0] || 'No insights available'}
+                      {extractSection(chat.answer, '2. Key Insights')}
                     </p>
                   </div>
 
@@ -121,7 +151,7 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
                       3. Relevant Trends
                     </h4>
                     <p className="text-white/80 leading-relaxed">
-                      {chat.answer.split('**3. Relevant Trends')[1]?.split('**4.')[0] || 'No trends available'}
+                      {extractSection(chat.answer, '3. Relevant Trends')}
                     </p>
                   </div>
 
@@ -131,14 +161,14 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
                       4. Statistical Significance
                     </h4>
                     <p className="text-white/80 leading-relaxed">
-                      {chat.answer.split('**4. Statistical Significance:**')[1] || 'No statistical analysis available'}
+                      {extractSection(chat.answer, '4. Statistical Significance')}
                     </p>
                   </div>
                 </div>
               </div>
             </motion.div>
           ))
-        ) : insights.queryResponse ? (
+        ) : insights?.queryResponse ? (
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -151,16 +181,35 @@ export default function AIAnalysisPanel({ insights, recommendations, chatHistory
                 </div>
                 <div>
                   <h4 className="text-white font-medium mb-2">
-                    Q: {insights.queryResponse.question}
+                    Q: {insights.queryResponse.question || "Analysis Request"}
                   </h4>
-                  <p className="text-gray-300 leading-relaxed">
-                    {insights.queryResponse.answer}
-                  </p>
+                  <div className="text-gray-300 leading-relaxed space-y-4">
+                    <div className="mb-4">
+                      <h5 className="text-sm font-medium text-purple-400 mb-2">Direct Answer</h5>
+                      <p>{extractSection(insights.queryResponse.answer, '1. Direct Answer')}</p>
+                    </div>
+                    <div className="mb-4">
+                      <h5 className="text-sm font-medium text-blue-400 mb-2">Key Insights</h5>
+                      <p>{extractSection(insights.queryResponse.answer, '2. Key Insights')}</p>
+                    </div>
+                    <div className="mb-4">
+                      <h5 className="text-sm font-medium text-green-400 mb-2">Relevant Trends</h5>
+                      <p>{extractSection(insights.queryResponse.answer, '3. Relevant Trends')}</p>
+                    </div>
+                    <div>
+                      <h5 className="text-sm font-medium text-yellow-400 mb-2">Statistical Significance</h5>
+                      <p>{extractSection(insights.queryResponse.answer, '4. Statistical Significance')}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
           </motion.div>
-        ) : null}
+        ) : (
+          <div className="text-center text-gray-400 py-8">
+            No analysis available yet. Upload a file to get started.
+          </div>
+        )}
       </div>
       
       {/* Tab Content Section */}
