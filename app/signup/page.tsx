@@ -1,28 +1,46 @@
 "use client";
 
-import SignUpForm from "@/components/SignUpForm";
+import { useState } from "react";
 import Link from "next/link";
-import { Brain } from "lucide-react";
+import { motion } from "framer-motion";
+import { Brain, Mail, Lock, User, AlertCircle } from "lucide-react";
+import SignUpForm from "@/components/SignUpForm";
 
 export default function SignUp() {
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
-      <Link href="/" className="flex items-center space-x-3 mb-8">
-        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-          <Brain className="w-6 h-6 text-white" />
-        </div>
-        <span className="text-xl font-bold text-white">Anilyst</span>
-      </Link>
-      <div className="w-full max-w-md p-8 bg-white/10 rounded-xl backdrop-blur-lg">
-        <h2 className="text-2xl font-bold text-white mb-6 text-center">Sign Up</h2>
-        <SignUpForm />
-        <p className="mt-4 text-center text-white/60">
-          Already have an account?{" "}
-          <Link href="/signin" className="text-white hover:underline">
-            Sign in
-          </Link>
-        </p>
+    <div className="min-h-screen bg-black flex items-center justify-center p-4">
+      <div className="max-w-md w-full">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20"
+        >
+          {/* Logo and Title */}
+          <div className="text-center mb-8">
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+                <Brain className="w-7 h-7 text-white" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-white mb-2">Create Account</h2>
+            <p className="text-gray-400">Sign up to get started with Anilyst</p>
+          </div>
+
+          <SignUpForm />
+
+          {/* Sign In Link */}
+          <p className="mt-6 text-center text-gray-400">
+            Already have an account?{" "}
+            <Link
+              href="/signin"
+              className="text-purple-400 hover:text-purple-300 transition-colors"
+            >
+              Sign in
+            </Link>
+          </p>
+        </motion.div>
       </div>
     </div>
   );
-} 
+}
