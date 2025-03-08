@@ -2,19 +2,21 @@
 
 import { signIn } from "next-auth/react";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 
 export default function SignInForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") || "/main";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-    
+
     const form = new FormData(e.currentTarget as HTMLFormElement);
     const email = form.get("email") as string;
     const password = form.get("password") as string;
@@ -24,6 +26,7 @@ export default function SignInForm() {
         email,
         password,
         redirect: false,
+        callbackUrl,
       });
 
       if (result?.error) {
@@ -32,7 +35,7 @@ export default function SignInForm() {
       }
 
       if (result?.ok) {
-        router.push("/main");
+        router.push(callbackUrl);
         router.refresh();
       }
     } catch (error) {
@@ -45,28 +48,12 @@ export default function SignInForm() {
   const handleGoogleSignIn = async () => {
     try {
       setIsLoading(true);
-      const result = await signIn("google", {
+      await signIn("google", {
         callbackUrl: "/main",
-        redirect: false,
+        redirect: true,
       });
-
-      if (result?.error === "OAuthAccountNotLinked") {
-        setError("This email is already associated with a different sign-in method. Please use your original sign-in method.");
-        return;
-      }
-
-      if (result?.error) {
-        setError("Failed to sign in with Google");
-        return;
-      }
-
-      if (result?.ok) {
-        router.push("/main");
-        router.refresh();
-      }
     } catch (error) {
       setError("An error occurred during Google sign in");
-    } finally {
       setIsLoading(false);
     }
   };
@@ -103,7 +90,7 @@ export default function SignInForm() {
       >
         {isLoading ? "Signing in..." : "Sign In"}
       </button>
-      
+
       <div className="relative my-4">
         <div className="absolute inset-0 flex items-center">
           <div className="w-full border-t border-white/10"></div>
@@ -112,12 +99,12 @@ export default function SignInForm() {
           <span className="px-2 bg-black text-white/60">Or continue with</span>
         </div>
       </div>
-      
+
       <button
         type="button"
         onClick={handleGoogleSignIn}
         disabled={isLoading}
-        className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/10 
+        className="w-full flex items-center justify-center gap-3 px-4 py-3 bg-white/10
           hover:bg-white/20 text-white rounded-lg transition-colors"
       >
         <FcGoogle className="w-5 h-5" />

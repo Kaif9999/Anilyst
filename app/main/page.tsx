@@ -5,7 +5,6 @@ import OutputDisplay from "@/components/output-display";
 import InputSection from "@/components/input-section";
 import AIAnalysisPanel from "@/components/AIAnalysisPanel";
 import { ChartData, AnalyticsResult } from "@/types";
-import Popup from "@/components/alertpopup";
 import StarryBackground from "@/components/starry-background";
 import {
   LogOut,
@@ -50,16 +49,21 @@ export default function Home() {
   const { data: session } = useSession();
   const [popup, setPopup] = useState<{ show: boolean; message: string }>({
     show: false,
-    message: "You have exhausted your quota. Please upgrade to Pro for unlimited access.",
+    message:
+      "You have exhausted your quota. Please upgrade to Pro for unlimited access.",
   });
 
   const [chartData, setChartData] = useState<ChartData | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisState | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisState | null>(
+    null,
+  );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [query, setQuery] = useState("");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [chatHistory, setChatHistory] = useState<{ question: string; answer: string }[]>([]);
+  const [chatHistory, setChatHistory] = useState<
+    { question: string; answer: string }[]
+  >([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
@@ -75,51 +79,52 @@ export default function Home() {
   useEffect(() => {
     if (popup.show) {
       const timer = setTimeout(() => {
-        setPopup(prev => ({ ...prev, show: false }));
+        setPopup((prev) => ({ ...prev, show: false }));
       }, 3000);
       return () => clearTimeout(timer);
     }
   }, [popup.show]);
 
-  const checkUsageLimit = async (type: 'visualization' | 'analysis') => {
+  const checkUsageLimit = async (type: "visualization" | "analysis") => {
     if (!session) {
       setPopup({
         show: true,
-        message: 'Please sign in to continue.'
+        message: "Please sign in to continue.",
       });
       setTimeout(() => {
-        window.location.href = '/signin';
+        window.location.href = "/signin";
       }, 2000);
       return false;
     }
 
     try {
-      const response = await fetch('/api/usage', {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
+      const response = await fetch("/api/usage", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-        credentials: 'include',
-        body: JSON.stringify({ type })
+        credentials: "include",
+        body: JSON.stringify({ type }),
       });
 
       if (!response.ok) {
         const data = await response.json();
         if (response.status === 403) {
-          const message = type === 'visualization' 
-            ? "You've used all 5 visualizations. Upgrade to Pro for unlimited charts and insights!"
-            : "You've used all 5 analyses. Upgrade to Pro for unlimited AI-powered analysis!";
+          const message =
+            type === "visualization"
+              ? "You've used all 5 visualizations. Upgrade to Pro for unlimited charts and insights!"
+              : "You've used all 5 analyses. Upgrade to Pro for unlimited AI-powered analysis!";
           setPopup({
             show: true,
-            message: message
+            message: message,
           });
           setTimeout(() => {
-            window.location.href = '/pricing';
+            window.location.href = "/pricing";
           }, 9000);
         } else {
           setPopup({
             show: true,
-            message: 'An error occurred while checking usage limits.'
+            message: "An error occurred while checking usage limits.",
           });
         }
         return false;
@@ -127,30 +132,49 @@ export default function Home() {
 
       return true;
     } catch (error) {
-      console.error('Usage check failed:', error);
+      console.error("Usage check failed:", error);
       setPopup({
         show: true,
-        message: 'An error occurred while checking usage limits.'
+        message: "An error occurred while checking usage limits.",
       });
       return false;
     }
   };
 
   const handleDataAnalysis = async (data: ChartData) => {
-    if (!await checkUsageLimit('visualization')) return;
+    if (!(await checkUsageLimit("visualization"))) return;
 
     setChartData(data);
     setIsAnalyzing(true);
 
     try {
+      // Store the visualization and analysis results
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data }),
+        body: JSON.stringify({
+          data,
+          fileName: "Analysis " + new Date().toLocaleString(),
+          fileType: "visualization",
+          content: JSON.stringify({
+            chartData: data,
+            timestamp: new Date().toISOString(),
+          }),
+        }),
       });
 
       const result = await response.json();
       setAnalysisResult(result);
+      await fetch("/api/visualizations/history", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chartData: data,
+          analysisResult: result,
+          fileName: "Analysis " + new Date().toLocaleString(),
+          fileType: "visualization",
+        }),
+      });
     } catch (error) {
       console.error("Analysis failed:", error);
     } finally {
@@ -162,7 +186,7 @@ export default function Home() {
     e.preventDefault();
     if (!query.trim()) return;
 
-    if (!await checkUsageLimit('analysis')) return;
+    if (!(await checkUsageLimit("analysis"))) return;
 
     try {
       const response = await fetch("/api/query", {
@@ -205,16 +229,16 @@ export default function Home() {
           mean: 0,
           median: 0,
           mode: 0,
-          outliers: []
+          outliers: [],
         },
         queryResponse: {
           question: "",
           answer: "",
-          timestamp: new Date().toISOString()
-        }
+          timestamp: new Date().toISOString(),
+        },
       },
       recommendations: [],
-      chatHistory: []
+      chatHistory: [],
     });
     setChatHistory([]);
     setQuery("");
@@ -222,40 +246,36 @@ export default function Home() {
 
   const handleSelectSession = async (session: { id: string }) => {
     try {
-      // Show loading state
       setPopup({ show: true, message: "Loading session..." });
-      
-      // Fetch the full session data
+
       const response = await fetch(`/api/visualizations/${session.id}`);
       if (!response.ok) {
-        throw new Error('Failed to load session');
+        throw new Error("Failed to load session");
       }
-      
+
       const data = await response.json();
-      
-      // Update state with session data
+
+      // Update all relevant state with the session data
       if (data.chartData) {
         setChartData(data.chartData);
       }
-      
+
       if (data.analysisResult) {
         setAnalysisResult(data.analysisResult);
       }
-      
+
       if (data.chatHistory) {
         setChatHistory(data.chatHistory);
       }
-      
-      // Clear loading state
+
       setPopup({ show: false, message: "" });
     } catch (error) {
-      console.error('Failed to load session:', error);
+      console.error("Failed to load session:", error);
       setPopup({
         show: true,
-        message: "Failed to load session. Please try again."
+        message: "Failed to load session. Please try again.",
       });
-      
-      // Auto-hide error message after 3 seconds
+
       setTimeout(() => {
         setPopup({ show: false, message: "" });
       }, 3000);
@@ -270,9 +290,11 @@ export default function Home() {
         onNewSession={handleNewSession}
         onSelectSession={handleSelectSession}
       />
-      
+
       {/* Adjust main content padding when sidebar is open */}
-      <div className={`transition-all duration-300 ${isSidebarOpen ? 'pl-[280px]' : 'pl-0'}`}>
+      <div
+        className={`transition-all duration-300 ${isSidebarOpen ? "pl-[280px]" : "pl-0"}`}
+      >
         {/* Sign Out Button - Fixed Position */}
         <div className="fixed top-6 right-6 z-50">
           <button
@@ -287,11 +309,15 @@ export default function Home() {
         {/* Popup Message */}
         <div
           className={`fixed top-24 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-8000 ${
-            popup.show ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4 pointer-events-none"
+            popup.show
+              ? "opacity-100 translate-y-0"
+              : "opacity-0 -translate-y-4 pointer-events-none"
           }`}
         >
           <div className="bg-white/10 backdrop-blur-lg border border-white/10 rounded-xl px-6 py-4 shadow-lg min-w-[300px]">
-            <p className="text-white text-center font-medium">{popup.message}</p>
+            <p className="text-white text-center font-medium">
+              {popup.message}
+            </p>
           </div>
         </div>
 
@@ -428,10 +454,10 @@ export default function Home() {
 
                 {/* CSV Upload Section */}
                 {/* <div className="bg-gray-950 backdrop-blur-lg rounded-3xl border border-white/10 p-8"> */}
-                  {/* <h2 className="text-2xl font-bold text-white mb-6"> */}
-                    {/* Upload Data can be .csv, .xlsx, .xls, or .pdf file */}
-                  {/* </h2> */}
-                  <InputSection onResultReceived={handleDataAnalysis} />
+                {/* <h2 className="text-2xl font-bold text-white mb-6"> */}
+                {/* Upload Data can be .csv, .xlsx, .xls, or .pdf file */}
+                {/* </h2> */}
+                <InputSection onResultReceived={handleDataAnalysis} />
                 {/* </div> */}
               </motion.div>
             </div>

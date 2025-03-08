@@ -1,17 +1,17 @@
-import { PrismaAdapter } from "@auth/prisma-adapter"
-import { AuthOptions } from "next-auth"
-import NextAuth from "next-auth/next"
-import { prisma } from "@/lib/prisma"
-import CredentialsProvider from "next-auth/providers/credentials"
-import bcrypt from "bcrypt"
-import { DefaultSession } from "next-auth"
-import GoogleProvider from "next-auth/providers/google"
+import { PrismaAdapter } from "@auth/prisma-adapter";
+import { AuthOptions } from "next-auth";
+import NextAuth from "next-auth/next";
+import { prisma } from "@/lib/prisma";
+import CredentialsProvider from "next-auth/providers/credentials";
+import bcrypt from "bcrypt";
+import { DefaultSession } from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
 
 declare module "next-auth" {
   interface Session {
     user: {
-      id: string
-    } & DefaultSession["user"]
+      id: string;
+    } & DefaultSession["user"];
   }
 }
 
@@ -23,44 +23,44 @@ export const authOptions: AuthOptions = {
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
+          prompt: "select_account",
           access_type: "offline",
           response_type: "code",
-          prompt: "select_account"
-        }
-      }
+        },
+      },
     }),
     CredentialsProvider({
       name: "credentials",
       credentials: {
         email: { label: "Email", type: "email" },
-        password: { label: "Password", type: "password" }
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          throw new Error("Invalid credentials")
+          throw new Error("Invalid credentials");
         }
 
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email
-          }
-        })
+            email: credentials.email,
+          },
+        });
 
         if (!user || !user?.password) {
-          throw new Error("Invalid credentials")
+          throw new Error("Invalid credentials");
         }
 
         const isCorrectPassword = await bcrypt.compare(
           credentials.password,
-          user.password
-        )
+          user.password,
+        );
 
         if (!isCorrectPassword) {
-          throw new Error("Invalid credentials")
+          throw new Error("Invalid credentials");
         }
 
-        return user
-      }
+        return user;
+      },
     }),
   ],
   pages: {
@@ -78,11 +78,13 @@ export const authOptions: AuthOptions = {
 
           const existingUser = await prisma.user.findUnique({
             where: { email: profile.email },
-            include: { accounts: true }
+            include: { accounts: true },
           });
 
           if (existingUser) {
-            if (!existingUser.accounts.some(acc => acc.provider === "google")) {
+            if (
+              !existingUser.accounts.some((acc) => acc.provider === "google")
+            ) {
               await prisma.account.create({
                 data: {
                   userId: existingUser.id,
@@ -95,9 +97,10 @@ export const authOptions: AuthOptions = {
                   token_type: account.token_type,
                   scope: account.scope,
                   id_token: account.id_token,
-                  session_state: account.session_state
-                }
+                  session_state: account.session_state,
+                },
               });
+              prisma;
             }
             return true;
           }
@@ -108,13 +111,13 @@ export const authOptions: AuthOptions = {
               name: profile.name,
               image: profile.image,
               emailVerified: new Date(),
-              subscriptionType: 'FREE',
+              subscriptionType: "FREE",
               usageLimit: {
                 create: {
                   visualizations: 0,
                   analyses: 0,
-                  lastResetDate: new Date()
-                }
+                  lastResetDate: new Date(),
+                },
               },
               accounts: {
                 create: {
@@ -127,10 +130,10 @@ export const authOptions: AuthOptions = {
                   token_type: account.token_type,
                   scope: account.scope,
                   id_token: account.id_token,
-                  session_state: account.session_state
-                }
-              }
-            }
+                  session_state: account.session_state,
+                },
+              },
+            },
           });
 
           return true;
@@ -155,7 +158,7 @@ export const authOptions: AuthOptions = {
         token.accessToken = account.access_token;
       }
       return token;
-    }
+    },
   },
   session: {
     strategy: "jwt",
@@ -163,7 +166,7 @@ export const authOptions: AuthOptions = {
   },
   secret: process.env.NEXTAUTH_SECRET,
   debug: process.env.NODE_ENV === "development",
-}
+};
 
-const handler = NextAuth(authOptions)
-export { handler as GET, handler as POST } 
+const handler = NextAuth(authOptions);
+export { handler as GET, handler as POST };
