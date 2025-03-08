@@ -244,11 +244,11 @@ export default function Home() {
     setQuery("");
   };
 
-  const handleSelectSession = async (session: { id: string }) => {
+  const handleSelectSession = async (sessionId: string) => {
     try {
       setPopup({ show: true, message: "Loading session..." });
 
-      const response = await fetch(`/api/visualizations/${session.id}`);
+      const response = await fetch(`/api/visualizations/${sessionId}`);
       if (!response.ok) {
         throw new Error("Failed to load session");
       }
