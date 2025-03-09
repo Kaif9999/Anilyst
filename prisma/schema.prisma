@@ -17,6 +17,7 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   subscriptionType SubscriptionType @default(FREE)
+  subscriptionId String?   // Dodo subscription ID
   usageLimit     UsageLimit?
   accounts       Account[]
   sessions       Session[]
@@ -30,12 +31,16 @@ enum SubscriptionType {
 }
 
 model UsageLimit {
-  id              String   @id @default(cuid())
-  userId          String   @unique
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  visualizations  Int      @default(0)
-  analyses        Int      @default(0)
-  lastResetDate   DateTime @default(now())
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  visualizations    Int      @default(0)
+  analyses          Int      @default(0)
+  visualizationLimit Int     @default(1)
+  analysisLimit     Int      @default(4)
+  lastResetDate     DateTime @default(now())
+  nextBillingDate   DateTime? // For subscription tracking
+  subscriptionStatus String  @default("active")
 }
 
 model Account {

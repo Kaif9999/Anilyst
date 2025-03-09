@@ -4,7 +4,8 @@ import { readFile } from "fs/promises";
 import * as XLSX from 'xlsx';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, SubscriptionType } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -30,10 +31,109 @@ export async function POST(req: Request) {
   try {
     // Check authentication
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Get user with subscription type
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: {
+        id: true,
+        subscriptionType: true
+      }
+    });
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "User not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check usage limits
+    const usageLimit = await prisma.usageLimit.findUnique({
+      where: { userId: user.id },
+      select: {
+        visualizations: true,
+        analyses: true,
+        visualizationLimit: true,
+        analysisLimit: true,
+        lastResetDate: true,
+        nextBillingDate: true,
+        subscriptionStatus: true
+      }
+    });
+
+    // Check subscription status
+    if (usageLimit?.subscriptionStatus === 'expired') {
+      return NextResponse.json(
+        { error: "Your subscription has expired. Please renew to continue using the service.", ...defaultAnalysis },
+        { status: 402 }
+      );
+    }
+
+    const maxLimits = {
+      visualizations: user.subscriptionType === SubscriptionType.FREE ? 1 : 999999,
+      analyses: user.subscriptionType === SubscriptionType.FREE ? 4 : 999999
+    };
+
+    if (!usageLimit) {
+      // Create default usage limit if it doesn't exist
+      const createData: Prisma.UsageLimitCreateInput = {
+        user: { connect: { id: user.id } },
+        visualizations: 0,
+        analyses: 0,
+        visualizationLimit: maxLimits.visualizations,
+        analysisLimit: maxLimits.analyses,
+        lastResetDate: new Date(),
+        subscriptionStatus: user.subscriptionType === SubscriptionType.FREE ? 'active' : 'active'
+      };
+
+      await prisma.usageLimit.create({
+        data: createData
+      });
+
+      return NextResponse.json(
+        { error: "Please try again" },
+        { status: 400 }
+      );
+    }
+
+    // Check if we need to reset usage counts (daily reset for free users, monthly for paid)
+    const lastReset = new Date(usageLimit.lastResetDate);
+    const now = new Date();
+    const shouldReset = user.subscriptionType === SubscriptionType.FREE
+      ? lastReset.getDate() !== now.getDate() || lastReset.getMonth() !== now.getMonth()
+      : usageLimit.nextBillingDate && now >= usageLimit.nextBillingDate;
+
+    if (shouldReset) {
+      const updateData: Prisma.UsageLimitUpdateInput = {
+        visualizations: 0,
+        analyses: 0,
+        lastResetDate: now
+      };
+
+      await prisma.usageLimit.update({
+        where: { userId: user.id },
+        data: updateData
+      });
+      usageLimit.visualizations = 0;
+      usageLimit.analyses = 0;
+    }
+
+    // Check if user has reached their analysis limit
+    if (usageLimit.analyses >= usageLimit.analysisLimit) {
+      const message = user.subscriptionType === SubscriptionType.FREE
+        ? "You've reached your daily analysis limit. Upgrade to PRO for unlimited analyses!"
+        : "You've reached your analysis limit for this billing cycle. Please contact support if you need assistance.";
+
+      return NextResponse.json(
+        { error: message, ...defaultAnalysis },
+        { status: 429 }
       );
     }
 
@@ -145,6 +245,16 @@ export async function POST(req: Request) {
           content: analysis,
           fileName: filePath.split('/').pop() || 'unknown',
           fileType: type,
+        }
+      });
+
+      // After successful analysis, increment the usage count
+      await prisma.usageLimit.update({
+        where: { userId: session.user.id },
+        data: {
+          analyses: {
+            increment: 1
+          }
         }
       });
 
