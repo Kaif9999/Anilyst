@@ -7,21 +7,28 @@ const prisma = new PrismaClient();
 
 // Verify webhook signature
 function verifySignature(payload: string, signature: string, timestamp: string) {
-  const webhookSecret = process.env.DODO_WEBHOOK_SECRET!;
-  
-  // Create the signature message (timestamp + payload)
-  const signatureMessage = timestamp + payload;
-  
-  // Create HMAC using webhook secret
-  const hmac = crypto.createHmac('sha256', webhookSecret);
-  hmac.update(signatureMessage);
-  const expectedSignature = hmac.digest('hex');
-  
-  // Compare signatures using timing-safe comparison
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expectedSignature)
-  );
+  try {
+    const webhookSecret = process.env.DODO_WEBHOOK_SECRET!;
+    
+    // Create the signature message (timestamp + payload)
+    const signatureMessage = timestamp + payload;
+    
+    // Create HMAC using webhook secret
+    const hmac = crypto.createHmac('sha256', webhookSecret);
+    hmac.update(signatureMessage);
+    const expectedSignature = hmac.digest('hex');
+
+    // Ensure both signatures are the same length by converting to hex
+    const receivedSignature = Buffer.from(signature, 'hex');
+    const computedSignature = Buffer.from(expectedSignature, 'hex');
+
+    // Compare signatures using timing-safe comparison
+    return receivedSignature.length === computedSignature.length &&
+           crypto.timingSafeEqual(receivedSignature, computedSignature);
+  } catch (error) {
+    console.error('Signature verification error:', error);
+    return false;
+  }
 }
 
 // Define subscription limits
