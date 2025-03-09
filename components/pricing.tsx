@@ -261,7 +261,7 @@ export default function Pricing() {
                 transition={{ duration: 0.3 }}
                 key={billingInterval}
               >
-                $149
+                $250
                 <span className="text-lg font-normal text-gray-400">
                   /lifetime
                 </span>

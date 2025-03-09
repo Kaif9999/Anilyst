@@ -46,44 +46,44 @@ export default function Navbar() {
             >
               Pricing
             </Link>
-          <div className="relative bg-black/10 rounded-lg md:hidden">
-                  <button
-                    className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
-                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+            <div className="relative bg-black/10 rounded-lg md:hidden">
+              <button
+                className="text-2xl font-semibold text-white hover:text-blue-400 transition-colors"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              >
+                More
+              </button>
+              {isDropdownOpen && (
+                <div
+                  className="absolute top-full mt-2 bg-black shadow-lg rounded-md py-2 transition-all duration-300 ease-in-out border border-1 border-gray-500 radius-3xl"
+                  style={{
+                    opacity: isDropdownOpen ? 1 : 0,
+                    transform: isDropdownOpen
+                      ? "translateY(0)"
+                      : "translateY(-10px)",
+                  }}
+                >
+                  <Link
+                    href="/privacy_policy"
+                    className="block px-4 py-2 text-white hover:bg-gray-900"
                   >
-                    More
-                  </button>
-                  {isDropdownOpen && (
-                    <div
-                      className="absolute top-full mt-2 bg-black shadow-lg rounded-md py-2 transition-all duration-300 ease-in-out border border-1 border-gray-500 radius-3xl"
-                      style={{
-                        opacity: isDropdownOpen ? 1 : 0,
-                        transform: isDropdownOpen
-                          ? "translateY(0)"
-                          : "translateY(-10px)",
-                      }}
-                    >
-                      <Link
-                        href="/privacy_policy"
-                        className="block px-4 py-2 text-white hover:bg-gray-900"
-                      >
-                        Privacy Policy
-                      </Link>
-                      <Link
-                        href="/refund_policy"
-                        className="block px-4 py-2 text-white hover:bg-gray-900"
-                      >
-                        Refund Policy
-                      </Link>
-                      <Link
-                        href="/terms_conditions"
-                        className="block px-4 py-2 text-white hover:bg-gray-900"
-                      >
-                        Terms & Conditions
-                      </Link>
-                    </div>
-                  )}
+                    Privacy Policy
+                  </Link>
+                  <Link
+                    href="/refund_policy"
+                    className="block px-4 py-2 text-white hover:bg-gray-900"
+                  >
+                    Refund Policy
+                  </Link>
+                  <Link
+                    href="/terms_conditions"
+                    className="block px-4 py-2 text-white hover:bg-gray-900"
+                  >
+                    Terms & Conditions
+                  </Link>
                 </div>
+              )}
+            </div>
             <div className="border-t border-white/10 pt-40">
               <button
                 onClick={() => {
@@ -113,8 +113,8 @@ export default function Navbar() {
             <div className="flex items-center justify-between">
               {/* Logo Area */}
               <Link href="/" className="flex items-center space-x-3">
-                <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-white/20 flex items-center justify-center">
-                  <Brain className="w-6 h-6 md:w-7 md:h-7 text-white" />
+                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
+                  <Brain className="w-7 h-7 text-white" />
                 </div>
                 <span className="text-xl md:text-2xl font-bold text-white">
                   Anilyst

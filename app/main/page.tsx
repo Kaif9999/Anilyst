@@ -427,9 +427,9 @@ export default function Home() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
-                    className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 p-8"
+                    className="backdrop-blur-md bg-gray-950 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 rounded-3xl p-8 shadow-2xl border border-white/10"
                   >
-                    <h2 className="text-2xl font-bold text-white mb-6">
+                    <h2 className="text-2xl font-bold text-white mb-6 text-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
                       Ask Questions About Your Data
                     </h2>
                     <form onSubmit={handleQuery} className="space-y-4">
