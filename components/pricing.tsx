@@ -7,20 +7,24 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import Navbar from "./Navbar"
 import Footer from "./Footer"
 import { useSession } from "next-auth/react"
+import { toast } from "@/components/ui/use-toast"
 
 export default function Pricing() {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
   const { data: session } = useSession()
+  const [isLoading, setIsLoading] = useState(false)
   
   const getPrice = (basePrice: number) => {
     return billingInterval === "yearly" ? basePrice * 0.8 : basePrice
   }
 
   const handleProSubscription = () => {
+    setIsLoading(true);
     window.location.href = "https://checkout.dodopayments.com/buy/pdt_17wlMmBaE7Klqk5QnB0Up?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F";
   };
 
   const handleLifetimeSubscription = () => {
+    setIsLoading(true);
     window.location.href = "https://checkout.dodopayments.com/buy/pdt_6iGXPJ0iAZjGLv0lINYR4?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F";
   };
 
@@ -209,9 +213,10 @@ export default function Pricing() {
               </div>
               <button 
                 onClick={handleProSubscription}
-                className="w-full py-3 px-4 rounded-xl bg-white text-black hover:bg-white/90 transition-colors mb-8"
+                disabled={isLoading}
+                className="w-full py-3 px-4 rounded-xl bg-white text-black hover:bg-white/90 transition-colors mb-8 disabled:opacity-50"
               >
-                Upgrade to Pro
+                {isLoading ? "Processing..." : "Upgrade to Pro"}
               </button>
               <div className="space-y-4">
                 <p className="font-medium text-white">Everything in Free, plus:</p>
@@ -267,9 +272,10 @@ export default function Pricing() {
             </div>
             <button 
               onClick={handleLifetimeSubscription}
-              className="w-full py-3 px-4 rounded-xl bg-white text-black border border-white/20 hover:bg-white/90 transition-colors mb-8"
+              disabled={isLoading}
+              className="w-full py-3 px-4 rounded-xl bg-white text-black border border-white/20 hover:bg-white/90 transition-colors mb-8 disabled:opacity-50"
             >
-              Get Lifetime Access
+              {isLoading ? "Processing..." : "Get Lifetime Access"}
             </button>
             <div className="space-y-4">
               <p className="font-medium text-white">Everything in Pro, for lifetime:</p>

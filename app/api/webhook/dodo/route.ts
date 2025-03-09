@@ -81,105 +81,139 @@ export async function POST(req: Request) {
 }
 
 async function handlePaymentSuccess(payload: any) {
-  const userEmail = payload.data.customer.email;
-  const productId = payload.data.product.id;
-  const subscriptionId = payload.data.subscription?.id;
-  const nextBillingDate = payload.data.subscription?.next_billing_date 
-    ? new Date(payload.data.subscription.next_billing_date)
-    : undefined;
-  
-  const subscriptionType = productId === "pdt_6iGXPJ0iAZjGLv0lINYR4" 
-    ? SubscriptionType.LIFETIME 
-    : SubscriptionType.PRO;
-  
-  const user = await prisma.user.update({
-    where: { email: userEmail },
-    data: {
-      subscriptionType,
-      subscriptionId: subscriptionId || null
+  try {
+    const userEmail = payload.data.customer.email;
+    const productId = payload.data.product.id;
+    const subscriptionId = payload.data.subscription?.id;
+    const nextBillingDate = payload.data.subscription?.next_billing_date 
+      ? new Date(payload.data.subscription.next_billing_date)
+      : undefined;
+    
+    // Determine subscription type based on product ID
+    const subscriptionType = productId === "pdt_6iGXPJ0iAZjGLv0lINYR4" 
+      ? SubscriptionType.LIFETIME 
+      : SubscriptionType.PRO;
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: userEmail }
+    });
+
+    if (!user) {
+      console.error(`User not found for email: ${userEmail}`);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-  });
 
-  const usageLimitData: Prisma.UsageLimitCreateInput = {
-    user: { connect: { id: user.id } },
-    visualizations: 0,
-    analyses: 0,
-    visualizationLimit: subscriptionLimits[subscriptionType].visualizationLimit,
-    analysisLimit: subscriptionLimits[subscriptionType].analysisLimit,
-    lastResetDate: new Date(),
-    nextBillingDate,
-    subscriptionStatus: 'active'
-  };
+    // Update user subscription
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        subscriptionType,
+        subscriptionId: subscriptionId || null
+      }
+    });
 
-  await prisma.usageLimit.upsert({
-    where: { userId: user.id },
-    update: {
+    // Update or create usage limits
+    const usageLimitData = {
       visualizations: 0,
       analyses: 0,
       visualizationLimit: subscriptionLimits[subscriptionType].visualizationLimit,
       analysisLimit: subscriptionLimits[subscriptionType].analysisLimit,
+      lastResetDate: new Date(),
       nextBillingDate,
       subscriptionStatus: 'active'
-    },
-    create: usageLimitData
-  });
+    };
 
-  return NextResponse.json({ success: true });
+    await prisma.usageLimit.upsert({
+      where: { userId: user.id },
+      update: usageLimitData,
+      create: {
+        ...usageLimitData,
+        user: { connect: { id: user.id } }
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error handling payment success:", error);
+    return NextResponse.json(
+      { error: "Failed to process payment success" },
+      { status: 500 }
+    );
+  }
 }
 
 async function handleSubscriptionCancelled(payload: any) {
-  const subscriptionId = payload.data.subscription.id;
-  
-  const user = await prisma.user.findFirst({
-    where: {
-      subscriptionId: subscriptionId
-    }
-  });
+  try {
+    const subscriptionId = payload.data.subscription.id;
+    
+    const user = await prisma.user.findFirst({
+      where: { subscriptionId }
+    });
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user) {
+      console.error(`User not found for subscription: ${subscriptionId}`);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Update usage limit status
+    await prisma.usageLimit.update({
+      where: { userId: user.id },
+      data: {
+        subscriptionStatus: 'cancelled',
+        nextBillingDate: null
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error handling subscription cancellation:", error);
+    return NextResponse.json(
+      { error: "Failed to process subscription cancellation" },
+      { status: 500 }
+    );
   }
-
-  await prisma.usageLimit.update({
-    where: { userId: user.id },
-    data: {
-      subscriptionStatus: 'cancelled'
-    }
-  });
-
-  return NextResponse.json({ success: true });
 }
 
 async function handleSubscriptionExpired(payload: any) {
-  const subscriptionId = payload.data.subscription.id;
-  
-  const user = await prisma.user.findFirst({
-    where: {
-      subscriptionId: subscriptionId
-    }
-  });
+  try {
+    const subscriptionId = payload.data.subscription.id;
+    
+    const user = await prisma.user.findFirst({
+      where: { subscriptionId }
+    });
 
-  if (!user) {
-    return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user) {
+      console.error(`User not found for subscription: ${subscriptionId}`);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Update user to free plan
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        subscriptionType: SubscriptionType.FREE,
+        subscriptionId: null
+      }
+    });
+
+    // Update usage limits
+    await prisma.usageLimit.update({
+      where: { userId: user.id },
+      data: {
+        visualizationLimit: subscriptionLimits.FREE.visualizationLimit,
+        analysisLimit: subscriptionLimits.FREE.analysisLimit,
+        subscriptionStatus: 'expired',
+        nextBillingDate: null
+      }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error handling subscription expiration:", error);
+    return NextResponse.json(
+      { error: "Failed to process subscription expiration" },
+      { status: 500 }
+    );
   }
-
-  await prisma.user.update({
-    where: { id: user.id },
-    data: {
-      subscriptionType: SubscriptionType.FREE,
-      subscriptionId: null
-    }
-  });
-
-  await prisma.usageLimit.update({
-    where: { userId: user.id },
-    data: {
-      visualizationLimit: subscriptionLimits.FREE.visualizationLimit,
-      analysisLimit: subscriptionLimits.FREE.analysisLimit,
-      subscriptionStatus: 'expired',
-      nextBillingDate: null
-    }
-  });
-
-  return NextResponse.json({ success: true });
 } 
