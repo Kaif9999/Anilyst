@@ -76,65 +76,81 @@ export async function POST(req: Request) {
       );
     }
 
-    const maxLimits = {
-      visualizations: user.subscriptionType === SubscriptionType.FREE ? 1 : 999999,
-      analyses: user.subscriptionType === SubscriptionType.FREE ? 4 : 999999
-    };
-
-    if (!usageLimit) {
-      // Create default usage limit if it doesn't exist
-      const createData: Prisma.UsageLimitCreateInput = {
-        user: { connect: { id: user.id } },
-        visualizations: 0,
-        analyses: 0,
-        visualizationLimit: maxLimits.visualizations,
-        analysisLimit: maxLimits.analyses,
-        lastResetDate: new Date(),
-        subscriptionStatus: user.subscriptionType === SubscriptionType.FREE ? 'active' : 'active'
-      };
-
-      await prisma.usageLimit.create({
-        data: createData
-      });
-
-      return NextResponse.json(
-        { error: "Please try again" },
-        { status: 400 }
-      );
-    }
-
-    // Check if we need to reset usage counts (daily reset for free users, monthly for paid)
-    const lastReset = new Date(usageLimit.lastResetDate);
-    const now = new Date();
-    const shouldReset = user.subscriptionType === SubscriptionType.FREE
-      ? lastReset.getDate() !== now.getDate() || lastReset.getMonth() !== now.getMonth()
-      : usageLimit.nextBillingDate && now >= usageLimit.nextBillingDate;
-
-    if (shouldReset) {
-      const updateData: Prisma.UsageLimitUpdateInput = {
-        visualizations: 0,
-        analyses: 0,
-        lastResetDate: now
-      };
-
+    // For PRO and LIFETIME users, don't enforce limits
+    if (user.subscriptionType === SubscriptionType.PRO || user.subscriptionType === SubscriptionType.LIFETIME) {
+      // Just increment the counters for tracking purposes
       await prisma.usageLimit.update({
         where: { userId: user.id },
-        data: updateData
+        data: {
+          analyses: {
+            increment: 1
+          }
+        }
       });
-      usageLimit.visualizations = 0;
-      usageLimit.analyses = 0;
-    }
+    } else {
+      // For FREE users, check and enforce limits
+      const maxLimits = {
+        visualizations: 1,
+        analyses: 4
+      };
 
-    // Check if user has reached their analysis limit
-    if (usageLimit.analyses >= usageLimit.analysisLimit) {
-      const message = user.subscriptionType === SubscriptionType.FREE
-        ? "You've reached your daily analysis limit. Upgrade to PRO for unlimited analyses!"
-        : "You've reached your analysis limit for this billing cycle. Please contact support if you need assistance.";
+      if (!usageLimit) {
+        // Create default usage limit if it doesn't exist
+        const createData = {
+          user: { connect: { id: user.id } },
+          visualizations: 0,
+          analyses: 0,
+          visualizationLimit: maxLimits.visualizations,
+          analysisLimit: maxLimits.analyses,
+          lastResetDate: new Date(),
+          subscriptionStatus: 'active'
+        };
 
-      return NextResponse.json(
-        { error: message, ...defaultAnalysis },
-        { status: 429 }
-      );
+        await prisma.usageLimit.create({
+          data: createData
+        });
+
+        return NextResponse.json(
+          { error: "Please try again" },
+          { status: 400 }
+        );
+      }
+
+      // Check if we need to reset usage counts (daily reset for free users)
+      const lastReset = new Date(usageLimit.lastResetDate);
+      const now = new Date();
+      const shouldReset = lastReset.getDate() !== now.getDate() || lastReset.getMonth() !== now.getMonth();
+
+      if (shouldReset) {
+        await prisma.usageLimit.update({
+          where: { userId: user.id },
+          data: {
+            visualizations: 0,
+            analyses: 0,
+            lastResetDate: now
+          }
+        });
+        usageLimit.visualizations = 0;
+        usageLimit.analyses = 0;
+      }
+
+      // Check if user has reached their analysis limit
+      if (usageLimit.analyses >= usageLimit.analysisLimit) {
+        return NextResponse.json(
+          { error: "You've reached your daily analysis limit. Upgrade to PRO for unlimited analyses!", ...defaultAnalysis },
+          { status: 429 }
+        );
+      }
+
+      // Increment analysis count for free users
+      await prisma.usageLimit.update({
+        where: { userId: user.id },
+        data: {
+          analyses: {
+            increment: 1
+          }
+        }
+      });
     }
 
     const body = await req.json();
@@ -245,16 +261,6 @@ export async function POST(req: Request) {
           content: analysis,
           fileName: filePath.split('/').pop() || 'unknown',
           fileType: type,
-        }
-      });
-
-      // After successful analysis, increment the usage count
-      await prisma.usageLimit.update({
-        where: { userId: session.user.id },
-        data: {
-          analyses: {
-            increment: 1
-          }
         }
       });
 

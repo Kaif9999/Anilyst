@@ -10,21 +10,28 @@ function verifySignature(payload: string, signature: string, timestamp: string) 
   try {
     const webhookSecret = process.env.DODO_WEBHOOK_SECRET!;
     
+    // Extract signature version and value
+    const [version, receivedSignature] = signature.split(',');
+    if (version !== 'v1') {
+      console.error('Invalid signature version');
+      return false;
+    }
+
     // Create the signature message (timestamp + payload)
     const signatureMessage = timestamp + payload;
     
     // Create HMAC using webhook secret
     const hmac = crypto.createHmac('sha256', webhookSecret);
     hmac.update(signatureMessage);
-    const expectedSignature = hmac.digest('hex');
+    const expectedSignature = hmac.digest('base64');
 
-    // Ensure both signatures are the same length by converting to hex
-    const receivedSignature = Buffer.from(signature, 'hex');
-    const computedSignature = Buffer.from(expectedSignature, 'hex');
+    // Log for debugging
+    console.log('Expected Signature:', expectedSignature);
+    console.log('Received Signature:', receivedSignature);
+    console.log('Timestamp:', timestamp);
+    console.log('Payload Length:', payload.length);
 
-    // Compare signatures using timing-safe comparison
-    return receivedSignature.length === computedSignature.length &&
-           crypto.timingSafeEqual(receivedSignature, computedSignature);
+    return expectedSignature === receivedSignature;
   } catch (error) {
     console.error('Signature verification error:', error);
     return false;
@@ -71,6 +78,8 @@ export async function POST(req: Request) {
     switch (eventType) {
       case "payment.success":
         return handlePaymentSuccess(payload);
+      case "subscription.active":
+        return handleSubscriptionActive(payload);
       case "subscription.cancelled":
         return handleSubscriptionCancelled(payload);
       case "subscription.expired":
@@ -103,7 +112,8 @@ async function handlePaymentSuccess(payload: any) {
 
     // Find user by email
     const user = await prisma.user.findUnique({
-      where: { email: userEmail }
+      where: { email: userEmail },
+      include: { usageLimit: true }
     });
 
     if (!user) {
@@ -120,31 +130,107 @@ async function handlePaymentSuccess(payload: any) {
       }
     });
 
-    // Update or create usage limits
+    // Reset usage limits for the new subscription
     const usageLimitData = {
       visualizations: 0,
       analyses: 0,
-      visualizationLimit: subscriptionLimits[subscriptionType].visualizationLimit,
-      analysisLimit: subscriptionLimits[subscriptionType].analysisLimit,
+      visualizationLimit: 999999,
+      analysisLimit: 999999,
       lastResetDate: new Date(),
       nextBillingDate,
       subscriptionStatus: 'active'
     };
 
-    await prisma.usageLimit.upsert({
-      where: { userId: user.id },
-      update: usageLimitData,
-      create: {
-        ...usageLimitData,
-        user: { connect: { id: user.id } }
-      }
-    });
+    // Update or create usage limits
+    if (user.usageLimit) {
+      await prisma.usageLimit.update({
+        where: { userId: user.id },
+        data: usageLimitData
+      });
+    } else {
+      await prisma.usageLimit.create({
+        data: {
+          ...usageLimitData,
+          user: { connect: { id: user.id } }
+        }
+      });
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error handling payment success:", error);
     return NextResponse.json(
       { error: "Failed to process payment success" },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleSubscriptionActive(payload: any) {
+  try {
+    const userEmail = payload.data.customer.email;
+    const productId = payload.data.product_id;
+    const subscriptionId = payload.data.subscription_id;
+    const nextBillingDate = payload.data.next_billing_date 
+      ? new Date(payload.data.next_billing_date)
+      : undefined;
+    
+    // Determine subscription type based on product ID
+    const subscriptionType = productId === "pdt_6iGXPJ0iAZjGLv0lINYR4" 
+      ? SubscriptionType.LIFETIME 
+      : SubscriptionType.PRO;
+
+    // Find user by email
+    const user = await prisma.user.findUnique({
+      where: { email: userEmail },
+      include: { usageLimit: true }
+    });
+
+    if (!user) {
+      console.error(`User not found for email: ${userEmail}`);
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Update user subscription
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        subscriptionType,
+        subscriptionId
+      }
+    });
+
+    // Reset usage limits for the new subscription
+    const usageLimitData = {
+      visualizations: 0,
+      analyses: 0,
+      visualizationLimit: 999999,
+      analysisLimit: 999999,
+      lastResetDate: new Date(),
+      nextBillingDate,
+      subscriptionStatus: 'active'
+    };
+
+    // Update or create usage limits
+    if (user.usageLimit) {
+      await prisma.usageLimit.update({
+        where: { userId: user.id },
+        data: usageLimitData
+      });
+    } else {
+      await prisma.usageLimit.create({
+        data: {
+          ...usageLimitData,
+          user: { connect: { id: user.id } }
+        }
+      });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error handling subscription active:", error);
+    return NextResponse.json(
+      { error: "Failed to process subscription active" },
       { status: 500 }
     );
   }
