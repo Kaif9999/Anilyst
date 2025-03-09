@@ -6,19 +6,21 @@ import { Webhook } from "standardwebhooks";
 const prisma = new PrismaClient();
 const webhook = new Webhook(process.env.DODO_WEBHOOK_SECRET!);
 
-// Define subscription limits
+// Define subscription limits and product IDs
+const LIFETIME_PRODUCT_ID = "pdt_6iGXPJ0iAZjGLv0lINYR4";
+
 const subscriptionLimits = {
   FREE: {
     visualizationLimit: 1,
     analysisLimit: 4
   },
   PRO: {
-    visualizationLimit: 999999, // Unlimited
-    analysisLimit: 999999 // Unlimited
+    visualizationLimit: 999999,
+    analysisLimit: 999999
   },
   LIFETIME: {
-    visualizationLimit: 999999, // Unlimited
-    analysisLimit: 999999 // Unlimited
+    visualizationLimit: 999999,
+    analysisLimit: 999999
   }
 };
 
@@ -81,11 +83,49 @@ async function handlePaymentSuccess(payload: any) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
+    // If this is a lifetime subscription payment
+    if (productId === LIFETIME_PRODUCT_ID) {
+      // Update user subscription immediately for lifetime purchase
+      await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          subscriptionType: SubscriptionType.LIFETIME,
+          subscriptionId: payload.data.payment_id // Use payment_id as subscription_id for lifetime
+        }
+      });
+
+      // Update usage limits for lifetime subscription
+      const usageLimitData = {
+        visualizations: 0,
+        analyses: 0,
+        visualizationLimit: subscriptionLimits.LIFETIME.visualizationLimit,
+        analysisLimit: subscriptionLimits.LIFETIME.analysisLimit,
+        lastResetDate: new Date(),
+        subscriptionStatus: 'active',
+        nextBillingDate: null // No billing date for lifetime
+      };
+
+      if (user.usageLimit) {
+        await prisma.usageLimit.update({
+          where: { userId: user.id },
+          data: usageLimitData
+        });
+      } else {
+        await prisma.usageLimit.create({
+          data: {
+            ...usageLimitData,
+            user: { connect: { id: user.id } }
+          }
+        });
+      }
+    }
+
     // Log the successful payment
     console.log("Payment success for user:", {
       email: userEmail,
       productId: productId,
-      userId: user.id
+      userId: user.id,
+      isLifetime: productId === LIFETIME_PRODUCT_ID
     });
 
     return NextResponse.json({ success: true });
@@ -111,13 +151,17 @@ async function handleSubscriptionActive(payload: any) {
       email: userEmail,
       productId,
       subscriptionId,
-      nextBillingDate
+      nextBillingDate,
+      isLifetime: productId === LIFETIME_PRODUCT_ID
     });
 
-    // Determine subscription type based on product ID
-    const subscriptionType = productId === "pdt_6iGXPJ0iAZjGLv0lINYR4" 
-      ? SubscriptionType.LIFETIME 
-      : SubscriptionType.PRO;
+    // Skip processing for lifetime subscriptions as they're handled in payment success
+    if (productId === LIFETIME_PRODUCT_ID) {
+      return NextResponse.json({ success: true });
+    }
+
+    // For PRO subscriptions, continue with normal flow
+    const subscriptionType = SubscriptionType.PRO;
 
     // Find user by email
     const user = await prisma.user.findUnique({
@@ -143,8 +187,8 @@ async function handleSubscriptionActive(payload: any) {
     const usageLimitData = {
       visualizations: 0,
       analyses: 0,
-      visualizationLimit: 999999,
-      analysisLimit: 999999,
+      visualizationLimit: subscriptionLimits[subscriptionType].visualizationLimit,
+      analysisLimit: subscriptionLimits[subscriptionType].analysisLimit,
       lastResetDate: new Date(),
       nextBillingDate,
       subscriptionStatus: 'active'
