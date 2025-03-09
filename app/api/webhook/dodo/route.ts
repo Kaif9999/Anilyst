@@ -1,42 +1,10 @@
 import { NextResponse } from "next/server";
-import { PrismaClient, SubscriptionType, Prisma } from "@prisma/client";
+import { PrismaClient, SubscriptionType } from "@prisma/client";
 import { headers } from "next/headers";
-import crypto from 'crypto';
+import { Webhook } from "standardwebhooks";
 
 const prisma = new PrismaClient();
-
-// Verify webhook signature
-function verifySignature(payload: string, signature: string, timestamp: string) {
-  try {
-    const webhookSecret = process.env.DODO_WEBHOOK_SECRET!;
-    
-    // Extract signature version and value
-    const [version, receivedSignature] = signature.split(',');
-    if (version !== 'v1') {
-      console.error('Invalid signature version');
-      return false;
-    }
-
-    // Create the signature message (timestamp + payload)
-    const signatureMessage = timestamp + payload;
-    
-    // Create HMAC using webhook secret
-    const hmac = crypto.createHmac('sha256', webhookSecret);
-    hmac.update(signatureMessage);
-    const expectedSignature = hmac.digest('base64');
-
-    // Log for debugging
-    console.log('Expected Signature:', expectedSignature);
-    console.log('Received Signature:', receivedSignature);
-    console.log('Timestamp:', timestamp);
-    console.log('Payload Length:', payload.length);
-
-    return expectedSignature === receivedSignature;
-  } catch (error) {
-    console.error('Signature verification error:', error);
-    return false;
-  }
-}
+const webhook = new Webhook(process.env.DODO_WEBHOOK_SECRET!);
 
 // Define subscription limits
 const subscriptionLimits = {
@@ -58,25 +26,26 @@ export async function POST(req: Request) {
   try {
     const headersList = headers();
     const rawBody = await req.text();
-    
-    // Get webhook headers
-    const signature = headersList.get("webhook-signature") || "";
-    const timestamp = headersList.get("webhook-timestamp") || "";
-    
-    // Verify webhook signature
-    if (!verifySignature(rawBody, signature, timestamp)) {
-      console.error("Invalid webhook signature");
-      return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
-      );
-    }
 
+    // Get webhook headers according to Dodo's specification
+    const webhookHeaders = {
+      "webhook-id": headersList.get("webhook-id") || "",
+      "webhook-signature": headersList.get("webhook-signature") || "",
+      "webhook-timestamp": headersList.get("webhook-timestamp") || "",
+    };
+
+    // Verify the webhook using standardwebhooks
+    await webhook.verify(rawBody, webhookHeaders);
     const payload = JSON.parse(rawBody);
-    const eventType = payload.type;
     
-    switch (eventType) {
-      case "payment.success":
+    console.log("Webhook received:", {
+      type: payload.type,
+      customer: payload.data?.customer?.email,
+      subscription: payload.data?.subscription_id,
+    });
+
+    switch (payload.type) {
+      case "payment.succeeded":
         return handlePaymentSuccess(payload);
       case "subscription.active":
         return handleSubscriptionActive(payload);
@@ -99,17 +68,8 @@ export async function POST(req: Request) {
 async function handlePaymentSuccess(payload: any) {
   try {
     const userEmail = payload.data.customer.email;
-    const productId = payload.data.product.id;
-    const subscriptionId = payload.data.subscription?.id;
-    const nextBillingDate = payload.data.subscription?.next_billing_date 
-      ? new Date(payload.data.subscription.next_billing_date)
-      : undefined;
+    const productId = payload.data.product_id;
     
-    // Determine subscription type based on product ID
-    const subscriptionType = productId === "pdt_6iGXPJ0iAZjGLv0lINYR4" 
-      ? SubscriptionType.LIFETIME 
-      : SubscriptionType.PRO;
-
     // Find user by email
     const user = await prisma.user.findUnique({
       where: { email: userEmail },
@@ -121,40 +81,12 @@ async function handlePaymentSuccess(payload: any) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Update user subscription
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        subscriptionType,
-        subscriptionId: subscriptionId || null
-      }
+    // Log the successful payment
+    console.log("Payment success for user:", {
+      email: userEmail,
+      productId: productId,
+      userId: user.id
     });
-
-    // Reset usage limits for the new subscription
-    const usageLimitData = {
-      visualizations: 0,
-      analyses: 0,
-      visualizationLimit: 999999,
-      analysisLimit: 999999,
-      lastResetDate: new Date(),
-      nextBillingDate,
-      subscriptionStatus: 'active'
-    };
-
-    // Update or create usage limits
-    if (user.usageLimit) {
-      await prisma.usageLimit.update({
-        where: { userId: user.id },
-        data: usageLimitData
-      });
-    } else {
-      await prisma.usageLimit.create({
-        data: {
-          ...usageLimitData,
-          user: { connect: { id: user.id } }
-        }
-      });
-    }
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -175,6 +107,13 @@ async function handleSubscriptionActive(payload: any) {
       ? new Date(payload.data.next_billing_date)
       : undefined;
     
+    console.log("Processing subscription activation:", {
+      email: userEmail,
+      productId,
+      subscriptionId,
+      nextBillingDate
+    });
+
     // Determine subscription type based on product ID
     const subscriptionType = productId === "pdt_6iGXPJ0iAZjGLv0lINYR4" 
       ? SubscriptionType.LIFETIME 
@@ -226,6 +165,12 @@ async function handleSubscriptionActive(payload: any) {
       });
     }
 
+    console.log("Successfully activated subscription for user:", {
+      email: userEmail,
+      subscriptionType,
+      subscriptionId
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error handling subscription active:", error);
@@ -238,8 +183,10 @@ async function handleSubscriptionActive(payload: any) {
 
 async function handleSubscriptionCancelled(payload: any) {
   try {
-    const subscriptionId = payload.data.subscription.id;
+    const subscriptionId = payload.data.subscription_id;
     
+    console.log("Processing subscription cancellation:", { subscriptionId });
+
     const user = await prisma.user.findFirst({
       where: { subscriptionId }
     });
@@ -258,6 +205,11 @@ async function handleSubscriptionCancelled(payload: any) {
       }
     });
 
+    console.log("Successfully cancelled subscription for user:", {
+      userId: user.id,
+      subscriptionId
+    });
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error handling subscription cancellation:", error);
@@ -270,8 +222,10 @@ async function handleSubscriptionCancelled(payload: any) {
 
 async function handleSubscriptionExpired(payload: any) {
   try {
-    const subscriptionId = payload.data.subscription.id;
+    const subscriptionId = payload.data.subscription_id;
     
+    console.log("Processing subscription expiration:", { subscriptionId });
+
     const user = await prisma.user.findFirst({
       where: { subscriptionId }
     });
@@ -294,11 +248,16 @@ async function handleSubscriptionExpired(payload: any) {
     await prisma.usageLimit.update({
       where: { userId: user.id },
       data: {
-        visualizationLimit: subscriptionLimits.FREE.visualizationLimit,
-        analysisLimit: subscriptionLimits.FREE.analysisLimit,
+        visualizationLimit: 1,
+        analysisLimit: 4,
         subscriptionStatus: 'expired',
         nextBillingDate: null
       }
+    });
+
+    console.log("Successfully expired subscription for user:", {
+      userId: user.id,
+      subscriptionId
     });
 
     return NextResponse.json({ success: true });
