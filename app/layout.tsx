@@ -2,7 +2,6 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/providers/auth-provider";
-import { Analytics } from "@vercel/analytics/react";
 import { PostHogProvider } from "./providers";
 import { Toaster } from '@/components/ui/toaster';
 import PostHogPageView from './PostHogPageView';
@@ -48,7 +47,6 @@ export default function RootLayout({
           <AuthProvider>
             {children}
             <Toaster />
-            <Analytics />
             <PostHogPageView />
           </AuthProvider>
         </PostHogProvider>
