@@ -28,13 +28,12 @@ const mainFeatures = [
     icon: <Cpu className="w-6 h-6" />,
     title: "AI-Powered Analysis",
     description: "Advanced machine learning algorithms analyze your data in real-time",
-    comingsoon: "Coming Soon",
+    
   },
   {
     icon: <Terminal className="w-6 h-6" />,
     title: "Natural Language",
     description: "Query your data using plain English, get instant insights",
-    comingsoon: "Coming Soon",
   },
   {
     icon: <GitBranch className="w-6 h-6" />,
@@ -61,7 +60,6 @@ const featureSections = [
       "Real-time data streaming",
       "Custom data transformations",
     ],
-    comingsoon: "Coming Soon",
     image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop",
   },
   {
@@ -73,7 +71,6 @@ const featureSections = [
       "Real-time updates",
       "Export capabilities",
     ],
-    comingsoon: "Coming Soon",
     image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop",
   },
   {
@@ -85,7 +82,6 @@ const featureSections = [
       "Pattern recognition",
       "Automated reporting",
     ],
-    comingsoon: "Coming Soon",
     image: "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop",
   },
 ];
@@ -108,10 +104,10 @@ export default function Home() {
       {/* <div className="fixed inset-0 mx-4 my-4 md:mx-10 md:my-10 rounded-2xl background-animate opacity-80" /> */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[15%] left-[20%] w-96 h-96 bg-purple-600/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" />
-        <div className="absolute top-[45%] right-[20%] w-[30rem] h-[30rem] bg-pink-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-2000" />
-        <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
-        <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
-        <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
+        <div className="absolute top-[45%] right-[20%] w-[30rem] h-[30rem] bg-pink-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-2000" />
+      <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
+      <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
+      <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
       </div>
 
       {/* Main Content */}
@@ -161,7 +157,7 @@ export default function Home() {
                       {feature.title}
                     </h3>
                     <p className="text-gray-200">{feature.description}</p>
-                    <p className="text-gray-200">{feature.comingsoon}</p>
+                    <p className="text-slate-800">{feature.comingsoon}</p>
                   </motion.div>
                 ))}
               </div>
