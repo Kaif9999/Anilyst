@@ -55,12 +55,18 @@ export async function GET() {
 }
 
 // Add POST endpoint for creating new sessions
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
     }
+
+    // Get request body
+    const body = await req.json();
 
     // Create a new empty session
     const newSession = await prisma.analysis.create({
@@ -92,7 +98,7 @@ export async function POST() {
     console.error("Failed to create new session:", error);
     return NextResponse.json(
       { error: "Failed to create new session" },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

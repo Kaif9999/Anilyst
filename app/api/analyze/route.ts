@@ -6,6 +6,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { PrismaClient, SubscriptionType } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import { toast } from "@/hooks/use-toast";
 
 const prisma = new PrismaClient();
 
@@ -27,8 +29,31 @@ const defaultAnalysis = {
   },
 };
 
+// Initialize the Gemini API client with error handling
+let genAI: GoogleGenerativeAI | null = null;
+let model: GenerativeModel | null = null;
+
+try {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not configured');
+  }
+  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+} catch (error) {
+  console.error('Error initializing Gemini API:', error);
+  // Continue execution - we'll handle the error in the route handler
+}
+
 export async function POST(req: Request) {
   try {
+    // Check if Gemini API is properly initialized
+    if (!genAI || !model) {
+      return NextResponse.json(
+        { error: "AI service is not available", ...defaultAnalysis },
+        { status: 503 }
+      );
+    }
+
     // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -137,7 +162,11 @@ export async function POST(req: Request) {
       // Check if user has reached their analysis limit
       if (usageLimit.analyses >= usageLimit.analysisLimit) {
         return NextResponse.json(
-          { error: "You've reached your daily analysis limit. Upgrade to PRO for unlimited analyses!", ...defaultAnalysis },
+          toast({
+            title: "You've reached your daily analysis limit. Upgrade to PRO for unlimited analyses!",
+            description: "Please try again tomorrow.",
+            variant: "destructive",
+          }),
           { status: 429 }
         );
       }
@@ -226,10 +255,6 @@ export async function POST(req: Request) {
       }
 
       // Generate AI analysis using Gemini
-      const { GoogleGenerativeAI } = await import("@google/generative-ai");
-      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro" });
-
       const prompt = `Analyze this data and provide insights:
       ${textContent.substring(0, 30000)} // Limit text length for API
       
@@ -248,9 +273,9 @@ export async function POST(req: Request) {
 
       const result = await model.generateContent(prompt);
       const response = await result.response;
-      const analysis = response.text();
+      const text = response.text();
 
-      if (!analysis) {
+      if (!text) {
         throw new Error("No analysis generated");
       }
 
@@ -258,7 +283,7 @@ export async function POST(req: Request) {
       await prisma.analysis.create({
         data: {
           userId: session.user.id,
-          content: analysis,
+          content: text,
           fileName: filePath.split('/').pop() || 'unknown',
           fileType: type,
         }
@@ -269,7 +294,7 @@ export async function POST(req: Request) {
         ...defaultAnalysis,
         queryResponse: {
           question: "Please analyze this data",
-          answer: analysis,
+          answer: text,
           timestamp: new Date().toISOString(),
         },
       };

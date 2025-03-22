@@ -14,9 +14,10 @@ import {
   ArrowDown,
   BarChart2,
   Send,
+  Maximize2,
 } from "lucide-react";
-import { motion } from "framer-motion";
-import Link from "next/link";
+import { motion, AnimatePresence } from "framer-motion";
+// import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import VisualizationSidebar from "@/components/VisualizationSidebar";
 
@@ -65,6 +66,7 @@ export default function Home() {
     { question: string; answer: string }[]
   >([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -296,7 +298,7 @@ export default function Home() {
         className={`transition-all duration-300 ${isSidebarOpen ? "pl-[280px]" : "pl-0"}`}
       >
         {/* Sign Out Button - Fixed Position */}
-        <div className="fixed top-6 right-6 z-50">
+        <div className="fixed top-6 right-6">
           <button
             onClick={() => signOut({ callbackUrl: "/" })}
             className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/20 hover:text-red-400 transition-colors border border-white/10"
@@ -376,90 +378,120 @@ export default function Home() {
                 </p>
               </motion.div>
 
-              {/* Visualization Section */}
-              <div className="mb-24">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5 }}
-                  className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 p-8"
-                >
-                  {chartData ? (
-                    <div className="space-y-12">
-                      {/* Main Chart */}
-                      <div className="w-full bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6">
-                        <div className="min-h-[600px] h-full w-full">
-                          <OutputDisplay chartData={chartData} />
-                        </div>
-                      </div>
-
-                      {/* AI Analysis Panel */}
-                      {analysisResult && (
-                        <AIAnalysisPanel
-                          insights={analysisResult.insights}
-                          recommendations={analysisResult.recommendations}
-                          chatHistory={chatHistory}
-                        />
-                      )}
-                    </div>
-                  ) : (
-                    // Placeholder when no data
-                    <div className="flex flex-col items-center justify-center py-20 text-white/60">
-                      <BarChart2 className="w-16 h-16 mb-4 opacity-40" />
-                      <p className="text-lg">
-                        Upload a CSV file to visualize your data
-                      </p>
-                    </div>
-                  )}
-                </motion.div>
-              </div>
-
-              {/* Input Section - Now Below */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-                className="max-w-6xl mx-auto space-y-8 mt-8"
-              >
-                {/* Question Input Section */}
-                {chartData && (
+              {/* Main Content Area - 75/25 Split Layout */}
+              <div className="flex flex-col lg:flex-row gap-4">
+                {/* Left Column - 75% - Chart Visualization and AI Analysis */}
+                <div className="w-full lg:w-3/4">
                   <motion.div
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="backdrop-blur-md bg-gray-950 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10 rounded-3xl p-8 shadow-2xl border border-white/10"
+                    transition={{ duration: 0.5 }}
+                    className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 p-8 h-full space-y-6"
                   >
-                    <h2 className="text-2xl font-bold text-white mb-6 text-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10">
-                      Ask Questions About Your Data
-                    </h2>
-                    <form onSubmit={handleQuery} className="space-y-4">
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                          placeholder="Ask a question about your data..."
-                          className="w-full bg-black/50 text-white placeholder-gray-400 rounded-xl px-4 py-3 border border-white/10 focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 outline-none transition-all"
-                        />
-                        <button
-                          type="submit"
-                          className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors"
-                        >
-                          <Send className="w-4 h-4" />
-                        </button>
+                    {/* Main Chart */}
+                    {chartData ? (
+                      <div className="w-full bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6 border border-white/10">
+                        <div className="min-h-[600px] h-full w-full">
+                          <OutputDisplay chartData={chartData} onFullScreen={() => setIsFullScreen(true)} />
+                        </div>
                       </div>
-                    </form>
+                    ) : (
+                      // Placeholder when no data
+                      <div className="flex flex-col items-center justify-center py-20 text-white/60">
+                        <BarChart2 className="w-16 h-16 mb-4 opacity-40" />
+                        <p className="text-lg">
+                          Upload a CSV file to visualize your data
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Merged AI Chat Input and Analysis Panel */}
+                    {chartData && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="w-full bg-gradient-to-br from-gray-900/80 to-gray-800/50 rounded-2xl border border-white/10 overflow-hidden flex flex-col"
+                      >
+                        {/* Analysis Results */}
+                        <div className="flex-grow overflow-y-auto">
+                          {analysisResult && (
+                            <div className="p-6">
+                              <AIAnalysisPanel
+                                insights={analysisResult.insights}
+                                recommendations={analysisResult.recommendations}
+                                chatHistory={chatHistory}
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Chat Input Section - Moved to bottom */}
+                        <div className="p-4 border-t border-white/10 bg-black/20 sticky bottom-0">
+                          <form onSubmit={handleQuery} className="space-y-4">
+                            <div className="relative flex items-center">
+                              <input
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                placeholder="Ask questions about your data analysis..."
+                                className="w-full bg-white/5 text-white placeholder-gray-400 rounded-xl px-4 py-3 border border-white/10 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all pr-12"
+                              />
+                              <button
+                                type="submit"
+                                className="absolute right-2 p-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 transform hover:scale-105 flex items-center justify-center"
+                              >
+                                <Send className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </form>
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                </div>
+
+                {/* Right Column - 25% - Input Section */}
+                <div className="w-full lg:w-1/4">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.2 }}
+                    className="h-full"
+                  >
+                    <InputSection onResultReceived={handleDataAnalysis} />
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Full Screen Modal */}
+              <AnimatePresence>
+                {isFullScreen && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-lg overflow-hidden flex flex-col"
+                  >
+                    <div className="top-0 flex justify-end p-4 bg-black/40 border-b border-white/10 z-">
+                      <button
+                        onClick={() => setIsFullScreen(false)}
+                        className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                      >
+                        <X className="w-6 h-6" />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-auto p-4">
+                      <div className="w-full h-full max-h-[calc(100vh-8rem)] flex items-center justify-center">
+                        {chartData && (
+                          <div className="w-full h-full">
+                            <OutputDisplay chartData={chartData} isFullScreen={true} />
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </motion.div>
                 )}
-
-                {/* CSV Upload Section */}
-                {/* <div className="bg-gray-950 backdrop-blur-lg rounded-3xl border border-white/10 p-8"> */}
-                {/* <h2 className="text-2xl font-bold text-white mb-6"> */}
-                {/* Upload Data can be .csv, .xlsx, .xls, or .pdf file */}
-                {/* </h2> */}
-                <InputSection onResultReceived={handleDataAnalysis} />
-                {/* </div> */}
-              </motion.div>
+              </AnimatePresence>
             </div>
           </section>
         </div>

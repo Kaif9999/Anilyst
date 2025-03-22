@@ -26,14 +26,11 @@ import {
   RadialLinearScale,
   BubbleController,
   ScatterController,
-} from "chart.js";
-import {
-  ChartData,
   ChartType,
-  AnalyticsResult,
-  DataInsight,
-  TimeSeriesAnalysis,
-} from "../types";
+  ChartTypeRegistry,
+  ChartData,
+  ChartOptions,
+} from "chart.js";
 import {
   BarChart2,
   LineChart,
@@ -56,6 +53,7 @@ import {
   GitBranch,
   GitMerge,
   GitPullRequest,
+  Maximize2,
 } from "lucide-react";
 import regression from "regression";
 import * as ss from "simple-statistics";
@@ -75,6 +73,9 @@ ChartJS.register(
   Legend
 );
 
+type BasicChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'radar' | 'polarArea' | 'bubble' | 'scatter';
+type ExtendedChartType = BasicChartType | 'horizontalBar' | 'stackedBar' | 'area' | 'stackedArea' | 'multiAxis' | 'combo';
+
 interface ChartSettings {
   showGrid: boolean;
   showLegend: boolean;
@@ -85,6 +86,7 @@ interface ChartSettings {
   showTrendline: boolean;
   showOutliers: boolean;
   showForecast: boolean;
+  showTooltips: boolean;
 }
 
 const chartComponents = {
@@ -149,6 +151,35 @@ const colorSchemes = {
   },
 } as const;
 
+interface BaseDataPoint {
+  x: number;
+  y: number;
+}
+
+interface ScatterDataPoint extends BaseDataPoint {}
+
+interface BubbleDataPoint extends BaseDataPoint {
+  r: number;
+}
+
+type DataPoint = number | ScatterDataPoint | BubbleDataPoint;
+
+interface ChartDataset {
+  label?: string;
+  data: DataPoint[];
+  backgroundColor?: string;
+  borderColor?: string;
+  pointRadius?: number;
+  pointHoverRadius?: number;
+  type?: string;
+  borderWidth?: number;
+}
+
+interface ChartData {
+  labels?: string[];
+  datasets: ChartDataset[];
+}
+
 // Add chart type specific options
 const getChartTypeOptions = (type: ChartType) => {
   switch (type) {
@@ -208,10 +239,108 @@ const getChartTypeOptions = (type: ChartType) => {
   }
 };
 
-export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
-  const [chartType, setChartType] = useState<ChartType>("bar");
-  const [colorScheme, setColorScheme] =
-    useState<keyof typeof colorSchemes>("vibrant");
+type ColorSchemeKey = keyof typeof colorSchemes;
+
+const prepareScatterData = (data: ImportedChartData, colorScheme: ColorSchemeKey): ChartData => {
+  const currentColors = colorSchemes[colorScheme];
+  return {
+    labels: data.labels || [],
+    datasets: data.datasets.map((dataset): ChartDataset => ({
+      label: dataset.label,
+      data: dataset.data.map((value): ScatterDataPoint => ({
+        x: Array.isArray(value) ? value[0] : 0,
+        y: typeof value === 'number' ? value : 0,
+      })),
+      backgroundColor: currentColors.close,
+      borderColor: currentColors.close,
+      pointRadius: 6,
+      pointHoverRadius: 8,
+    })),
+  };
+};
+
+const prepareBubbleData = (data: ImportedChartData, colorScheme: ColorSchemeKey): ChartData => {
+  const currentColors = colorSchemes[colorScheme];
+  return {
+    labels: data.labels || [],
+    datasets: data.datasets.map((dataset): ChartDataset => ({
+      label: dataset.label,
+      data: dataset.data.map((value): BubbleDataPoint => ({
+        x: Array.isArray(value) ? value[0] : 0,
+        y: typeof value === 'number' ? value : 0,
+        r: typeof value === 'number' ? Math.abs(value) / 10 : 1,
+      })),
+      backgroundColor: currentColors.close,
+    })),
+  };
+};
+
+const prepareChartData = (type: ChartType, data: ImportedChartData, colorScheme: ColorSchemeKey): ChartData => {
+  if (type === 'scatter') {
+    return prepareScatterData(data, colorScheme);
+  }
+  if (type === 'bubble') {
+    return prepareBubbleData(data, colorScheme);
+  }
+
+  const colors = colorSchemes[colorScheme];
+  
+  return {
+    labels: data.labels || [],
+    datasets: data.datasets.map((dataset): ChartDataset => {
+      const baseDataset: ChartDataset = {
+        ...dataset,
+        type,
+        borderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+      };
+
+      // Assign colors based on dataset label
+      if (dataset.label?.toLowerCase().includes("close")) {
+        return {
+          ...baseDataset,
+          backgroundColor: colors.close,
+          borderColor: colors.close,
+        };
+      } else if (dataset.label?.toLowerCase().includes("open")) {
+        return {
+          ...baseDataset,
+          backgroundColor: colors.open,
+          borderColor: colors.open,
+        };
+      } else if (dataset.label?.toLowerCase().includes("high")) {
+        return {
+          ...baseDataset,
+          backgroundColor: colors.high,
+          borderColor: colors.high,
+        };
+      } else if (dataset.label?.toLowerCase().includes("low")) {
+        return {
+          ...baseDataset,
+          backgroundColor: colors.low,
+          borderColor: colors.low,
+        };
+      }
+
+      return {
+        ...baseDataset,
+        backgroundColor: colors.close,
+        borderColor: colors.close,
+      };
+    }),
+  };
+};
+
+interface OutputDisplayProps {
+  chartData: ChartData;
+  onFullScreen?: () => void;
+  isFullScreen?: boolean;
+}
+
+export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = false }: OutputDisplayProps) {
+  const [chartType, setChartType] = useState<ExtendedChartType>("bar");
+  const [selectedColorScheme, setSelectedColorScheme] = useState<ColorSchemeKey>("vibrant");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
   const [showSettings, setShowSettings] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
@@ -225,8 +354,10 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     showTrendline: true,
     showOutliers: true,
     showForecast: true,
+    showTooltips: true,
   });
-  const chartRef = useRef<ChartJS | null>(null);
+  const chartRef = useRef<HTMLCanvasElement>(null);
+  const chartInstance = useRef<ChartJS | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
   const [insights, setInsights] = useState<DataInsight[]>([]);
   const [timeSeriesAnalysis, setTimeSeriesAnalysis] =
@@ -431,58 +562,6 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     }
   }, [chartData, sortOrder]);
 
-  // Update prepareChartData to use the current color scheme
-  const prepareChartData = (type: ChartType, data: ChartData): ChartData => {
-    const colors = colorSchemes[colorScheme];
-
-    return {
-      labels: data.labels,
-      datasets: data.datasets.map((dataset) => {
-        const baseDataset = {
-          ...dataset,
-          type,
-          borderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-        };
-
-        // Assign colors based on dataset label
-        if (dataset.label?.toLowerCase().includes("close")) {
-          return {
-            ...baseDataset,
-            backgroundColor: colors.close,
-            borderColor: colors.close,
-          };
-        } else if (dataset.label?.toLowerCase().includes("open")) {
-          return {
-            ...baseDataset,
-            backgroundColor: colors.open,
-            borderColor: colors.open,
-          };
-        } else if (dataset.label?.toLowerCase().includes("high")) {
-          return {
-            ...baseDataset,
-            backgroundColor: colors.high,
-            borderColor: colors.high,
-          };
-        } else if (dataset.label?.toLowerCase().includes("low")) {
-          return {
-            ...baseDataset,
-            backgroundColor: colors.low,
-            borderColor: colors.low,
-          };
-        }
-
-        // Default color for other datasets
-        return {
-          ...baseDataset,
-          backgroundColor: colors.close,
-          borderColor: colors.close,
-        };
-      }),
-    };
-  };
-
   // Update renderChart to use sortedData
   const renderChart = () => {
     let Component;
@@ -506,7 +585,7 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     }
 
     const dataToUse = sortedData || chartData;
-    const preparedData = prepareChartData(currentType, dataToUse);
+    const preparedData = prepareChartData(currentType, dataToUse, selectedColorScheme);
     const chartOptions = {
       ...getChartOptions(currentType),
       ...getChartTypeOptions(currentType),
@@ -514,7 +593,7 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
 
     return (
       <Component
-        key={`${currentType}-${colorScheme}-${sortOrder}`}
+        key={`${currentType}-${selectedColorScheme}-${sortOrder}`}
         data={preparedData as any}
         options={chartOptions as any}
         ref={chartRef as any}
@@ -536,6 +615,7 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     }
   }, [chartData]);
 
+  // Update the getChartOptions function
   const getChartOptions = (type: ChartType) => ({
     responsive: true,
     animation: settings.enableAnimation ? undefined : false,
@@ -546,6 +626,8 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
         labels: {
           color: "white",
           font: { size: 12 },
+          padding: 20,
+          usePointStyle: true,
         },
       },
       title: {
@@ -553,61 +635,109 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
         text: settings.chartTitle,
         color: "white",
         font: {
-          size: 16,
+          size: 18,
           weight: "bold" as const,
+        },
+        padding: { top: 20, bottom: 20 },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: 'white',
+        bodyColor: 'white',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+        padding: 12,
+        displayColors: true,
+        usePointStyle: true,
+        callbacks: {
+          label: function(context: any) {
+            if (type === 'bubble') {
+              const value = context.raw;
+              return `${context.dataset.label}: (x: ${value.x}, y: ${value.y}, size: ${value.r})`;
+            }
+            if (type === 'scatter') {
+              const value = context.raw;
+              return `${context.dataset.label}: (x: ${value.x}, y: ${value.y})`;
+            }
+            return `${context.dataset.label}: ${context.formattedValue}`;
+          }
+        }
+      }
+    },
+    scales: type === "radar" ? {
+      r: {
+        ticks: { color: "white" },
+        grid: {
+          display: settings.showGrid,
+          color: "rgba(255, 255, 255, 0.1)",
+        },
+        pointLabels: { color: "white" },
+      },
+    } : {
+      x: {
+        type: type === 'scatter' || type === 'bubble' ? 'linear' : 'category',
+        title: {
+          display: true,
+          text: settings.xAxisLabel,
+          color: "white",
+          font: { size: 14 },
+          padding: { top: 10 },
+        },
+        ticks: {
+          color: "white",
+          maxRotation: 45,
+          minRotation: 45,
+          padding: 8,
+        },
+        grid: {
+          display: settings.showGrid,
+          color: "rgba(255, 255, 255, 0.1)",
+        },
+      },
+      y: {
+        title: {
+          display: true,
+          text: settings.yAxisLabel,
+          color: "white",
+          font: { size: 14 },
+          padding: { bottom: 10 },
+        },
+        ticks: { 
+          color: "white",
+          padding: 8,
+        },
+        grid: {
+          display: settings.showGrid,
+          color: "rgba(255, 255, 255, 0.1)",
         },
       },
     },
-    scales:
-      type === "radar"
-        ? {
-            r: {
-              ticks: { color: "white" },
-              grid: {
-                display: settings.showGrid,
-                color: "rgba(255, 255, 255, 0.1)",
-              },
-              pointLabels: { color: "white" },
-            },
-          }
-        : {
-            x: {
-              title: {
-                display: true,
-                text: settings.xAxisLabel,
-                color: "white",
-              },
-              ticks: {
-                color: "white",
-                maxRotation: 45,
-                minRotation: 45,
-              },
-              grid: {
-                display: settings.showGrid,
-                color: "rgba(255, 255, 255, 0.1)",
-              },
-            },
-            y: {
-              title: {
-                display: true,
-                text: settings.yAxisLabel,
-                color: "white",
-              },
-              ticks: { color: "white" },
-              grid: {
-                display: settings.showGrid,
-                color: "rgba(255, 255, 255, 0.1)",
-              },
-            },
-          },
+    interaction: {
+      intersect: false,
+      mode: 'nearest',
+    },
+    elements: {
+      point: {
+        radius: type === 'scatter' ? 6 : 4,
+        hoverRadius: type === 'scatter' ? 8 : 6,
+        borderWidth: 2,
+        hoverBorderWidth: 3,
+      },
+      line: {
+        tension: 0.4,
+      },
+    },
   });
 
   const handleDownload = () => {
-    if (chartRef.current) {
-      const link = document.createElement("a");
-      link.download = `${settings.chartTitle}.png`;
-      link.href = chartRef.current.toBase64Image();
-      link.click();
+    if (chartInstance.current) {
+      const canvas = chartInstance.current.canvas;
+      if (canvas) {
+        const link = document.createElement("a");
+        link.download = `${settings.chartTitle}.png`;
+        link.href = canvas.toDataURL();
+        link.click();
+      }
     }
   };
 
@@ -628,6 +758,105 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
     link.click();
   };
 
+  const getChartConfig = (type: ExtendedChartType): ChartTypeRegistry[keyof ChartTypeRegistry] => {
+    switch (type) {
+      case 'horizontalBar':
+        return 'bar';
+      case 'stackedBar':
+        return 'bar';
+      case 'area':
+        return 'line';
+      case 'stackedArea':
+        return 'line';
+      case 'multiAxis':
+        return 'line';
+      case 'combo':
+        return 'line';
+      default:
+        return type as keyof ChartTypeRegistry;
+    }
+  };
+
+  useEffect(() => {
+    if (!chartRef.current) return;
+
+    if (chartInstance.current) {
+      chartInstance.current.destroy();
+    }
+
+    const ctx = chartRef.current.getContext("2d");
+    if (!ctx) return;
+
+    const labels = chartData.labels || [];
+    const processedData = {
+      labels,
+      datasets: chartData.datasets.map(dataset => ({
+        ...dataset,
+        backgroundColor: Array.isArray(dataset.backgroundColor) 
+          ? dataset.backgroundColor[0] 
+          : dataset.backgroundColor || 'rgba(75, 192, 192, 0.6)',
+      }))
+    };
+
+    const options: ChartOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: {
+        duration: 750,
+        easing: "easeInOutQuart",
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            color: "rgba(255, 255, 255, 0.1)",
+          },
+          ticks: {
+            color: "rgba(255, 255, 255, 0.7)",
+          },
+        },
+        x: {
+          grid: {
+            color: "rgba(255, 255, 255, 0.1)",
+          },
+          ticks: {
+            color: "rgba(255, 255, 255, 0.7)",
+          },
+        },
+      },
+      plugins: {
+        legend: {
+          position: "top",
+          labels: {
+            color: "rgba(255, 255, 255, 0.9)",
+            font: {
+              size: 12,
+            },
+          },
+        },
+        tooltip: {
+          backgroundColor: "rgba(0, 0, 0, 0.8)",
+          titleColor: "rgba(255, 255, 255, 0.9)",
+          bodyColor: "rgba(255, 255, 255, 0.9)",
+          borderColor: "rgba(255, 255, 255, 0.1)",
+          borderWidth: 1,
+        },
+      },
+    };
+
+    chartInstance.current = new ChartJS(ctx, {
+      type: getChartConfig(chartType),
+      data: processedData,
+      options,
+    });
+
+    return () => {
+      if (chartInstance.current) {
+        chartInstance.current.destroy();
+      }
+    };
+  }, [chartData, chartType]);
+
   return (
     <motion.div
       className="flex-grow space-y-8 mb-8"
@@ -636,17 +865,17 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
       transition={{ duration: 0.5 }}
     >
       <motion.div
-        className="backdrop-blur-md bg-white bg-opacity-10 rounded-2xl overflow-hidden shadow-neon relative"
+        className="backdrop-blur-md bg-white bg-opacity-10 rounded-2xl overflow-hidden shadow-lg relative border border-white/10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         {/* Chart Header */}
-        <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700 flex justify-between items-center">
+        <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700 flex justify- items-end space-x-4">
           <h2 className="text-2xl font-semibold text-blue-400">
             Data Visualization
           </h2>
-          <div className="flex space-x-2">
+          <div className="pl-64 flex space-x-2">
             <motion.button
               onClick={handleDownload}
               className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white"
@@ -893,8 +1122,12 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
           </div>
         )}
 
-        {/* Chart */}
-        <div className="p-4 relative z-10">{renderChart()}</div>
+        {/* Chart Container with improved styling */}
+        <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90">
+          <div className="relative bg-black/40 rounded-xl p-6 border border-white/5">
+            {renderChart()}
+          </div>
+        </div>
 
         {/* Data Controls */}
         <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
@@ -937,10 +1170,10 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
               <motion.button
                 key={scheme}
                 onClick={() =>
-                  setColorScheme(scheme as keyof typeof colorSchemes)
+                  setSelectedColorScheme(scheme as keyof typeof colorSchemes)
                 }
                 className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
-                  colorScheme === scheme
+                  selectedColorScheme === scheme
                     ? "bg-gradient-to-r from-blue-600 to-purple-600"
                     : "bg-gray-700 hover:bg-gray-600"
                 }`}
@@ -963,7 +1196,7 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
               return (
                 <motion.button
                   key={type}
-                  onClick={() => setChartType(type as ChartType)}
+                  onClick={() => setChartType(type as ExtendedChartType)}
                   className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
                     chartType === type
                       ? "bg-gradient-to-r from-blue-600 to-purple-600"
@@ -979,6 +1212,16 @@ export default function OutputDisplay({ chartData }: { chartData: ChartData }) {
             })}
           </div>
         </div>
+
+        {!isFullScreen && onFullScreen && (
+          <button
+            onClick={onFullScreen}
+            className="absolute top-2 right-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+            title="View Full Screen"
+          >
+            <Maximize2 className="w-4 h-4" />
+          </button>
+        )}
       </motion.div>
     </motion.div>
   );

@@ -29,7 +29,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Anilyst - AI-Powered Data Analysis",
     description: "Transform your data into actionable insights with AI-powered analysis and visualization.",
-    images: ["/landing_page.jpg"],
+    images: "/landing_page.jpg"
   },
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
 };

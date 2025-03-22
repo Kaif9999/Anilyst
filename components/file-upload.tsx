@@ -16,7 +16,17 @@ interface ProcessedData {
   [key: string]: string | number;
 }
 
-export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data: ProcessedData[], file: File) => void }) {
+interface FileUploadProps {
+  onDataProcessed: (data: ProcessedData[], file: File) => void;
+  isLoading?: boolean;
+  className?: string;
+}
+
+export default function FileUpload({ 
+  onDataProcessed, 
+  isLoading = false,
+  className = ""
+}: FileUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
@@ -216,23 +226,24 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid w-full max-w-sm items-center gap-1.5 text-gray-500">
-        <Label htmlFor="file">Upload Data File (CSV, Excel, or PDF)</Label>
+    <div className={`space-y-4 ${className}`}>
+      <div className="grid w-full items-center gap-1.5">
+        <Label htmlFor="file" className="text-white/60">Upload Data File</Label>
         <Input 
           id="file" 
           type="file" 
           accept=".csv,.xlsx,.xls,.pdf" 
           onChange={handleFileChange}
-          className="cursor-pointer file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-violet-400 file:text-violet-900 hover:file:bg-violet-300"
+          disabled={isLoading || isProcessing}
+          className="cursor-pointer bg-black/20 border-white/20 text-white file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-medium file:bg-white/10 file:text-white hover:file:bg-white/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         />
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-white/40">
           Maximum file size: 75MB
         </p>
       </div>
 
       {error && (
-        <div className="flex items-center gap-2 text-red-500 text-sm bg-red-500/10 p-3 rounded-lg">
+        <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 p-3 rounded-xl border border-red-500/20">
           <AlertCircle className="h-4 w-4" />
           <span>{error}</span>
         </div>
@@ -240,11 +251,11 @@ export default function FileUpload({ onDataProcessed }: { onDataProcessed: (data
 
       <Button 
         onClick={handleUpload} 
-        disabled={!file || isProcessing}
-        className="w-full bg-gray-300 text-gray-900 hover:bg-gray-400"
+        disabled={!file || isProcessing || isLoading}
+        className="w-full bg-white/10 text-white hover:bg-white/20 transition-colors disabled:opacity-50"
       >
         <Upload className="mr-2 h-4 w-4" />
-        {isProcessing ? "Processing..." : "Analyze Data"}
+        {isProcessing || isLoading ? "Processing..." : "Analyze Data"}
       </Button>
     </div>
   );

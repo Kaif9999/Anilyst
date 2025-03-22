@@ -81,7 +81,7 @@ export default function InputSection({
 
   const processSimpleData = (data: SimpleData[]): ChartData => {
     try {
-      const keys = Object.keys(data[0]);
+    const keys = Object.keys(data[0]);
       
       // Check if we have at least two columns
       if (keys.length < 2) {
@@ -114,7 +114,7 @@ export default function InputSection({
         backgroundColor: `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.6)`,
       }));
 
-      return {
+    return {
         labels: data.map((row) => String(row[labelColumn])),
         datasets,
       };
@@ -207,16 +207,16 @@ export default function InputSection({
   };
 
   const handleDataProcessed = async (data: ProcessedData[], file: File) => {
-    setIsLoading(true);
+      setIsLoading(true);
     setError("");
     
     try {
       // First, process the data for visualization
-      const isStock = detectDataType(data);
-      setIsStockData(isStock);
-      setParsedData(data);
+        const isStock = detectDataType(data);
+        setIsStockData(isStock);
+        setParsedData(data);
 
-      if (isStock) {
+        if (isStock) {
         const processedData = data.map(row => ({
           ...row,
           Date: row.Date,
@@ -226,26 +226,26 @@ export default function InputSection({
           Close: typeof row.Close === 'string' ? Number(row.Close) : row.Close,
         }));
 
-        const years = Array.from(
-          new Set(
+          const years = Array.from(
+            new Set(
             processedData.map((row) => new Date(row.Date).getFullYear().toString())
-          )
-        ).sort();
-        setAvailableYears(years);
+            )
+          ).sort();
+          setAvailableYears(years);
 
         const chartData = processStockData(processedData as StockData[], selectedYear);
-        onResultReceived(chartData);
-      } else {
-        setAvailableYears([]);
-        const chartData = processSimpleData(data as SimpleData[]);
-        onResultReceived(chartData);
-      }
+          onResultReceived(chartData);
+        } else {
+          setAvailableYears([]);
+          const chartData = processSimpleData(data as SimpleData[]);
+          onResultReceived(chartData);
+        }
 
       // Then, upload the file and get AI analysis
       const filePath = await uploadFile(file);
       await getAiAnalysis(filePath, file.type);
 
-    } catch (error) {
+      } catch (error) {
       setError(error instanceof Error ? error.message : "Error processing data");
       console.error("Error processing data:", error);
       
@@ -254,8 +254,8 @@ export default function InputSection({
         description: error instanceof Error ? error.message : "Error processing data",
         variant: "destructive",
       });
-    } finally {
-      setIsLoading(false);
+      } finally {
+        setIsLoading(false);
     }
   };
 
@@ -268,181 +268,129 @@ export default function InputSection({
   };
 
   return (
-    <motion.div
-      className="backdrop-blur-md bg-gray-950 p-8 rounded-3xl shadow-2xl border border-white/10 relative overflow-hidden"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      {/* Gradient background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-blue-500/10 to-pink-500/10"></div>
-      
-      {/* Content */}
-      <div className="relative z-10 space-y-8">
-        {/* Header Section */}
-        <div className="text-center space-y-3">
-          <h2 className="text-2xl font-bold text-white">Data Analysis Hub</h2>
-          <p className="text-gray-300 max-w-2xl mx-auto">
-            Upload your data files for AI-powered analysis and visualization. We support multiple file formats for your convenience.
-          </p>
+    <div className="space-y-6">
+      {/* Main Upload Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white/10 backdrop-blur-lg rounded-3xl border border-white/10 p-6 space-y-6"
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-white">Data Input</h2>
+          <Info className="w-5 h-5 text-blue-400 cursor-help" />
         </div>
 
-        {/* File Type Info Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {[
-            {
-              icon: <FileSpreadsheet className="w-6 h-6" />,
-              title: "Excel Files",
-              description: "Upload .xlsx or .xls files with structured data",
-              format: ".xlsx, .xls"
-            },
-            {
-              icon: <FileText className="w-6 h-6" />,
-              title: "CSV Files",
-              description: "Simple comma-separated value files",
-              format: ".csv"
-            },
-            {
-              icon: <Table className="w-6 h-6" />,
-              title: "PDF Tables",
-              description: "PDFs containing tabular data",
-              format: ".pdf"
-            }
-          ].map((item, index) => (
-            <motion.div
-              key={index}
-              className="bg-white/5 rounded-xl p-4 border border-white/10 hover:border-white/20 transition-all"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-              whileHover={{ scale: 1.02 }}
-            >
-              <div className="flex items-start space-x-3">
-                <div className="p-2 bg-white/10 rounded-lg text-blue-400">
-                  {item.icon}
-                </div>
-                <div>
-                  <h3 className="text-white font-medium">{item.title}</h3>
-                  <p className="text-sm text-gray-400 mt-1">{item.description}</p>
-                  <p className="text-xs text-blue-400 mt-2 font-mono">{item.format}</p>
-                </div>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Size Limit Info */}
-        <div className="flex items-center justify-center space-x-2 text-sm text-gray-400 mb-6">
-          <Info className="w-4 h-4" />
-          <span>Maximum file size: 75MB</span>
-        </div>
-
-        {/* Upload Section */}
-        <div className="space-y-6">
-          <FileUpload onDataProcessed={handleDataProcessed} />
+        {/* File Upload Area */}
+        <div className="relative">
+          <FileUpload
+            onDataProcessed={handleDataProcessed}
+            isLoading={isLoading}
+            className="bg-black/20 border-2 border-dashed border-white/20 rounded-2xl p-8 hover:border-blue-500/50 transition-colors"
+          />
           
-          {error && (
-            <motion.div
-              className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 p-4 rounded-xl border border-red-500/20"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <AlertCircle className="h-4 w-4" />
-              <span>{error}</span>
-            </motion.div>
+          {isLoading && (
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                <p className="text-sm text-white/80">Processing your data...</p>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Data Type Indicator */}
-        {parsedData.length > 0 && !error && (
-          <motion.div
-            className="flex items-center justify-center space-x-3 p-4 bg-white/5 rounded-xl border border-white/10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <span className="text-gray-400">Detected Format:</span>
-            {isStockData ? (
-              <>
-                <CandlestickChart className="w-5 h-5 text-green-400" />
-                <span className="text-white font-medium">Stock Market Data</span>
-              </>
-            ) : (
-              <>
-                <BarChart2 className="w-5 h-5 text-blue-400" />
-                <span className="text-white font-medium">General Data</span>
-              </>
-            )}
-          </motion.div>
+        {/* Supported Formats */}
+        <div className="space-y-3">
+          <p className="text-sm font-medium text-white/60">Supported Formats:</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-3">
+              <FileSpreadsheet className="w-5 h-5 text-green-400" />
+              <span className="text-sm text-white/80">Excel (.xlsx)</span>
+            </div>
+            <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-3">
+              <Table className="w-5 h-5 text-blue-400" />
+              <span className="text-sm text-white/80">CSV (.csv)</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Data Type Indicators */}
+        {parsedData.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-white/60">Detected Data Type:</p>
+            <div className="flex items-center space-x-3">
+              {isStockData ? (
+                <div className="flex items-center space-x-2 bg-green-500/10 text-green-400 rounded-xl px-4 py-2">
+                  <CandlestickChart className="w-4 h-4" />
+                  <span className="text-sm font-medium">Stock Data</span>
+                </div>
+              ) : (
+                <div className="flex items-center space-x-2 bg-blue-500/10 text-blue-400 rounded-xl px-4 py-2">
+                  <BarChart2 className="w-4 h-4" />
+                  <span className="text-sm font-medium">General Data</span>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
-        {/* Year Selection */}
-        {availableYears.length > 0 && isStockData && (
-          <motion.div
-            className="space-y-3"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <h3 className="text-white font-medium text-center">Filter by Year</h3>
-            <div className="flex flex-wrap justify-center gap-2">
-              <motion.button
-                type="button"
+        {/* Year Selection for Stock Data */}
+        {isStockData && availableYears.length > 0 && (
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-white/60">Filter by Year:</p>
+            <div className="flex flex-wrap gap-2">
+              <button
                 onClick={() => handleYearChange("all")}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                   selectedYear === "all"
-                    ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
-                    : "bg-white/5 text-gray-300 hover:bg-white/10"
+                    ? "bg-blue-500 text-white"
+                    : "bg-white/5 text-white/80 hover:bg-white/10"
                 }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
               >
                 All Years
-              </motion.button>
+              </button>
               {availableYears.map((year) => (
-                <motion.button
+                <button
                   key={year}
-                  type="button"
                   onClick={() => handleYearChange(year)}
-                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+                  className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
                     selectedYear === year
-                      ? "bg-gradient-to-r from-blue-500 to-purple-500 text-white"
-                      : "bg-white/5 text-gray-300 hover:bg-white/10"
+                      ? "bg-blue-500 text-white"
+                      : "bg-white/5 text-white/80 hover:bg-white/10"
                   }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
                 >
-                  <Calendar className="inline-block w-4 h-4 mr-2" />
                   {year}
-                </motion.button>
+                </button>
               ))}
             </div>
-          </motion.div>
+          </div>
         )}
 
-        {/* Analysis Section */}
-        {isAnalyzing && (
+        {/* Error Display */}
+        {error && (
           <motion.div
-            className="flex items-center justify-center space-x-3 p-6 bg-white/5 rounded-xl border border-white/10"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400"></div>
-            <span className="text-white">AI is analyzing your data...</span>
-          </motion.div>
-        )}
-
-        {aiAnalysis && (
-          <motion.div
-            className="bg-white/5 rounded-xl p-6 border border-white/10"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
+            className="flex items-center space-x-2 bg-red-500/10 text-red-400 rounded-xl p-4"
           >
-            <h3 className="text-xl font-semibold text-white mb-4">AI Analysis</h3>
-            <div className="prose prose-invert max-w-none">
-              <div className="text-gray-300 space-y-4 whitespace-pre-wrap">{aiAnalysis}</div>
-            </div>
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm">{error}</p>
           </motion.div>
         )}
-      </div>
-    </motion.div>
+      </motion.div>
+
+      {/* Analysis Status */}
+      {isAnalyzing && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="bg-blue-500/10 backdrop-blur-lg rounded-3xl border border-blue-500/20 p-6"
+        >
+          <div className="flex items-center space-x-3">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+            <p className="text-sm text-blue-400">AI is analyzing your data...</p>
+          </div>
+        </motion.div>
+      )}
+    </div>
   );
 }

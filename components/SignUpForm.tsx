@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "@/components/ui/use-toast";
 
 export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -22,13 +23,25 @@ export default function SignUpForm() {
       const data = await res.json();
 
       if (res.ok) {
+        toast({
+          title: "Success!",
+          description: "Account created successfully. Please sign in.",
+        });
         router.push("/signin?registered=true");
       } else {
-        alert(data.message || "Registration failed");
+        toast({
+          variant: "destructive",
+          title: "Error",
+          description: data.error || "Registration failed",
+        });
       }
     } catch (error) {
       console.error("Registration error:", error);
-      alert("An error occurred during registration");
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "An error occurred during registration",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -63,6 +76,7 @@ export default function SignUpForm() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
+          minLength={6}
           className="w-full p-3 bg-white/10 rounded-lg text-white placeholder:text-white/60"
         />
       </div>

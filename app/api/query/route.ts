@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
-import { AnalyticsResult } from "@/types";
+import { AnalyticsResult } from "@/types/index";
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
