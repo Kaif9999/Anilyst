@@ -372,8 +372,8 @@ export default function InputSection({
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center space-x-2 bg-red-500/10 text-red-400 rounded-xl p-4"
           >
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
-            <p className="text-sm">{error}</p>
+            {/* <AlertCircle className="w-5 h-5 flex-shrink-0" /> */}
+            <p className="text-sm"></p>
           </motion.div>
         )}
       </motion.div>

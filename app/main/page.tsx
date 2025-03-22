@@ -56,7 +56,7 @@ export default function Home() {
 
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisState | null>(
-    null,
+    null
   );
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [query, setQuery] = useState("");
@@ -295,18 +295,22 @@ export default function Home() {
 
       {/* Adjust main content padding when sidebar is open */}
       <div
-        className={`transition-all duration-300 ${isSidebarOpen ? "pl-[280px]" : "pl-0"}`}
+        className={`transition-all duration-300 ${
+          isSidebarOpen ? "pl-[280px]" : "pl-0"
+        }`}
       >
         {/* Sign Out Button - Fixed Position */}
-        <div className="fixed top-6 right-6">
-          <button
-            onClick={() => signOut({ callbackUrl: "/" })}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/20 hover:text-red-400 transition-colors border border-white/10"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
-          </button>
-        </div>
+        {!isFullScreen && (
+          <div className="fixed top-6 right-6 z-20">
+            <button
+              onClick={() => signOut({ callbackUrl: "/" })}
+              className="flex items-center gap-2 px-5 py-2.5 bg-white/10 backdrop-blur-sm text-white/80 rounded-xl hover:bg-white/20 hover:text-red-400 transition-colors border border-white/10"
+            >
+              <LogOut className="w-4 h-4" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        )}
 
         {/* Popup Message */}
         <div
@@ -392,7 +396,10 @@ export default function Home() {
                     {chartData ? (
                       <div className="w-full bg-gradient-to-br from-gray-900 to-black rounded-2xl p-6 border border-white/10">
                         <div className="min-h-[600px] h-full w-full">
-                          <OutputDisplay chartData={chartData} onFullScreen={() => setIsFullScreen(true)} />
+                          <OutputDisplay
+                            chartData={chartData}
+                            onFullScreen={() => setIsFullScreen(true)}
+                          />
                         </div>
                       </div>
                     ) : (
@@ -472,7 +479,7 @@ export default function Home() {
                     exit={{ opacity: 0 }}
                     className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-lg overflow-hidden flex flex-col"
                   >
-                    <div className="top-0 flex justify-end p-4 bg-black/40 border-b border-white/10 z-">
+                    <div className="top-0 flex justify-end p-4 bg-black/40 border-b border-white/10 z-50">
                       <button
                         onClick={() => setIsFullScreen(false)}
                         className="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
@@ -484,7 +491,10 @@ export default function Home() {
                       <div className="w-full h-full max-h-[calc(100vh-8rem)] flex items-center justify-center">
                         {chartData && (
                           <div className="w-full h-full">
-                            <OutputDisplay chartData={chartData} isFullScreen={true} />
+                            <OutputDisplay
+                              chartData={chartData}
+                              isFullScreen={true}
+                            />
                           </div>
                         )}
                       </div>
