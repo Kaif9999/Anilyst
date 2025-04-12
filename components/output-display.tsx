@@ -57,6 +57,8 @@ import {
 } from "lucide-react";
 import regression from "regression";
 import * as ss from "simple-statistics";
+import { AnalyticsResult, DataInsight } from "@/types";
+import { TimeSeriesAnalysis } from "@/types";
 
 ChartJS.register(
   CategoryScale,
@@ -275,6 +277,22 @@ const prepareBubbleData = (data: ImportedChartData, colorScheme: ColorSchemeKey)
   };
 };
 
+const filterDataByYear = (data: ChartData, year: string): ChartData => {
+  if (!isYearData || showAllYears) return data;
+
+  const yearIndices = data.labels?.map((label, index) => 
+    label.includes(year) ? index : -1
+  ).filter(i => i !== -1) ?? [];
+
+  return {
+    labels: yearIndices.map(i => data.labels![i]),
+    datasets: data.datasets.map(dataset => ({
+      ...dataset,
+      data: yearIndices.map(i => dataset.data[i])
+    }))
+  };
+};
+
 const prepareChartData = (type: ChartType, data: ImportedChartData, colorScheme: ColorSchemeKey): ChartData => {
   if (type === 'scatter') {
     return prepareScatterData(data, colorScheme);
@@ -356,13 +374,16 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
     showForecast: true,
     showTooltips: true,
   });
-  const chartRef = useRef<HTMLCanvasElement>(null);
-  const chartInstance = useRef<ChartJS | null>(null);
+  const chartRef = useRef<ChartJS | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
   const [insights, setInsights] = useState<DataInsight[]>([]);
   const [timeSeriesAnalysis, setTimeSeriesAnalysis] =
     useState<TimeSeriesAnalysis | null>(null);
   const [sortedData, setSortedData] = useState<ChartData | null>(null);
+  const [isYearData, setIsYearData] = useState(false);
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
+  const [selectedYear, setSelectedYear] = useState<string>("latest");
+  const [showAllYears, setShowAllYears] = useState(false);
 
   // Advanced Analytics Functions
   const performAnalytics = (data: number[]): AnalyticsResult | null => {
@@ -618,6 +639,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
   // Update the getChartOptions function
   const getChartOptions = (type: ChartType) => ({
     responsive: true,
+    maintainAspectRatio: false,
     animation: settings.enableAnimation ? undefined : false,
     plugins: {
       legend: {
@@ -730,14 +752,19 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
   });
 
   const handleDownload = () => {
-    if (chartInstance.current) {
-      const canvas = chartInstance.current.canvas;
-      if (canvas) {
+    if (chartRef.current) {
+      const chartInstance = chartRef.current;
+      if (chartInstance && chartInstance.canvas) {
+        const canvas = chartInstance.canvas;
         const link = document.createElement("a");
         link.download = `${settings.chartTitle}.png`;
-        link.href = canvas.toDataURL();
+        link.href = canvas.toDataURL("image/png");
         link.click();
+      } else {
+        console.error("Could not get chart instance or canvas from ref.");
       }
+    } else {
+      console.error("Chart ref is not available.");
     }
   };
 
@@ -776,86 +803,6 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
         return type as keyof ChartTypeRegistry;
     }
   };
-
-  useEffect(() => {
-    if (!chartRef.current) return;
-
-    if (chartInstance.current) {
-      chartInstance.current.destroy();
-    }
-
-    const ctx = chartRef.current.getContext("2d");
-    if (!ctx) return;
-
-    const labels = chartData.labels || [];
-    const processedData = {
-      labels,
-      datasets: chartData.datasets.map(dataset => ({
-        ...dataset,
-        backgroundColor: Array.isArray(dataset.backgroundColor) 
-          ? dataset.backgroundColor[0] 
-          : dataset.backgroundColor || 'rgba(75, 192, 192, 0.6)',
-      }))
-    };
-
-    const options: ChartOptions = {
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: {
-        duration: 750,
-        easing: "easeInOutQuart",
-      },
-      scales: {
-        y: {
-          beginAtZero: true,
-          grid: {
-            color: "rgba(255, 255, 255, 0.1)",
-          },
-          ticks: {
-            color: "rgba(255, 255, 255, 0.7)",
-          },
-        },
-        x: {
-          grid: {
-            color: "rgba(255, 255, 255, 0.1)",
-          },
-          ticks: {
-            color: "rgba(255, 255, 255, 0.7)",
-          },
-        },
-      },
-      plugins: {
-        legend: {
-          position: "top",
-          labels: {
-            color: "rgba(255, 255, 255, 0.9)",
-            font: {
-              size: 12,
-            },
-          },
-        },
-        tooltip: {
-          backgroundColor: "rgba(0, 0, 0, 0.8)",
-          titleColor: "rgba(255, 255, 255, 0.9)",
-          bodyColor: "rgba(255, 255, 255, 0.9)",
-          borderColor: "rgba(255, 255, 255, 0.1)",
-          borderWidth: 1,
-        },
-      },
-    };
-
-    chartInstance.current = new ChartJS(ctx, {
-      type: getChartConfig(chartType),
-      data: processedData,
-      options,
-    });
-
-    return () => {
-      if (chartInstance.current) {
-        chartInstance.current.destroy();
-      }
-    };
-  }, [chartData, chartType]);
 
   return (
     <motion.div
@@ -1122,10 +1069,12 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
           </div>
         )}
 
-        {/* Chart Container with improved styling */}
-        <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90">
-          <div className="relative bg-black/40 rounded-xl p-6 border border-white/5">
-            {renderChart()}
+        {/* Chart Container with improved styling and scrolling */}
+        <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90 overflow-hidden rounded-2xl">
+          <div className="overflow-x-auto"> {/* Outer wrapper for scrolling */}
+            <div className="relative bg-black/40 p-6 border border-white/5 min-w-[1200px] h-[500px]"> {/* Inner wrapper with min-width and height */}
+              {renderChart()}
+            </div>
           </div>
         </div>
 

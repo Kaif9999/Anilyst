@@ -27,8 +27,8 @@ const mainFeatures = [
   {
     icon: <Cpu className="w-6 h-6" />,
     title: "AI-Powered Analysis",
-    description: "Advanced machine learning algorithms analyze your data in real-time",
-    
+    description:
+      "Advanced machine learning algorithms analyze your data in real-time",
   },
   {
     icon: <Terminal className="w-6 h-6" />,
@@ -53,25 +53,29 @@ const mainFeatures = [
 const featureSections = [
   {
     title: "Data Processing",
-    description: "Process large datasets efficiently with our distributed computing engine",
+    description:
+      "Process large datasets efficiently with our distributed computing engine",
     features: [
       "Automatic data cleaning and preprocessing",
       "Support for multiple file formats",
       "Real-time data streaming",
       "Custom data transformations",
     ],
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop",
   },
   {
     title: "Visualization",
-    description: "Create beautiful, interactive visualizations that tell your data's story",
+    description:
+      "Create beautiful, interactive visualizations that tell your data's story",
     features: [
       "Interactive dashboards",
       "Custom chart types",
       "Real-time updates",
       "Export capabilities",
     ],
-    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop",
   },
   {
     title: "AI Integration",
@@ -82,7 +86,8 @@ const featureSections = [
       "Pattern recognition",
       "Automated reporting",
     ],
-    image: "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop",
+    image:
+      "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop",
   },
 ];
 
@@ -105,15 +110,15 @@ export default function Home() {
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[15%] left-[20%] w-96 h-96 bg-purple-600/80 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" />
         <div className="absolute top-[45%] right-[20%] w-[30rem] h-[30rem] bg-pink-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-2000" />
-      <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
-      <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
-      <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
+        <div className="absolute bottom-[15%] left-[35%] w-[28rem] h-[28rem] bg-orange-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-4000" />
+        <div className="absolute top-[30%] left-[45%] w-[26rem] h-[26rem] bg-green-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-3000" />
+        <div className="absolute bottom-[35%] right-[15%] w-[32rem] h-[32rem] bg-blue-500/70 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob animation-delay-5000" />
       </div>
 
       {/* Main Content */}
       <div className="relative z-10">
         <Navbar />
-        
+
         {/* Hero Section */}
         <section className="min-h-screen py-10 flex items-center justify-center">
           <div className="container mx-auto px-4 pt-32 pb-20">
@@ -190,10 +195,15 @@ export default function Home() {
                       <h3 className="text-2xl font-bold text-white mb-4">
                         {section.title}
                       </h3>
-                      <p className="text-gray-300 mb-6">{section.description}</p>
+                      <p className="text-gray-300 mb-6">
+                        {section.description}
+                      </p>
                       <ul className="space-y-3">
                         {section.features.map((feature, i) => (
-                          <li key={i} className="flex items-center text-gray-200">
+                          <li
+                            key={i}
+                            className="flex items-center text-gray-200"
+                          >
                             <ChevronRight className="w-5 h-5 text-blue-400 mr-2 flex-shrink-0" />
                             <span>{feature}</span>
                           </li>

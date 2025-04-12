@@ -16,7 +16,7 @@ export default function SignUp() {
           transition={{ duration: 0.5 }}
           className="bg-white/10 backdrop-blur-xl rounded-2xl p-8 border border-white/20"
         >
-          {/* Logo and Title */}
+          {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
               <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
