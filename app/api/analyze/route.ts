@@ -48,6 +48,7 @@ export async function POST(req: Request) {
   try {
     // Check if OpenAI API is properly initialized
     if (!openaiClient) {
+      console.error("OpenAI client is not initialized");
       return NextResponse.json(
         { error: "AI service is not available", ...defaultAnalysis },
         { status: 503 }
@@ -182,81 +183,247 @@ export async function POST(req: Request) {
       });
     }
 
+    // Parse the request body
     const body = await req.json();
-    const { filePath, type } = body;
-
-    if (!filePath) {
-      return NextResponse.json(
-        { error: "No file path provided" },
-        { status: 400 }
-      );
-    }
-
-    if (!type) {
-      return NextResponse.json(
-        { error: "No file type provided" },
-        { status: 400 }
-      );
-    }
-
-    // Validate file path
-    const cleanPath = filePath.replace(/^\//, '');
-    if (!cleanPath.startsWith('uploads/')) {
-      return NextResponse.json(
-        { error: "Invalid file path" },
-        { status: 400 }
-      );
-    }
-
-    // Read file
-    const absolutePath = join(process.cwd(), cleanPath);
-    let fileContent;
-    try {
-      fileContent = await readFile(absolutePath);
-    } catch (error) {
-      console.error("Error reading file:", error);
-      return NextResponse.json(
-        { error: "File not found or inaccessible", ...defaultAnalysis },
-        { status: 404 }
-      );
-    }
-
-    // Process file based on type
+    
+    // Log the body to help debug the issue
+    console.log("Request body:", JSON.stringify(body, null, 2));
+    
+    // Handle both file path uploads and direct data submissions
     let textContent = '';
+    let analysisData;
+    
+    if (body.filePath && body.type) {
+      // Process file upload
+      const { filePath, type } = body;
+
+      if (!filePath) {
+        return NextResponse.json(
+          { error: "No file path provided", ...defaultAnalysis },
+          { status: 400 }
+        );
+      }
+
+      if (!type) {
+        return NextResponse.json(
+          { error: "No file type provided" },
+          { status: 400 }
+        );
+      }
+
+      // Validate file path
+      const cleanPath = filePath.replace(/^\//, '');
+      if (!cleanPath.startsWith('uploads/')) {
+        return NextResponse.json(
+          { error: "Invalid file path", ...defaultAnalysis },
+          { status: 400 }
+        );
+      }
+
+      // Read file
+      const absolutePath = join(process.cwd(), cleanPath);
+      let fileContent;
+      try {
+        fileContent = await readFile(absolutePath);
+      } catch (error) {
+        console.error("Error reading file:", error);
+        return NextResponse.json(
+          { error: "File not found or inaccessible", ...defaultAnalysis },
+          { status: 404 }
+        );
+      }
+
+      // Process file based on type
+      try {
+        switch (type) {
+          case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+          case 'application/vnd.ms-excel':
+            const workbook = XLSX.read(fileContent);
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const jsonData = XLSX.utils.sheet_to_json(worksheet);
+            textContent = JSON.stringify(jsonData, null, 2);
+            break;
+
+          case 'application/pdf':
+            // PDF content should be extracted on the frontend due to PDF.js browser dependency
+            textContent = "PDF content will be processed on the frontend";
+            break;
+
+          case 'text/csv':
+            textContent = fileContent.toString('utf-8');
+            break;
+
+          default:
+            return NextResponse.json(
+              { error: "Unsupported file type", ...defaultAnalysis },
+              { status: 400 }
+            );
+        }
+
+        if (!textContent) {
+          throw new Error("No content extracted from file");
+        }
+
+        // Generate AI analysis using OpenAI
+        const dataToAnalyze = textContent || JSON.stringify(analysisData, null, 2);
+        console.log("Analyzing data length:", dataToAnalyze.length);
+
+        const prompt = `Analyze this data and provide insights:
+        ${dataToAnalyze.substring(0, 30000)} // Limit text length for API
+        
+        Please provide your response in the following format:
+        **1. Direct Answer:**
+        [Your direct answer here]
+
+        **2. Key Insights:**
+        [Your key insights here]
+
+        **3. Relevant Trends:**
+        [Your trends analysis here]
+
+        **4. Statistical Significance:**
+        [Your statistical analysis here]`;
+
+        console.log("Sending request to OpenAI...");
+        
+        // Call OpenAI's API
+        const completion = await openaiClient.chat.completions.create({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: "You are a skilled data analyst that provides clear, concise, and insightful analysis." },
+            { role: "user", content: prompt }
+          ],
+          temperature: 0.2,
+          max_tokens: 1500,
+        });
+
+        // Extract text from OpenAI response
+        const text = completion.choices[0].message.content || "No analysis generated";
+        console.log("Analysis generated successfully");
+
+        // Create a more complete analysis response object
+        const analysisResponse = {
+          insights: {
+            trends: [],
+            anomalies: [],
+            correlations: [],
+            statistics: {
+              mean: 0,
+              median: 0,
+              mode: 0,
+              outliers: [],
+            },
+            queryResponse: {
+              question: "Please analyze this data",
+              answer: text,
+              timestamp: new Date().toISOString(),
+            },
+          },
+          recommendations: [],
+          chatHistory: [],
+        };
+
+        // Store in database if we have a file name
+        if (body.filePath && body.type) {
+          await prisma.analysis.create({
+            data: {
+              userId: session.user.id,
+              content: text,
+              fileName: body.filePath.split('/').pop() || 'unknown',
+              fileType: body.type,
+            }
+          });
+        } else if (body.fileName) {
+          await prisma.analysis.create({
+            data: {
+              userId: session.user.id,
+              content: text,
+              fileName: body.fileName,
+              fileType: body.fileType || "application/json",
+            }
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          ...analysisResponse,
+        });
+
+      } catch (error) {
+        console.error("Analysis error:", error);
+        return NextResponse.json(
+          { 
+            error: error instanceof Error ? error.message : "Error analyzing data",
+            ...defaultAnalysis
+          },
+          { status: 500 }
+        );
+      }
+    } 
+    else if (body.data) {
+      // Handle direct data submission from page.tsx
+      analysisData = body.data;
+      
+      console.log("Processing data submission. Type:", typeof body.data);
+      
+      // Format depends on how data is passed
+      if (typeof body.data === 'string') {
+        try {
+          textContent = body.data;
+        } catch (error) {
+          console.error("Error parsing data string:", error);
+          textContent = body.data;
+        }
+      } else {
+        // Handle object data format
+        textContent = JSON.stringify(body.data, null, 2);
+      }
+      
+      console.log("Data processed, content length:", textContent.length);
+    }
+    // Also handle the case where 'content' is passed instead of 'data'
+    else if (body.content) {
+      console.log("Processing content submission");
+      // Handle JSON stringified content
+      if (typeof body.content === 'string') {
+        try {
+          const parsed = JSON.parse(body.content);
+          analysisData = parsed.chartData || parsed;
+          textContent = JSON.stringify(analysisData, null, 2);
+        } catch (error) {
+          console.error("Error parsing content string:", error);
+          textContent = body.content;
+        }
+      } else {
+        // Direct object
+        analysisData = body.content.chartData || body.content;
+        textContent = JSON.stringify(analysisData, null, 2);
+      }
+    }
+    else {
+      console.error("Invalid request format:", body);
+      return NextResponse.json(
+        { error: "Invalid request: missing filePath/type, data, or content", ...defaultAnalysis },
+        { status: 400 }
+      );
+    }
+
+    // Handle both formats of data
+    if (!textContent && !analysisData) {
+      console.error("No content to analyze");
+      return NextResponse.json(
+        { error: "No content to analyze", ...defaultAnalysis },
+        { status: 400 }
+      );
+    }
 
     try {
-      switch (type) {
-        case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
-        case 'application/vnd.ms-excel':
-          const workbook = XLSX.read(fileContent);
-          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(worksheet);
-          textContent = JSON.stringify(jsonData, null, 2);
-          break;
+      // Generate AI analysis using OpenAI
+      const dataToAnalyze = textContent || JSON.stringify(analysisData, null, 2);
+      console.log("Analyzing data length:", dataToAnalyze.length);
 
-        case 'application/pdf':
-          // PDF content should be extracted on the frontend due to PDF.js browser dependency
-          textContent = "PDF content will be processed on the frontend";
-          break;
-
-        case 'text/csv':
-          textContent = fileContent.toString('utf-8');
-          break;
-
-        default:
-          return NextResponse.json(
-            { error: "Unsupported file type", ...defaultAnalysis },
-            { status: 400 }
-          );
-      }
-
-      if (!textContent) {
-        throw new Error("No content extracted from file");
-      }
-
-      // Generate AI analysis using OpenAI GPT-4o-mini instead of Gemini
       const prompt = `Analyze this data and provide insights:
-      ${textContent.substring(0, 30000)} // Limit text length for API
+      ${dataToAnalyze.substring(0, 30000)} // Limit text length for API
       
       Please provide your response in the following format:
       **1. Direct Answer:**
@@ -271,7 +438,9 @@ export async function POST(req: Request) {
       **4. Statistical Significance:**
       [Your statistical analysis here]`;
 
-      // Call OpenAI's API instead of Gemini
+      console.log("Sending request to OpenAI...");
+      
+      // Call OpenAI's API
       const completion = await openaiClient.chat.completions.create({
         model: "gpt-4o-mini",
         messages: [
@@ -279,31 +448,55 @@ export async function POST(req: Request) {
           { role: "user", content: prompt }
         ],
         temperature: 0.2,
-        max_tokens: 1000,
+        max_tokens: 1500,
       });
 
       // Extract text from OpenAI response
       const text = completion.choices[0].message.content || "No analysis generated";
+      console.log("Analysis generated successfully");
 
-      // Save analysis to database
-      await prisma.analysis.create({
-        data: {
-          userId: session.user.id,
-          content: text,
-          fileName: filePath.split('/').pop() || 'unknown',
-          fileType: type,
-        }
-      });
-
-      // Structure the response
+      // Create a more complete analysis response object
       const analysisResponse = {
-        ...defaultAnalysis,
-        queryResponse: {
-          question: "Please analyze this data",
-          answer: text,
-          timestamp: new Date().toISOString(),
+        insights: {
+          trends: [],
+          anomalies: [],
+          correlations: [],
+          statistics: {
+            mean: 0,
+            median: 0,
+            mode: 0,
+            outliers: [],
+          },
+          queryResponse: {
+            question: "Please analyze this data",
+            answer: text,
+            timestamp: new Date().toISOString(),
+          },
         },
+        recommendations: [],
+        chatHistory: [],
       };
+
+      // Store in database if we have a file name
+      if (body.filePath && body.type) {
+        await prisma.analysis.create({
+          data: {
+            userId: session.user.id,
+            content: text,
+            fileName: body.filePath.split('/').pop() || 'unknown',
+            fileType: body.type,
+          }
+        });
+      } else if (body.fileName) {
+        await prisma.analysis.create({
+          data: {
+            userId: session.user.id,
+            content: text,
+            fileName: body.fileName,
+            fileType: body.fileType || "application/json",
+          }
+        });
+      }
 
       return NextResponse.json({
         success: true,
@@ -314,7 +507,7 @@ export async function POST(req: Request) {
       console.error("Analysis error:", error);
       return NextResponse.json(
         { 
-          error: error instanceof Error ? error.message : "Error analyzing file",
+          error: error instanceof Error ? error.message : "Error analyzing data",
           ...defaultAnalysis
         },
         { status: 500 }

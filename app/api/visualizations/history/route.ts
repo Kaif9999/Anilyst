@@ -67,20 +67,55 @@ export async function POST(req: Request) {
 
     // Get request body
     const body = await req.json();
+    
+    console.log("History endpoint received request with keys:", Object.keys(body));
+    
+    // Validate required fields
+    if (!body.chartData) {
+      console.error("Missing chartData in request");
+      return NextResponse.json(
+        { error: "Missing chartData in request" },
+        { status: 400 }
+      );
+    }
 
-    // Create a new empty session
+    // Safely serialize the data to prevent circular references
+    let safeContent;
+    try {
+      // Only include necessary fields to avoid circular references
+      const serializedContent = {
+        chartData: body.chartData,
+        analysisResult: body.analysisResult ? {
+          insights: body.analysisResult.insights || {},
+          recommendations: body.analysisResult.recommendations || [],
+        } : {},
+        timestamp: new Date().toISOString(),
+      };
+      
+      // Verify we can stringify it without errors
+      safeContent = JSON.stringify(serializedContent);
+      console.log("Successfully serialized content of length:", safeContent.length);
+    } catch (serializeError) {
+      console.error("Error serializing visualization content:", serializeError);
+      // Fallback to a simpler structure
+      safeContent = JSON.stringify({
+        chartData: body.chartData,
+        timestamp: new Date().toISOString(),
+        error: "Failed to serialize full content"
+      });
+    }
+
+    // Create a new session
     const newSession = await prisma.analysis.create({
       data: {
         userId: session.user.id,
         fileName: body.fileName || "New Analysis",
         fileType: body.fileType || "visualization",
-        content: JSON.stringify({
-          chartData: body.chartData,
-          analysisResult: body.analysisResult,
-          timestamp: new Date().toISOString(),
-        }),
+        content: safeContent,
       },
     });
+
+    console.log("Created new history session with ID:", newSession.id);
 
     return NextResponse.json({
       success: true,
@@ -89,9 +124,6 @@ export async function POST(req: Request) {
         fileName: newSession.fileName,
         fileType: newSession.fileType,
         createdAt: newSession.createdAt,
-        chartData: body.chartData,
-        analysisResult: body.analysisResult,
-        visualizations: extractVisualizationsFromContent(newSession.content),
       },
     });
   } catch (error) {

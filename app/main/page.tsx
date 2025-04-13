@@ -151,34 +151,55 @@ export default function Home() {
 
     try {
       // Store the visualization and analysis results
+      console.log("Sending data to analyze endpoint:", JSON.stringify(data).substring(0, 100) + "...");
+      
+      // Format the request to match what the API expects
+      const analyzeRequest = {
+        data: data, // Send the chart data directly
+        fileName: "Analysis_" + new Date().toISOString().replace(/:/g, '-'),
+        fileType: "application/json",
+      };
+      
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data,
-          fileName: "Analysis " + new Date().toLocaleString(),
-          fileType: "visualization",
-          content: JSON.stringify({
-            chartData: data,
-            timestamp: new Date().toISOString(),
-          }),
-        }),
+        body: JSON.stringify(analyzeRequest),
       });
 
+      if (!response.ok) {
+        throw new Error(`Analysis failed with status: ${response.status}`);
+      }
+
       const result = await response.json();
+      console.log("Analysis result received:", Object.keys(result));
       setAnalysisResult(result);
-      await fetch("/api/visualizations/history", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          chartData: data,
-          analysisResult: result,
-          fileName: "Analysis " + new Date().toLocaleString(),
-          fileType: "visualization",
-        }),
-      });
+      
+      // Now save to history
+      try {
+        const historyResponse = await fetch("/api/visualizations/history", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chartData: data,
+            analysisResult: result,
+            fileName: "Analysis_" + new Date().toISOString().replace(/:/g, '-'),
+            fileType: "visualization",
+          }),
+        });
+        
+        if (!historyResponse.ok) {
+          console.error("Failed to save to history:", await historyResponse.text());
+        }
+      } catch (historyError) {
+        console.error("History save error:", historyError);
+        // Don't throw here - we still want to show analysis even if history fails
+      }
     } catch (error) {
       console.error("Analysis failed:", error);
+      setPopup({
+        show: true,
+        message: error instanceof Error ? error.message : "Analysis failed. Please try again.",
+      });
     } finally {
       setIsAnalyzing(false);
     }
