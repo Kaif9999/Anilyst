@@ -180,8 +180,8 @@ interface ImportedChartData {
 interface ChartDataset {
   label?: string;
   data: DataPoint[];
-  backgroundColor?: string;
-  borderColor?: string;
+  backgroundColor?: string | string[];
+  borderColor?: string | string[];
   pointRadius?: number;
   pointHoverRadius?: number;
   type?: string;
@@ -1098,7 +1098,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
         {/* Chart Container with conditional styling for horizontal scrolling */}
         <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90 overflow-hidden rounded-2xl">
           <div className={`${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'overflow-x-auto' : ''}`}>
-            <div className={`relative bg-black/40 p-6 border border-white/5 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[1200px]' : ''} h-[500px]`}>
+            <div className={`relative bg-black/40 p-6 border border-white/5 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[12800px]' : ''} h-[500px]`}>
               {renderChart()}
             </div>
           </div>
