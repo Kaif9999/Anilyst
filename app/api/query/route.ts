@@ -1,15 +1,15 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextResponse } from "next/server";
 import { AnalyticsResult } from "@/types/index";
+import OpenAI from "openai";
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+// Initialize OpenAI client
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 export async function POST(req: Request) {
   try {
     const { query, data, context } = await req.json();
-
-    // Initialize Gemini Pro model
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     // Create initial context if none exists
     const initialContext: AnalyticsResult = context || {
@@ -59,10 +59,19 @@ export async function POST(req: Request) {
       Explain the statistical significance of the findings.
     `;
 
-    // Get response from Gemini
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // Get response from OpenAI using GPT-4o-mini
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        { role: "system", content: "You are a skilled data analyst assistant." },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 1000,
+    });
+
+    // Extract the response text
+    const text = completion.choices[0].message.content || "No analysis available";
 
     // Structure the response
     return NextResponse.json({
