@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { PrismaClient, SubscriptionType } from "@prisma/client";
 import { Prisma } from "@prisma/client";
-import { GoogleGenerativeAI, GenerativeModel } from "@google/generative-ai";
+import OpenAI from "openai";
 import { toast } from "@/hooks/use-toast";
 
 const prisma = new PrismaClient();
@@ -29,25 +29,25 @@ const defaultAnalysis = {
   },
 };
 
-// Initialize the Gemini API client with error handling
-let genAI: GoogleGenerativeAI | null = null;
-let model: GenerativeModel | null = null;
+// Initialize the OpenAI client with error handling
+let openaiClient: OpenAI | null = null;
 
 try {
-  if (!process.env.GEMINI_API_KEY) {
-    throw new Error('GEMINI_API_KEY is not configured');
+  if (!process.env.OPENAI_API_KEY) {
+    throw new Error('OPENAI_API_KEY is not configured');
   }
-  genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-  model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  openaiClient = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
 } catch (error) {
-  console.error('Error initializing Gemini API:', error);
+  console.error('Error initializing OpenAI API:', error);
   // Continue execution - we'll handle the error in the route handler
 }
 
 export async function POST(req: Request) {
   try {
-    // Check if Gemini API is properly initialized
-    if (!genAI || !model) {
+    // Check if OpenAI API is properly initialized
+    if (!openaiClient) {
       return NextResponse.json(
         { error: "AI service is not available", ...defaultAnalysis },
         { status: 503 }
@@ -254,7 +254,7 @@ export async function POST(req: Request) {
         throw new Error("No content extracted from file");
       }
 
-      // Generate AI analysis using Gemini
+      // Generate AI analysis using OpenAI GPT-4o-mini instead of Gemini
       const prompt = `Analyze this data and provide insights:
       ${textContent.substring(0, 30000)} // Limit text length for API
       
@@ -271,13 +271,19 @@ export async function POST(req: Request) {
       **4. Statistical Significance:**
       [Your statistical analysis here]`;
 
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
+      // Call OpenAI's API instead of Gemini
+      const completion = await openaiClient.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+          { role: "system", content: "You are a skilled data analyst that provides clear, concise, and insightful analysis." },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.2,
+        max_tokens: 1000,
+      });
 
-      if (!text) {
-        throw new Error("No analysis generated");
-      }
+      // Extract text from OpenAI response
+      const text = completion.choices[0].message.content || "No analysis generated";
 
       // Save analysis to database
       await prisma.analysis.create({
