@@ -28,7 +28,7 @@ import {
   ScatterController,
   ChartType,
   ChartTypeRegistry,
-  ChartData,
+  ChartData as ChartJSData,
   ChartOptions,
 } from "chart.js";
 import {
@@ -166,6 +166,17 @@ interface BubbleDataPoint extends BaseDataPoint {
 
 type DataPoint = number | ScatterDataPoint | BubbleDataPoint;
 
+// Add the missing ImportedChartData interface
+interface ImportedChartData {
+  labels?: string[];
+  datasets: {
+    label?: string;
+    data: (number | any[])[];
+    backgroundColor?: string | string[];
+    borderColor?: string | string[];
+  }[];
+}
+
 interface ChartDataset {
   label?: string;
   data: DataPoint[];
@@ -183,7 +194,7 @@ interface ChartData {
 }
 
 // Add chart type specific options
-const getChartTypeOptions = (type: ChartType) => {
+const getChartTypeOptions = (type: ExtendedChartType) => {
   switch (type) {
     case "horizontalBar":
       return {
@@ -278,7 +289,7 @@ const prepareBubbleData = (data: ImportedChartData, colorScheme: ColorSchemeKey)
 };
 
 const filterDataByYear = (data: ChartData, year: string): ChartData => {
-  if (!isYearData || showAllYears) return data;
+  if (year === 'all') return data;
 
   const yearIndices = data.labels?.map((label, index) => 
     label.includes(year) ? index : -1
@@ -293,7 +304,7 @@ const filterDataByYear = (data: ChartData, year: string): ChartData => {
   };
 };
 
-const prepareChartData = (type: ChartType, data: ImportedChartData, colorScheme: ColorSchemeKey): ChartData => {
+const prepareChartData = (type: ExtendedChartType, data: ImportedChartData, colorScheme: ColorSchemeKey): ChartData => {
   if (type === 'scatter') {
     return prepareScatterData(data, colorScheme);
   }
@@ -305,13 +316,14 @@ const prepareChartData = (type: ChartType, data: ImportedChartData, colorScheme:
   
   return {
     labels: data.labels || [],
-    datasets: data.datasets.map((dataset): ChartDataset => {
+    datasets: data.datasets.map((dataset: any): ChartDataset => {
       const baseDataset: ChartDataset = {
         ...dataset,
         type,
         borderWidth: 2,
         pointRadius: 4,
         pointHoverRadius: 6,
+        data: dataset.data as DataPoint[] // Cast to compatible type
       };
 
       // Assign colors based on dataset label
@@ -551,23 +563,30 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
     };
   };
 
-  // Add sortData function
+  // Update the sortData function to handle undefined labels
   const sortData = (
     data: ChartData,
     order: "asc" | "desc" | "none"
   ): ChartData => {
-    if (order === "none") return data;
+    if (order === "none" || !data.labels) return data;
 
-    const sortedIndices = data.datasets[0].data
-      .map((_, index) => index)
-      .sort((a, b) => {
-        const valueA = data.datasets[0].data[a] as number;
-        const valueB = data.datasets[0].data[b] as number;
-        return order === "asc" ? valueA - valueB : valueB - valueA;
-      });
+    // Create pairs of [label, index]
+    const labelIndices = data.labels.map((label, index) => [label, index]);
+
+    // Sort by label
+    labelIndices.sort((a, b) => {
+      const labelA = String(a[0]);
+      const labelB = String(b[0]);
+      return order === "asc"
+        ? labelA.localeCompare(labelB)
+        : labelB.localeCompare(labelA);
+    });
+
+    // Get sorted indices
+    const sortedIndices = labelIndices.map((pair) => pair[1] as number);
 
     return {
-      labels: sortedIndices.map((i) => data.labels[i]),
+      labels: sortedIndices.map((i) => data.labels![i]),
       datasets: data.datasets.map((dataset) => ({
         ...dataset,
         data: sortedIndices.map((i) => dataset.data[i]),
@@ -606,7 +625,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
     }
 
     const dataToUse = sortedData || chartData;
-    const preparedData = prepareChartData(currentType, dataToUse, selectedColorScheme);
+    const preparedData = prepareChartData(currentType, dataToUse as unknown as ImportedChartData, selectedColorScheme);
     const chartOptions = {
       ...getChartOptions(currentType),
       ...getChartTypeOptions(currentType),
@@ -637,7 +656,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
   }, [chartData]);
 
   // Update the getChartOptions function
-  const getChartOptions = (type: ChartType) => ({
+  const getChartOptions = (type: ExtendedChartType) => ({
     responsive: true,
     maintainAspectRatio: false,
     animation: settings.enableAnimation ? undefined : false,
@@ -769,6 +788,8 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
   };
 
   const handleExportData = () => {
+    if (!chartData.labels) return;
+    
     const csvContent = [
       // Header
       ["Category", ...chartData.datasets.map((ds) => ds.label)].join(","),
@@ -785,7 +806,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
     link.click();
   };
 
-  const getChartConfig = (type: ExtendedChartType): ChartTypeRegistry[keyof ChartTypeRegistry] => {
+  const getChartConfig = (type: ExtendedChartType): ChartType => {
     switch (type) {
       case 'horizontalBar':
         return 'bar';
@@ -800,7 +821,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
       case 'combo':
         return 'line';
       default:
-        return type as keyof ChartTypeRegistry;
+        return type as ChartType;
     }
   };
 
@@ -1072,7 +1093,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
         {/* Chart Container with improved styling and scrolling */}
         <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90 overflow-hidden rounded-2xl">
           <div className="overflow-x-auto"> {/* Outer wrapper for scrolling */}
-            <div className="relative bg-black/40 p-6 border border-white/5 min-w-[1200px] h-[500px]"> {/* Inner wrapper with min-width and height */}
+            <div className="relative bg-black/40 p-6 border border-white/5 min-w-[12800px] h-[500px]"> {/* Inner wrapper with min-width and height */}
               {renderChart()}
             </div>
           </div>
