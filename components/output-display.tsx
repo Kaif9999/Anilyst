@@ -396,6 +396,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
   const [availableYears, setAvailableYears] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>("latest");
   const [showAllYears, setShowAllYears] = useState(false);
+  const [isShowingAllYears, setIsShowingAllYears] = useState(false);
 
   // Advanced Analytics Functions
   const performAnalytics = (data: number[]): AnalyticsResult | null => {
@@ -641,9 +642,13 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
     );
   };
 
-  // Effect to run analytics when data changes
+  // Add logic to detect "All years" in the useEffect for chartData
   useEffect(() => {
     if (chartData.datasets[0]?.data) {
+      // Detect if we're showing all years by checking the number of labels
+      // Usually more than 12-15 data points means we're showing all years
+      setIsShowingAllYears(Boolean(chartData.labels && chartData.labels.length > 15));
+      
       const numericData = chartData.datasets[0].data.filter((d): d is number => typeof d === "number");
       const analyticsResult = performAnalytics(numericData);
       if (analyticsResult) {
@@ -1090,10 +1095,10 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
           </div>
         )}
 
-        {/* Chart Container with improved styling and scrolling */}
+        {/* Chart Container with conditional styling for horizontal scrolling */}
         <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90 overflow-hidden rounded-2xl">
-          <div className="overflow-x-auto"> {/* Outer wrapper for scrolling */}
-            <div className="relative bg-black/40 p-6 border border-white/5 min-w-[12800px] h-[500px]"> {/* Inner wrapper with min-width and height */}
+          <div className={`${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'overflow-x-auto' : ''}`}>
+            <div className={`relative bg-black/40 p-6 border border-white/5 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[1200px]' : ''} h-[500px]`}>
               {renderChart()}
             </div>
           </div>
