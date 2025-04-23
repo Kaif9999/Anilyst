@@ -363,12 +363,27 @@ const prepareChartData = (type: ExtendedChartType, data: ImportedChartData, colo
 };
 
 interface OutputDisplayProps {
-  chartData: ChartData;
-  onFullScreen?: () => void;
+  data: ChartData;
+  title: string;
+  predictionResult?: {
+    forecast_values: number[];
+    model_metrics: {
+      mae: number;
+      mse: number;
+      rmse: number;
+      r2: number;
+    };
+    seasonality: {
+      weekly: number;
+      monthly: number;
+    };
+  };
   isFullScreen?: boolean;
+  onClose?: () => void;
+  onFullScreen?: () => void;
 }
 
-export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = false }: OutputDisplayProps) {
+export default function OutputDisplay({ data, title, predictionResult, isFullScreen = false, onClose, onFullScreen }: OutputDisplayProps) {
   const [chartType, setChartType] = useState<ExtendedChartType>("bar");
   const [selectedColorScheme, setSelectedColorScheme] = useState<ColorSchemeKey>("vibrant");
   const [sortOrder, setSortOrder] = useState<"none" | "asc" | "desc">("none");
@@ -397,6 +412,9 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
   const [selectedYear, setSelectedYear] = useState<string>("latest");
   const [showAllYears, setShowAllYears] = useState(false);
   const [isShowingAllYears, setIsShowingAllYears] = useState(false);
+
+  // Define a ref for directly accessing the canvas element
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Advanced Analytics Functions
   const performAnalytics = (data: number[]): AnalyticsResult | null => {
@@ -597,11 +615,11 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
 
   // Update useEffect to handle sorting
   useEffect(() => {
-    if (chartData) {
-      const sorted = sortData(chartData, sortOrder);
+    if (data) {
+      const sorted = sortData(data, sortOrder);
       setSortedData(sorted);
     }
-  }, [chartData, sortOrder]);
+  }, [data, sortOrder]);
 
   // Update renderChart to use sortedData
   const renderChart = () => {
@@ -625,16 +643,18 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
           chartComponents[currentType as keyof typeof chartComponents] || Line;
     }
 
-    const dataToUse = sortedData || chartData;
+    const dataToUse = sortedData || data;
     const preparedData = prepareChartData(currentType, dataToUse as unknown as ImportedChartData, selectedColorScheme);
     const chartOptions = {
       ...getChartOptions(currentType),
       ...getChartTypeOptions(currentType),
     };
 
+    // Force chart re-render with a unique key based on chart type and settings
+    // This ensures the chart is properly reinitialized when settings change
     return (
       <Component
-        key={`${currentType}-${selectedColorScheme}-${sortOrder}`}
+        key={`${currentType}-${selectedColorScheme}-${sortOrder}-${JSON.stringify(settings)}`}
         data={preparedData as any}
         options={chartOptions as any}
         ref={chartRef as any}
@@ -644,21 +664,21 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
 
   // Add logic to detect "All years" in the useEffect for chartData
   useEffect(() => {
-    if (chartData.datasets[0]?.data) {
+    if (data.datasets[0]?.data) {
       // Detect if we're showing all years by checking the number of labels
       // Usually more than 12-15 data points means we're showing all years
-      setIsShowingAllYears(Boolean(chartData.labels && chartData.labels.length > 15));
+      setIsShowingAllYears(Boolean(data.labels && data.labels.length > 15));
       
-      const numericData = chartData.datasets[0].data.filter((d): d is number => typeof d === "number");
+      const numericData = data.datasets[0].data.filter((d): d is number => typeof d === "number");
       const analyticsResult = performAnalytics(numericData);
       if (analyticsResult) {
         setAnalytics(analyticsResult);
         setInsights(generateInsights(analyticsResult));
-        const numericData = chartData.datasets[0].data.filter((d): d is number => typeof d === "number");
+        const numericData = data.datasets[0].data.filter((d): d is number => typeof d === "number");
         setTimeSeriesAnalysis(analyzeTimeSeries(numericData));
       }
     }
-  }, [chartData]);
+  }, [data]);
 
   // Update the getChartOptions function
   const getChartOptions = (type: ExtendedChartType) => ({
@@ -776,31 +796,59 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
   });
 
   const handleDownload = () => {
-    if (chartRef.current) {
-      const chartInstance = chartRef.current;
-      if (chartInstance && chartInstance.canvas) {
-        const canvas = chartInstance.canvas;
+    try {
+      console.log("Download initiated, chart reference:", chartRef.current ? "exists" : "null");
+      
+      // First try to get canvas from chart instance
+      if (chartRef.current && chartRef.current.canvas) {
+        console.log("Using chart.js canvas reference");
+        const canvas = chartRef.current.canvas;
+        
+        // Create and trigger a download link
         const link = document.createElement("a");
-        link.download = `${settings.chartTitle}.png`;
+        link.download = `${settings.chartTitle || 'chart'}.png`;
         link.href = canvas.toDataURL("image/png");
+        document.body.appendChild(link);
         link.click();
-      } else {
-        console.error("Could not get chart instance or canvas from ref.");
+        document.body.removeChild(link);
+        return;
       }
-    } else {
-      console.error("Chart ref is not available.");
+      
+      // Next try to find canvas in DOM
+      console.log("Chart.js canvas unavailable, trying DOM query");
+      const chartContainer = document.querySelector(".chart-container");
+      const canvasElement = chartContainer?.querySelector("canvas");
+      
+      if (canvasElement) {
+        console.log("Using DOM queried canvas");
+        const link = document.createElement("a");
+        link.download = `${settings.chartTitle || 'chart'}.png`;
+        link.href = canvasElement.toDataURL("image/png");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+      
+      // If no canvas was found, show error
+      console.error("No canvas element found for download");
+      alert("Unable to download chart: Could not find canvas element");
+      
+    } catch (error) {
+      console.error("Error downloading chart:", error);
+      alert(`Unable to download chart: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
   const handleExportData = () => {
-    if (!chartData.labels) return;
+    if (!data.labels) return;
     
     const csvContent = [
       // Header
-      ["Category", ...chartData.datasets.map((ds) => ds.label)].join(","),
+      ["Category", ...data.datasets.map((ds) => ds.label)].join(","),
       // Data rows
-      ...chartData.labels.map((label, i) =>
-        [label, ...chartData.datasets.map((ds) => ds.data[i])].join(",")
+      ...data.labels.map((label, i) =>
+        [label, ...data.datasets.map((ds) => ds.data[i])].join(",")
       ),
     ].join("\n");
 
@@ -829,6 +877,58 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
         return type as ChartType;
     }
   };
+
+  // Apply prediction data to chart if available
+  useEffect(() => {
+    if (predictionResult && chartRef.current && data.labels) {
+      // Update the chart to include prediction data
+      const originalLabels = [...data.labels];
+      const lastLabel = originalLabels[originalLabels.length - 1];
+      
+      // Create new labels for predictions (e.g., "Next 1", "Next 2", etc.)
+      const predictionLabels = predictionResult.forecast_values.map((_, i) => {
+        // If last label is a date, attempt to increment it
+        if (lastLabel && !isNaN(Date.parse(lastLabel.toString()))) {
+          const lastDate = new Date(lastLabel.toString());
+          const newDate = new Date(lastDate);
+          newDate.setDate(lastDate.getDate() + (i + 1));
+          return newDate.toLocaleDateString();
+        }
+        // Otherwise use generic "Next #" labels
+        return `Next ${i + 1}`;
+      });
+      
+      // Combine original and prediction datasets
+      const newData = {
+        ...data,
+        labels: [...originalLabels, ...predictionLabels],
+        datasets: [
+          // Keep original dataset
+          {
+            ...data.datasets[0],
+            label: `${data.datasets[0].label || 'Actual'}`
+          },
+          // Add prediction dataset
+          {
+            label: 'Prediction',
+            data: [...Array(originalLabels.length).fill(null), ...predictionResult.forecast_values],
+            borderColor: '#10B981', // Emerald green
+            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+            borderWidth: 2,
+            borderDash: [5, 5],
+            pointRadius: 4,
+            pointBackgroundColor: '#10B981',
+            fill: false,
+            tension: 0.4 // Add some curve to the line
+          }
+        ]
+      };
+      
+      // Update chart with new data
+      chartRef.current.data = newData as any;
+      chartRef.current.update();
+    }
+  }, [predictionResult, chartRef, data]);
 
   return (
     <motion.div
@@ -1098,7 +1198,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
         {/* Chart Container with conditional styling for horizontal scrolling */}
         <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90 overflow-hidden rounded-2xl">
           <div className={`${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'overflow-x-auto' : ''}`}>
-            <div className={`relative bg-black/40 p-6 border border-white/5 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[12800px]' : ''} h-[500px]`}>
+            <div className={`chart-container relative bg-black/40 p-6 border border-white/5 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[12800px]' : ''} h-[500px]`}>
               {renderChart()}
             </div>
           </div>
@@ -1192,7 +1292,7 @@ export default function OutputDisplay({ chartData, onFullScreen, isFullScreen = 
           <button
             onClick={onFullScreen}
             className="absolute top-2 right-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
-            title="View Full Screen"
+            title="Fullscreen"
           >
             <Maximize2 className="w-4 h-4" />
           </button>

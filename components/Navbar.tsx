@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Brain, Menu, X } from "lucide-react";
 import { signIn } from "next-auth/react";
+import BackendStatus from "./BackendStatus";
+import { usePathname } from "next/navigation";
 
 export default function Navbar() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const pathname = usePathname();
+  
+  // Only show the backend status on main app pages
+  const showBackendStatus = pathname?.startsWith('/main');
 
   return (
     <>
@@ -116,9 +122,16 @@ export default function Navbar() {
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
                   <Brain className="w-7 h-7 text-white" />
                 </div>
-                <span className="text-xl md:text-2xl font-bold text-white">
-                  Anilyst
-                </span>
+                <div className="flex flex-col">
+                  <span className="text-xl md:text-2xl font-bold text-white">
+                    Anilyst
+                  </span>
+                  {showBackendStatus && (
+                    <div className="mt-1">
+                      <BackendStatus />
+                    </div>
+                  )}
+                </div>
               </Link>
 
               {/* Navigation Links */}

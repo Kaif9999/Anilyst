@@ -1,10 +1,22 @@
 # Anilyst
 Analyse CSVs with eas with the power of AI, Your personal Data-Analist
 
-# Anilyst
-Analyse CSVs with eas with the power of AI, Your personal Data-Analist
-
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+
+## Recent Updates
+
+### Token Limiting for AI API Calls
+We've implemented token limiting for OpenAI API calls to prevent token overflow errors when dealing with large datasets. These features include:
+
+- Automatic data trimming when datasets are too large
+- Context pruning to maintain essential information
+- Prompt length management to stay within OpenAI's token limits
+- Graceful error handling for oversized requests
+
+This implementation can be found in:
+- `/app/utils/token-helpers.ts` - Core token limiting utilities
+- `/app/api/query/route.ts` - Implementation for the query endpoint
+- `/analyze-patch/token-limiter.ts` - Implementation guide for the analyze endpoint
 
 ## Getting Started
 

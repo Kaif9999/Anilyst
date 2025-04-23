@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Brain, TrendingUp, AlertTriangle, BarChart, ArrowRight, Lightbulb, LineChart, User } from 'lucide-react';
+import { Brain, TrendingUp, AlertTriangle, BarChart, ArrowRight, Lightbulb, LineChart, User, Zap, Server, Activity } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 interface AIAnalysisPanelProps {
   insights: {
@@ -46,6 +47,39 @@ const defaultInsights = {
   },
 };
 
+const BackendSourceTag = ({ type }: { type: 'prediction' | 'analysis' | 'insights' }) => {
+  const getIcon = () => {
+    switch (type) {
+      case 'prediction':
+        return <Activity className="w-3.5 h-3.5 text-purple-400" />;
+      case 'analysis':
+        return <Server className="w-3.5 h-3.5 text-blue-400" />;
+      case 'insights':
+      default:
+        return <Brain className="w-3.5 h-3.5 text-green-400" />;
+    }
+  };
+
+  const getText = () => {
+    switch (type) {
+      case 'prediction':
+        return 'FastAPI Forecasting Engine';
+      case 'analysis':
+        return 'FastAPI Statistical Engine';
+      case 'insights':
+      default:
+        return 'AI Insights Engine';
+    }
+  };
+
+  return (
+    <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-black/40 rounded-full border border-white/10 text-xs">
+      {getIcon()}
+      <span className="text-white/80">{getText()}</span>
+    </div>
+  );
+};
+
 export default function AIAnalysisPanel({ 
   insights = defaultInsights,
   recommendations = [],
@@ -63,8 +97,49 @@ export default function AIAnalysisPanel({
 
   // Safely extract sections from the answer
   const extractSection = (text: string, section: string) => {
+    if (!text) return `No ${section.toLowerCase()} available`;
+    
     try {
-      return text.split(`**${section}:**`)[1]?.split('**')[0]?.trim() || `No ${section.toLowerCase()} available`;
+      // First try to extract from the format "**Section:**" 
+      if (text.includes(`**${section}:**`)) {
+        return text.split(`**${section}:**`)[1]?.split('**')[0]?.trim() || `No ${section.toLowerCase()} available`;
+      }
+      
+      // Try alternative format for section headers
+      if (text.includes(`${section}:`)) {
+        return text.split(`${section}:`)[1]?.split('\n\n')[0]?.trim() || `No ${section.toLowerCase()} available`;
+      }
+      
+      // Handle statistical sections
+      if (section === '1. Direct Answer' && text.includes('mean')) {
+        // Extract information about means, trends, or basic statistics
+        return text.split('Statistical Analysis Results')[1]?.split('Key Statistics')[0]?.trim() || 
+               'Statistical analysis completed. See details below.';
+      }
+      
+      if (section === '2. Key Insights' && text.includes('Mean')) {
+        // Extract mean, median, statistics information 
+        return text.split('Key Statistics:')[1]?.split('Trend Analysis')[0]?.trim() || 
+               text.split('Mean:')[1]?.split('Trend')[0]?.trim() ||
+               'Key statistics compiled from your data';
+      }
+      
+      if (section === '3. Relevant Trends' && text.includes('trend')) {
+        // Extract trend information
+        return text.split('Trend Analysis:')[1]?.split('Statistical Significance')[0]?.trim() ||
+               text.split('trend')[0]?.split('trend')[1]?.trim() ||
+               'Trend analysis performed on your data';
+      }
+      
+      if (section === '4. Statistical Significance') {
+        // Extract statistical significance info
+        return text.split('Statistical Significance:')[1]?.split('Additional')[0]?.trim() ||
+               text.split('significant')[0]?.split('significant')[1]?.trim() ||
+               'Statistical significance determined based on data patterns';
+      }
+      
+      // Fallback
+      return `No ${section.toLowerCase()} available`;
     } catch (error) {
       return `No ${section.toLowerCase()} available`;
     }
@@ -114,56 +189,132 @@ export default function AIAnalysisPanel({
                 </div>
               </div>
               
-              {/* Answer */}
+              {/* Answer - Handle Predictions differently */}
               <div className="flex items-start gap-3 pl-12">
                 <div className="p-2 bg-purple-500/20 rounded-lg">
-                  <Brain className="w-5 h-5 text-purple-400" />
+                  {chat.question.includes("predict") || chat.answer.includes("Prediction Results") ? (
+                    <TrendingUp className="w-5 h-5 text-purple-400" />
+                  ) : (
+                    <Brain className="w-5 h-5 text-purple-400" />
+                  )}
                 </div>
                 <div className="bg-white/5 rounded-xl p-4 border border-white/10 flex-1">
                   {/* Title */}
                   <h3 className="text-lg font-semibold text-white/90 mb-4">
-                    Analysis Results
+                    {chat.question.includes("predict") || chat.answer.includes("Prediction Results") 
+                      ? "Prediction Results" 
+                      : "Analysis Results"}
                   </h3>
-                  
-                  {/* Direct Answer */}
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-purple-400 mb-2">
-                      1. Direct Answer
-                    </h4>
-                    <p className="text-white/80 leading-relaxed">
-                      {extractSection(chat.answer, '1. Direct Answer')}
-                    </p>
-                  </div>
 
-                  {/* Key Insights */}
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-blue-400 mb-2">
-                      2. Key Insights
-                    </h4>
-                    <p className="text-white/80 leading-relaxed">
-                      {extractSection(chat.answer, '2. Key Insights')}
-                    </p>
-                  </div>
+                  {/* For prediction results, render with markdown */}
+                  {(chat.question.includes("predict") || chat.answer.includes("Prediction Results")) ? (
+                    <div className="text-white/80 leading-relaxed prediction-result">
+                      <ReactMarkdown 
+                        components={{
+                          p: ({children, ...props}) => <p className="mb-3" {...props}>{children}</p>,
+                          h3: ({children, ...props}) => <h3 className="text-purple-400 font-medium mb-2" {...props}>{children}</h3>,
+                          ul: ({children, ...props}) => <ul className="mb-4 list-disc pl-5" {...props}>{children}</ul>,
+                          li: ({children, ...props}) => <li className="mb-1" {...props}>{children}</li>,
+                          strong: ({children, ...props}) => <strong className="text-blue-400" {...props}>{children}</strong>,
+                        }}
+                      >
+                        {chat.answer}
+                      </ReactMarkdown>
+                      
+                      {/* Add a visual divider */}
+                      <div className="my-4 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                      
+                      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <span className="text-sm text-yellow-400">AI-powered prediction</span>
+                        <BackendSourceTag type="prediction" />
+                      </div>
+                    </div>
+                  ) : chat.question.includes("statistical") || chat.answer.includes("Statistical Analysis Results") ? (
+                    /* Special handling for statistical analysis results */
+                    <div className="text-white/80 leading-relaxed statistical-result">
+                      <ReactMarkdown 
+                        components={{
+                          p: ({children, ...props}) => <p className="mb-3" {...props}>{children}</p>,
+                          h3: ({children, ...props}) => <h3 className="text-blue-400 font-medium mb-2" {...props}>{children}</h3>,
+                          ul: ({children, ...props}) => <ul className="mb-4 list-disc pl-5" {...props}>{children}</ul>,
+                          li: ({children, ...props}) => <li className="mb-1" {...props}>{children}</li>,
+                          strong: ({children, ...props}) => <strong className="text-green-400" {...props}>{children}</strong>,
+                        }}
+                      >
+                        {`📊 **Statistical Analysis Results**
 
-                  {/* Relevant Trends */}
-                  <div className="mb-4">
-                    <h4 className="text-sm font-medium text-green-400 mb-2">
-                      3. Relevant Trends
-                    </h4>
-                    <p className="text-white/80 leading-relaxed">
-                      {extractSection(chat.answer, '3. Relevant Trends')}
-                    </p>
-                  </div>
+${extractSection(chat.answer, '1. Direct Answer')}
 
-                  {/* Statistical Significance */}
-                  <div>
-                    <h4 className="text-sm font-medium text-yellow-400 mb-2">
-                      4. Statistical Significance
-                    </h4>
-                    <p className="text-white/80 leading-relaxed">
-                      {extractSection(chat.answer, '4. Statistical Significance')}
-                    </p>
-                  </div>
+**Key Statistics:**
+${extractSection(chat.answer, '2. Key Insights')}
+
+**Trend Analysis:**
+${extractSection(chat.answer, '3. Relevant Trends')}
+
+**Statistical Significance:**
+${extractSection(chat.answer, '4. Statistical Significance')}
+
+**Recommendations:**
+${chat.answer.includes("Recommendations:") ? chat.answer.split("Recommendations:")[1].split("AI-powered")[0].trim() : "No specific recommendations available."}`}
+                      </ReactMarkdown>
+                      
+                      {/* Add a visual divider */}
+                      <div className="my-4 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                      
+                      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <span className="text-sm text-blue-400">Statistical insights from your data</span>
+                        <BackendSourceTag type="analysis" />
+                      </div>
+                    </div>
+                  ) : (
+                    // Regular analysis display (unchanged)
+                    <>
+                      {/* Direct Answer */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-purple-400 mb-2">
+                          1. Direct Answer
+                        </h4>
+                        <p className="text-white/80 leading-relaxed">
+                          {extractSection(chat.answer, '1. Direct Answer')}
+                        </p>
+                      </div>
+
+                      {/* Key Insights */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-blue-400 mb-2">
+                          2. Key Insights
+                        </h4>
+                        <p className="text-white/80 leading-relaxed">
+                          {extractSection(chat.answer, '2. Key Insights')}
+                        </p>
+                      </div>
+
+                      {/* Relevant Trends */}
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-green-400 mb-2">
+                          3. Relevant Trends
+                        </h4>
+                        <p className="text-white/80 leading-relaxed">
+                          {extractSection(chat.answer, '3. Relevant Trends')}
+                        </p>
+                      </div>
+
+                      {/* Statistical Significance */}
+                      <div>
+                        <h4 className="text-sm font-medium text-yellow-400 mb-2">
+                          4. Statistical Significance
+                        </h4>
+                        <p className="text-white/80 leading-relaxed">
+                          {extractSection(chat.answer, '4. Statistical Significance')}
+                        </p>
+                      </div>
+
+                      <div className="mt-6 flex items-center justify-between">
+                        <BackendSourceTag type="analysis" />
+                        <div className="text-xs text-white/50 italic">Processed by Python analytics engine</div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -183,24 +334,62 @@ export default function AIAnalysisPanel({
                   <h4 className="text-white font-medium mb-2">
                     Q: {insights.queryResponse.question || "Analysis Request"}
                   </h4>
-                  <div className="text-gray-300 leading-relaxed space-y-4">
-                    <div className="mb-4">
-                      <h5 className="text-sm font-medium text-purple-400 mb-2">Direct Answer</h5>
-                      <p>{extractSection(insights.queryResponse.answer, '1. Direct Answer')}</p>
+                  
+                  {/* Check if it's a statistical analysis response */}
+                  {insights.queryResponse.answer.includes("Statistical Analysis Results") ? (
+                    <div className="text-gray-300 leading-relaxed">
+                      <ReactMarkdown 
+                        components={{
+                          p: ({children, ...props}) => <p className="mb-3" {...props}>{children}</p>,
+                          h3: ({children, ...props}) => <h3 className="text-blue-400 font-medium mb-2" {...props}>{children}</h3>,
+                          ul: ({children, ...props}) => <ul className="mb-4 list-disc pl-5" {...props}>{children}</ul>,
+                          li: ({children, ...props}) => <li className="mb-1" {...props}>{children}</li>,
+                          strong: ({children, ...props}) => <strong className="text-green-400" {...props}>{children}</strong>,
+                        }}
+                      >
+                        {`📊 **Statistical Analysis Results**
+
+${extractSection(insights.queryResponse.answer, '1. Direct Answer')}
+
+**Key Statistics:**
+${extractSection(insights.queryResponse.answer, '2. Key Insights')}
+
+**Trend Analysis:**
+${extractSection(insights.queryResponse.answer, '3. Relevant Trends')}
+
+**Statistical Significance:**
+${extractSection(insights.queryResponse.answer, '4. Statistical Significance')}
+
+${insights.queryResponse.answer.includes("Recommendations:") ? 
+  "**Recommendations:**\n" + insights.queryResponse.answer.split("Recommendations:")[1].split("Additional")[0].trim() : 
+  ""}`}
+                      </ReactMarkdown>
+                      
+                      <div className="mt-4 flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <span className="text-sm text-blue-400">Statistical insights from your data</span>
+                        <BackendSourceTag type="analysis" />
+                      </div>
                     </div>
-                    <div className="mb-4">
-                      <h5 className="text-sm font-medium text-blue-400 mb-2">Key Insights</h5>
-                      <p>{extractSection(insights.queryResponse.answer, '2. Key Insights')}</p>
+                  ) : (
+                    <div className="text-gray-300 leading-relaxed space-y-4">
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-purple-400 mb-2">Direct Answer</h5>
+                        <p>{extractSection(insights.queryResponse.answer, '1. Direct Answer')}</p>
+                      </div>
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-blue-400 mb-2">Key Insights</h5>
+                        <p>{extractSection(insights.queryResponse.answer, '2. Key Insights')}</p>
+                      </div>
+                      <div className="mb-4">
+                        <h5 className="text-sm font-medium text-green-400 mb-2">Relevant Trends</h5>
+                        <p>{extractSection(insights.queryResponse.answer, '3. Relevant Trends')}</p>
+                      </div>
+                      <div>
+                        <h5 className="text-sm font-medium text-yellow-400 mb-2">Statistical Significance</h5>
+                        <p>{extractSection(insights.queryResponse.answer, '4. Statistical Significance')}</p>
+                      </div>
                     </div>
-                    <div className="mb-4">
-                      <h5 className="text-sm font-medium text-green-400 mb-2">Relevant Trends</h5>
-                      <p>{extractSection(insights.queryResponse.answer, '3. Relevant Trends')}</p>
-                    </div>
-                    <div>
-                      <h5 className="text-sm font-medium text-yellow-400 mb-2">Statistical Significance</h5>
-                      <p>{extractSection(insights.queryResponse.answer, '4. Statistical Significance')}</p>
-                    </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>
