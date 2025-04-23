@@ -13,6 +13,9 @@ import {
   TooltipProvider,
 } from "@/components/ui/tooltip";
 
+// Access environment variable with fallback to deployed URL
+const NEXT_PUBLIC_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://anilyst-backend-nstn.onrender.com';
+
 interface ProcessedData {
   [key: string]: string | number;
 }
@@ -350,7 +353,7 @@ export default function InputSection({
   useEffect(() => {
     const checkBackendStatus = async () => {
       try {
-        const response = await fetch('http://localhost:8000/health');
+        const response = await fetch(NEXT_PUBLIC_FASTAPI_URL + "/health");
         setBackendConnected(response.status === 200);
       } catch (error) {
         setBackendConnected(false);

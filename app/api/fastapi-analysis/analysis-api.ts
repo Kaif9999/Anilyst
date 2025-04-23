@@ -1,11 +1,10 @@
 import { ChartData } from "@/types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
+// Use the deployed URL as fallback
+const API_BASE_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://anilyst-backend-nstn.onrender.com';
 
 export const analysisApi = {
-  /**
-   * Check if the FastAPI backend is running
-   */
+
   async checkHealth(): Promise<{ status: string; message: string }> {
     try {
       const response = await fetch(`${API_BASE_URL}/health`);
@@ -21,9 +20,6 @@ export const analysisApi = {
     }
   },
 
-  /**
-   * Analyze chart data
-   */
   async analyze(data: ChartData) {
     try {
       console.log('Calling analyze endpoint');
@@ -76,9 +72,6 @@ export const analysisApi = {
     }
   },
 
-  /**
-   * Get predictions for chart data
-   */
   async getPredictions(data: ChartData) {
     try {
       const response = await fetch(`${API_BASE_URL}/predict`, {
