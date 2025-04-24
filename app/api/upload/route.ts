@@ -1,15 +1,18 @@
 import { NextResponse } from "next/server";
 import { join } from "path";
 import { mkdir, stat, writeFile, chmod } from "fs/promises";
+import * as XLSX from 'xlsx';
+import Papa from 'papaparse';
 
-// New configuration format for Next.js App Router
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 const uploadDir = join(process.cwd(), "uploads");
+const isProd = process.env.NODE_ENV === 'production';
 
-// Ensure upload directory exists with proper permissions
 async function ensureUploadDir() {
+  if (isProd) return;
+  
   try {
     try {
       await stat(uploadDir);
@@ -29,9 +32,42 @@ async function ensureUploadDir() {
   }
 }
 
+// Process file without saving to disk (for production)
+async function processFileInMemory(file: File) {
+  try {
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const timestamp = Date.now();
+    const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
+    
+    // Store basic metadata
+    const fileData = {
+      id: `in-memory-${timestamp}`,
+      originalName: file.name,
+      type: file.type,
+      size: file.size,
+      timestamp
+    };
+    
+    return {
+      success: true,
+      filePath: `memory://${fileData.id}`,
+      originalName: file.name,
+      type: file.type,
+      metadata: fileData
+    };
+  } catch (error) {
+    console.error("Error processing file in memory:", error);
+    throw new Error("Failed to process file");
+  }
+}
+
 export async function POST(req: Request) {
   try {
-    await ensureUploadDir();
+    // Only ensure upload directory in dev mode
+    if (!isProd) {
+      await ensureUploadDir();
+    }
 
     const data = await req.formData();
     const file = data.get("file") as File;
@@ -60,7 +96,13 @@ export async function POST(req: Request) {
       'text/csv', // .csv
     ];
 
-    if (!allowedTypes.includes(file.type)) {
+    // Check file extension as a fallback
+    const fileExt = file.name.split('.').pop()?.toLowerCase();
+    const allowedExts = ['xlsx', 'xls', 'pdf', 'csv'];
+    
+    const isValidType = allowedTypes.includes(file.type) || (fileExt && allowedExts.includes(fileExt));
+    
+    if (!isValidType) {
       return NextResponse.json(
         { error: "Invalid file type. Only Excel, PDF, and CSV files are allowed" },
         { status: 400 }
@@ -68,7 +110,13 @@ export async function POST(req: Request) {
     }
 
     try {
-      // Convert file to buffer for processing
+      // In production, process file in memory
+      if (isProd) {
+        const result = await processFileInMemory(file);
+        return NextResponse.json(result);
+      }
+      
+      // In development, save to file system
       const bytes = await file.arrayBuffer();
       const buffer = Buffer.from(bytes);
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import OutputDisplay from "@/components/output-display";
-import InputSection from "@/components/input-section";
+import InputSection, { FileStorageProvider } from "@/components/input-section";
 import AIAnalysisPanel from "@/components/AIAnalysisPanel";
 import { ChartData, AnalyticsResult } from "@/types";
 import StarryBackground from "@/components/starry-background";
@@ -395,6 +395,7 @@ export default function Home() {
   const [hasSeenOnboarding, setHasSeenOnboarding] = useLocalStorage('hasSeenOnboarding', false);
   const [isStatisticalAnalyzing, setIsStatisticalAnalyzing] = useState(false);
   const [statisticalAnalysisResult, setStatisticalAnalysisResult] = useState(null);
+  const [showFullscreenTooltip, setShowFullscreenTooltip] = useState(true);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -404,6 +405,21 @@ export default function Home() {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Make fullscreen tooltip disappear after 5 seconds
+  useEffect(() => {
+    if (isFullScreen && showFullscreenTooltip) {
+      const timer = setTimeout(() => {
+        setShowFullscreenTooltip(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+    
+    // Reset tooltip visibility when fullscreen mode is toggled
+    if (!isFullScreen) {
+      setShowFullscreenTooltip(true);
+    }
+  }, [isFullScreen, showFullscreenTooltip]);
 
   // Auto-hide popup after 3 seconds
   useEffect(() => {
@@ -426,6 +442,18 @@ export default function Home() {
       return () => clearTimeout(timer);
     }
   }, [hasSeenOnboarding, setHasSeenOnboarding]);
+
+  // Add keyboard handler for escaping fullscreen mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isFullScreen) {
+        setIsFullScreen(false);
+      }
+    };
+    
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isFullScreen]);
 
   const checkUsageLimit = async (type: "visualization" | "analysis") => {
     if (!session) {
@@ -1153,7 +1181,9 @@ ${result?.insights?.queryResponse?.answer ? '\n**Additional Insights:**\n' + res
                       transition={{ duration: 0.5, delay: 0.2 }}
                       className="h-full"
                     >
-                      <InputSection onResultReceived={handleDataAnalysis} />
+                      <FileStorageProvider>
+                        <InputSection onResultReceived={handleDataAnalysis} />
+                      </FileStorageProvider>
                     </motion.div>
                   </div>
                 </div>
@@ -1175,7 +1205,7 @@ ${result?.insights?.queryResponse?.answer ? '\n**Additional Insights:**\n' + res
                         </h2>
                         <button
                           onClick={() => setIsFullScreen(false)}
-                          className="p-2.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors hover:text-red-300"
+                          className="p-2.5 rounded-full bg-red-500/70 hover:bg-red-600 text-white transition-colors shadow-lg border border-red-400/30"
                           aria-label="Close fullscreen view"
                         >
                           <X className="w-6 h-6" />
@@ -1184,7 +1214,21 @@ ${result?.insights?.queryResponse?.answer ? '\n**Additional Insights:**\n' + res
                       <div className="flex-1 overflow-auto p-4">
                         <div className="w-full h-full max-h-[calc(100vh-8rem)] flex items-center justify-center">
                           {chartData && (
-                            <div className="w-full h-full">
+                            <div className="w-full h-full relative">
+                              {/* Add a help tooltip to indicate how to exit fullscreen that disappears after 5 seconds */}
+                              {showFullscreenTooltip && (
+                                <motion.div 
+                                  initial={{ opacity: 0, y: -20 }}
+                                  animate={{ opacity: 1, y: 0 }}
+                                  exit={{ opacity: 0, y: -10 }}
+                                  transition={{ duration: 0.3 }}
+                                  className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 bg-black/60 backdrop-blur-sm px-4 py-2 rounded-lg border border-white/10 text-white/90 text-sm flex items-center gap-2 pointer-events-none shadow-lg animate-pulse"
+                                >
+                                  <X className="w-4 h-4 text-red-400" />
+                                  <span>Click any red X button to exit fullscreen mode</span>
+                                </motion.div>
+                              )}
+                              
                               <OutputDisplay
                                 data={chartData}
                                 title=""

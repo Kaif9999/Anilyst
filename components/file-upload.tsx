@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Upload, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import * as pdfjsLib from 'pdfjs-dist';
+import { useFileStorage } from "./input-section";
+import { toast } from "@/components/ui/use-toast";
 
 const MAX_FILE_SIZE = 75 * 1024 * 1024; // 75MB in bytes
 const ALLOWED_FILE_TYPES = ['.csv', '.xlsx', '.xls', '.pdf'];
@@ -30,6 +32,8 @@ export default function FileUpload({
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string>("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const dropzoneRef = useRef<HTMLDivElement>(null);
+  const { addFile } = useFileStorage();
 
   const validateFile = (file: File) => {
     // Check file size
@@ -133,11 +137,12 @@ export default function FileUpload({
       let textContent = '';
       
       // Extract text from all pages
-      for (let i = 1; i <= pdf.numPages; i++) {
-        const page = await pdf.getPage(i);
+      for (let i = 0; i < pdf.numPages; i++) {
+        const page = await pdf.getPage(i + 1);
         const content = await page.getTextContent();
+        // Make sure all items are properly typed
         const pageText = content.items
-          .map((item: any) => item.str)
+          .map((item: any) => typeof item.str === 'string' ? item.str : String(item.str))
           .join(' ');
         textContent += pageText + '\n';
       }
@@ -172,12 +177,13 @@ export default function FileUpload({
       const data = lines.slice(1).map(line => {
         const values = line.split(delimiter!).map(value => value.trim());
         return headers.reduce((obj: ProcessedData, header, index) => {
-          let value = values[index] || '';
+          let value: string | number = values[index] || '';
           // Try to convert numeric strings to numbers
           if (typeof value === 'string' && !isNaN(Number(value))) {
-            value = Number(value);
+            obj[header] = Number(value);
+          } else {
+            obj[header] = String(value);
           }
-          obj[header] = value;
           return obj;
         }, {});
       });
@@ -188,6 +194,45 @@ export default function FileUpload({
     }
   };
 
+  const processFile = async (file: File) => {
+    try {
+      // Store the file in memory storage first
+      const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      addFile(fileId, file);
+      
+      // Process based on file type
+      const fileType = file.name.split('.').pop()?.toLowerCase();
+      let processedData: ProcessedData[] = [];
+      
+      if (fileType === 'csv') {
+        processedData = await processCSV(file);
+      } else if (fileType === 'xlsx' || fileType === 'xls') {
+        processedData = await processExcel(file);
+      } else if (fileType === 'pdf') {
+        processedData = await processPDF(file);
+      } else {
+        toast({
+          title: "Unsupported file type",
+          description: "Please upload a CSV, Excel, or PDF file.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Call onDataProcessed with the processed data
+      if (processedData.length > 0) {
+        onDataProcessed(processedData, file);
+      }
+    } catch (error) {
+      console.error("Error processing file:", error);
+      toast({
+        title: "Error processing file",
+        description: error instanceof Error ? error.message : "Unknown error processing the file",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleUpload = async () => {
     if (!file) return;
     
@@ -195,29 +240,7 @@ export default function FileUpload({
     setError("");
 
     try {
-      let processedData: ProcessedData[];
-      const fileExtension = file.name.split('.').pop()?.toLowerCase();
-
-      switch (fileExtension) {
-        case 'csv':
-          processedData = await processCSV(file);
-          break;
-        case 'xlsx':
-        case 'xls':
-          processedData = await processExcel(file);
-          break;
-        case 'pdf':
-          processedData = await processPDF(file);
-          break;
-        default:
-          throw new Error("Unsupported file type");
-      }
-
-      if (processedData.length === 0) {
-        throw new Error("No data found in file");
-      }
-
-      onDataProcessed(processedData, file);
+      await processFile(file);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error processing file");
     } finally {

@@ -1,0 +1,20 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-anilyst-dev-49f84-authRole",
+      "UnauthRoleArn": "arn:aws:iam::072239050804:role/amplify-anilyst-dev-49f84-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::072239050804:role/amplify-anilyst-dev-49f84-authRole",
+      "Region": "us-west-1",
+      "DeploymentBucketName": "amplify-anilyst-dev-49f84-deployment",
+      "UnauthRoleName": "amplify-anilyst-dev-49f84-unauthRole",
+      "StackName": "amplify-anilyst-dev-49f84",
+      "StackId": "arn:aws:cloudformation:us-west-1:072239050804:stack/amplify-anilyst-dev-49f84/074581a0-207a-11f0-a7ee-02f62f50c4ad",
+      "AmplifyAppId": "d238y4fe7rpbsy"
+    },
+    "categories": {
+      "auth": {
+        "anilystea723bff": {}
+      }
+    }
+  }
+}

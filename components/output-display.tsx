@@ -54,6 +54,7 @@ import {
   GitMerge,
   GitPullRequest,
   Maximize2,
+  X,
 } from "lucide-react";
 import regression from "regression";
 import * as ss from "simple-statistics";
@@ -428,8 +429,26 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
     const median = ss.median(validNumbers);
     const stdDev = ss.standardDeviation(validNumbers);
     const variance = ss.variance(validNumbers);
-    const skewness = ss.sampleSkewness(validNumbers);
-    const kurtosis = ss.sampleKurtosis(validNumbers);
+    
+    // Fix for "sampleSkewness requires at least three data points" error
+    // Check if we have enough data points for skewness and kurtosis calculations
+    let skewness = 0;
+    let kurtosis = 0;
+    
+    // Only calculate skewness and kurtosis if we have at least 3 data points
+    if (validNumbers.length >= 3) {
+      try {
+        skewness = ss.sampleSkewness(validNumbers);
+        kurtosis = ss.sampleKurtosis(validNumbers);
+      } catch (error) {
+        console.warn("Error calculating skewness or kurtosis:", error);
+        // Use default values if calculations fail
+        skewness = 0;
+        kurtosis = 0;
+      }
+    } else {
+      console.warn("Not enough data points for skewness and kurtosis calculations (need at least 3)");
+    }
 
     // Trend Analysis
     const points = validNumbers.map((y, x) => [x, y]);
@@ -482,9 +501,11 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
           kurtosis,
         },
         distribution: {
-          type: Math.abs(skewness) < 0.5 ? "normal" : "skewed",
+          // If we don't have enough data points for skewness calculation, default to "unknown"
+          type: validNumbers.length < 3 ? "unknown" : (Math.abs(skewness) < 0.5 ? "normal" : "skewed"),
           parameters: { mean, stdDev },
-          goodnessOfFit: 1 - Math.abs(skewness),
+          // Only use skewness-based calculation if we have enough data points
+          goodnessOfFit: validNumbers.length < 3 ? 0.5 : (1 - Math.abs(skewness)),
         },
       },
     } as unknown as AnalyticsResult;
@@ -521,65 +542,103 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
       });
     }
 
-    // Distribution Insight
-    insights.push({
-      type: "pattern",
-      title: `${
-        analytics.statistics.distribution.type.charAt(0).toUpperCase() +
-        analytics.statistics.distribution.type.slice(1)
-      } Distribution`,
-      description: `The data follows a ${
-        analytics.statistics.distribution.type
-      } distribution with ${(
-        analytics.statistics.distribution.goodnessOfFit * 100
-      ).toFixed(1)}% confidence.`,
-      confidence: analytics.statistics.distribution.goodnessOfFit,
-      importance: "medium",
-    });
+    // Distribution Insight - Only add if the distribution type is not "unknown"
+    if (analytics.statistics.distribution.type !== "unknown") {
+      insights.push({
+        type: "pattern",
+        title: `${
+          analytics.statistics.distribution.type.charAt(0).toUpperCase() +
+          analytics.statistics.distribution.type.slice(1)
+        } Distribution`,
+        description: `The data follows a ${
+          analytics.statistics.distribution.type
+        } distribution with ${(
+          analytics.statistics.distribution.goodnessOfFit * 100
+        ).toFixed(1)}% confidence.`,
+        confidence: analytics.statistics.distribution.goodnessOfFit,
+        importance: "medium",
+      });
+    } else if (analytics.statistics.basic.mean !== undefined) {
+      // Provide a simpler insight when distribution type is unknown
+      insights.push({
+        type: "pattern",
+        title: "Basic Statistical Summary",
+        description: `The data has a mean of ${analytics.statistics.basic.mean.toFixed(2)} and a median of ${analytics.statistics.basic.median.toFixed(2)}.`,
+        confidence: 0.8,
+        importance: "low",
+      });
+    }
 
     return insights;
   };
 
   // Time Series Analysis
   const analyzeTimeSeries = (data: number[]): TimeSeriesAnalysis | null => {
-    if (data.length < 4) return null;
+    if (!data || data.length < 4) return null;
 
-    // Simple trend analysis
-    const points = data.map((y, x) => [x, y]);
-    const linearTrend = regression.linear(points);
-    const expTrend = regression.exponential(points);
+    try {
+      // Filter out any NaN or invalid values
+      const validData = data.filter((n) => typeof n === "number" && !isNaN(n));
+      if (validData.length < 4) return null;
+      
+      // Simple trend analysis
+      const points = validData.map((y, x) => [x, y]);
+      
+      // Handle potential errors in regression calculations
+      let linearTrend;
+      let expTrend;
+      
+      try {
+        linearTrend = regression.linear(points);
+      } catch (error) {
+        console.warn("Error in linear regression calculation:", error);
+        linearTrend = { r2: 0, string: "y = 0x + 0", predict: (x: number) => [x, 0] };
+      }
+      
+      try {
+        // Exponential regression requires all positive values
+        const allPositive = validData.every(val => val > 0);
+        expTrend = allPositive ? regression.exponential(points) : { r2: -1, string: "y = 0", predict: (x: number) => [x, 0] };
+      } catch (error) {
+        console.warn("Error in exponential regression calculation:", error);
+        expTrend = { r2: -1, string: "y = 0", predict: (x: number) => [x, 0] };
+      }
 
-    // Use the trend with better R2
-    const bestTrend =
-      linearTrend.r2 > expTrend.r2
-        ? { type: "linear" as const, ...linearTrend }
-        : { type: "exponential" as const, ...expTrend };
+      // Use the trend with better R2
+      const bestTrend =
+        linearTrend.r2 > expTrend.r2
+          ? { type: "linear" as const, ...linearTrend }
+          : { type: "exponential" as const, ...expTrend };
 
-    // Simple seasonality detection
-    const diffs = data.slice(1).map((v, i) => v - data[i]);
-    const crossings = diffs
-      .slice(1)
-      .map((v, i) => v * diffs[i] < 0)
-      .filter(Boolean).length;
-    const seasonalityStrength = crossings / data.length;
+      // Simple seasonality detection
+      const diffs = validData.slice(1).map((v, i) => v - validData[i]);
+      const crossings = diffs
+        .slice(1)
+        .map((v, i) => v * diffs[i] < 0)
+        .filter(Boolean).length;
+      const seasonalityStrength = crossings / validData.length;
 
-    return {
-      seasonality: {
-        detected: seasonalityStrength > 0.2,
-        period: Math.round(data.length / (crossings + 1)),
-        strength: seasonalityStrength,
-      },
-      trend: {
-        type: bestTrend.type,
-        equation: bestTrend.string,
-        r2: bestTrend.r2,
-      },
-      decomposition: {
-        trend: points.map((p) => bestTrend.predict(p[0])[1]),
-        seasonal: new Array(data.length).fill(0), // Simplified
-        residual: data.map((v, i) => v - bestTrend.predict(i)[1]),
-      },
-    };
+      return {
+        seasonality: {
+          detected: seasonalityStrength > 0.2,
+          period: Math.round(validData.length / (crossings + 1)),
+          strength: seasonalityStrength,
+        },
+        trend: {
+          type: bestTrend.type,
+          equation: bestTrend.string,
+          r2: bestTrend.r2,
+        },
+        decomposition: {
+          trend: points.map((p) => bestTrend.predict(p[0])[1]),
+          seasonal: new Array(validData.length).fill(0), // Simplified
+          residual: validData.map((v, i) => v - bestTrend.predict(i)[1]),
+        },
+      };
+    } catch (error) {
+      console.error("Error in time series analysis:", error);
+      return null;
+    }
   };
 
   // Update the sortData function to handle undefined labels
@@ -1296,6 +1355,21 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
           >
             <Maximize2 className="w-4 h-4" />
           </button>
+        )}
+
+        {/* Add a fallback close button that only shows in fullscreen mode if no parent close handler exists
+            This acts as a safety feature in case the parent modal's close button isn't properly shown */}
+        {isFullScreen && onClose && (
+          <div className="absolute top-2 left-2 p-3 z-20">
+            {/* Fallback close button with visible red styling that matches the main close button */}
+            <button
+              onClick={onClose}
+              className="p-2 rounded-full bg-red-500/70 hover:bg-red-600 text-white transition-colors shadow-lg border border-red-400/30"
+              title="Close Fullscreen"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         )}
       </motion.div>
     </motion.div>
