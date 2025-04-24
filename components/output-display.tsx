@@ -806,7 +806,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
           text: settings.xAxisLabel,
           color: "white",
           font: { size: 14 },
-          padding: { top: 10 },
+          padding: { top: 10 }
         },
         ticks: {
           color: "white",
@@ -1360,11 +1360,11 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
         {/* Add a fallback close button that only shows in fullscreen mode if no parent close handler exists
             This acts as a safety feature in case the parent modal's close button isn't properly shown */}
         {isFullScreen && onClose && (
-          <div className="absolute top-2 left-2 p-3 z-20">
+          <div className="absolute top-2 right-2 p-3 z-20">
             {/* Fallback close button with visible red styling that matches the main close button */}
             <button
               onClick={onClose}
-              className="p-2 rounded-full bg-red-500/70 hover:bg-red-600 text-white transition-colors shadow-lg border border-red-400/30"
+              className="p-2 rounded-2xl bg-red-500/70 hover:bg-red-600 text-white transition-colors shadow-lg border border-red-400/30"
               title="Close Fullscreen"
             >
               <X className="w-5 h-5" />
