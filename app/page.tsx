@@ -28,6 +28,7 @@ import {
   Zap,
   CheckCircle,
   HelpCircle,
+  Lock,
 } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -74,45 +75,52 @@ const advancedFeatures = [
   },
 ];
 
-// Feature sections data
+// Feature sections data with expanded explanations
 const featureSections = [
   {
     title: "Data Processing",
     description:
-      "Process large datasets efficiently with our distributed computing engine",
+      "Process large datasets efficiently with our distributed computing engine. Our system handles millions of data points in seconds, giving you quick insights without technical complexity.",
     features: [
       "Automatic data cleaning and preprocessing",
       "Support for CSV, Excel, and PDF formats",
-      "Real-time data streaming",
-      "Custom data transformations",
+      "Real-time data streaming and processing",
+      "Custom data transformations with no coding required"
     ],
-    image:
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=400&fit=crop",
+    icon: <FileSpreadsheet className="w-10 h-10 text-blue-400" />,
+    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=800&h=500&fit=crop",
+    color: "from-blue-600/20 to-blue-700/20",
+    hoverColor: "group-hover:from-blue-600/40 group-hover:to-blue-700/40"
   },
   {
-    title: "Visualization",
+    title: "Advanced Visualization",
     description:
-      "Create beautiful, interactive visualizations that tell your data's story",
+      "Create beautiful, interactive visualizations that tell your data's story. Our intelligent system automatically selects the most appropriate chart types based on your data structure.",
     features: [
       "Interactive dashboards with 8+ chart types",
-      "Downloadable charts and raw data",
-      "Full-screen visualization mode",
-      "Customizable colors and options",
+      "Downloadable charts and raw data exports",
+      "Full-screen presentation mode for meetings",
+      "Customizable colors, labels, and display options"
     ],
-    image:
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=400&fit=crop",
+    icon: <BarChart2 className="w-10 h-10 text-green-400" />,
+    image: "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=800&h=500&fit=crop",
+    color: "from-green-600/20 to-green-700/20",
+    hoverColor: "group-hover:from-green-600/40 group-hover:to-green-700/40"
   },
   {
     title: "AI Integration",
-    description: "Leverage advanced AI capabilities for deeper insights",
+    description:
+      "Leverage advanced AI capabilities for deeper insights. Our ML algorithms automatically detect patterns, anomalies, and correlations that would be impossible to spot manually.",
     features: [
       "Time-series forecasting with machine learning",
       "Anomaly detection using statistical models",
       "Pattern recognition with AI algorithms",
-      "Automated reporting and insights generation",
+      "Automated reporting and insights generation"
     ],
-    image:
-      "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=400&fit=crop",
+    icon: <Brain className="w-10 h-10 text-purple-400" />,
+    image: "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=500&fit=crop",
+    color: "from-purple-600/20 to-purple-700/20",
+    hoverColor: "group-hover:from-purple-600/40 group-hover:to-purple-700/40"
   },
 ];
 
@@ -135,69 +143,131 @@ const architectureComponents = [
   }
 ];
 
-// Add new section for how it works
+// How It Works section data
 const howItWorksSteps = [
   {
     step: 1,
     title: "Upload Your Data",
-    description: "Simply drag and drop your spreadsheet file - we support Excel, CSV, and even PDF tables",
+    description: "Upload your spreadsheet file with just a drag and drop. We support Excel (.xlsx, .xls), CSV files, and even extract tables from PDFs. Your data stays secure and is processed in the browser for privacy.",
     icon: <FileSpreadsheet className="w-8 h-8 text-blue-400" />,
+    details: [
+      "Automatic column and data type detection",
+      "Handles dates, numbers, and text formats",
+      "In-memory processing for privacy"
+    ]
   },
   {
     step: 2,
     title: "Instant Visualization",
-    description: "Your data is automatically transformed into beautiful, interactive charts and graphs",
+    description: "Your data is automatically analyzed and transformed into beautiful, interactive charts and graphs. We intelligently choose the best visualization type based on your data structure.",
     icon: <BarChart2 className="w-8 h-8 text-green-400" />,
+    details: [
+      "Bar, line, scatter, and pie charts",
+      "Interactive tooltips and zoom features",
+      "Customizable colors and display options"
+    ]
   },
   {
     step: 3,
     title: "AI-Powered Insights",
-    description: "Our AI analyzes your data and highlights important trends, patterns, and predictions",
+    description: "Our powerful AI analyzes your data to uncover patterns, trends, anomalies, and correlations you might miss. Get statistical analysis and predictions without writing a single line of code.",
     icon: <Brain className="w-8 h-8 text-purple-400" />,
+    details: [
+      "Automatic trend detection",
+      "Outlier identification",
+      "Time-series forecasting"
+    ]
   },
   {
     step: 4,
-    title: "Ask Questions",
-    description: "Ask questions about your data in plain English - no technical knowledge required",
+    title: "Ask Questions in Plain English",
+    description: "Simply type questions about your data in everyday language. Our AI understands context and can answer complex analytical questions without requiring technical knowledge of databases or statistics.",
     icon: <MessageSquare className="w-8 h-8 text-yellow-400" />,
+    details: [
+      "Natural language processing",
+      "Context-aware responses",
+      "Follow-up questions supported"
+    ]
   },
 ];
 
-// Add use cases section
+// Add use cases section with expanded details and image URLs
 const useCases = [
   {
     title: "Business Reporting",
-    description: "Turn sales data into clear insights without spending hours in spreadsheets",
+    description: "Turn sales data into clear insights without spending hours in spreadsheets. Perfect for marketing teams, sales managers, and business analysts who need to quickly understand performance metrics and customer trends.",
     icon: <BarChart className="w-8 h-8" />,
+    image: "https://images.unsplash.com/photo-1542744173-8e7e53415bb0?w=800&h=600&fit=crop",
+    features: [
+      "Create professional reports in minutes",
+      "Track KPIs and performance trends",
+      "Share interactive dashboards with stakeholders"
+    ]
   },
   {
     title: "Financial Analysis",
-    description: "Understand market trends and make data-driven investment decisions",
+    description: "Understand market trends and make data-driven investment decisions. Ideal for financial analysts, investors, and anyone tracking financial performance who needs to identify patterns and forecast future outcomes.",
     icon: <DollarSign className="w-8 h-8" />,
+    image: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&h=600&fit=crop",
+    features: [
+      "Analyze stock price movements and patterns",
+      "Forecast financial performance",
+      "Identify market trends and correlations"
+    ]
   },
   {
     title: "Health & Fitness",
-    description: "Track your progress and discover patterns in your personal health data",
+    description: "Track your progress and discover patterns in your personal health data. Perfect for health enthusiasts, trainers, and healthcare professionals who want to understand patterns in health metrics and optimize wellness programs.",
     icon: <Heart className="w-8 h-8" />,
+    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop",
+    features: [
+      "Visualize fitness progress over time",
+      "Identify factors affecting health outcomes",
+      "Optimize workout and nutrition plans"
+    ]
   },
 ];
 
-// Add simple explanations for technical terms section
+// Update userFriendlyArchitecture with more details and hover effects
 const userFriendlyArchitecture = [
   {
-    icon: <BarChart className="w-6 h-6 text-blue-400" />,
+    icon: <BarChart className="w-6 h-6 text-blue-400 group-hover:text-blue-300 transition-colors duration-300" />,
     title: "Easy-to-Use Interface",
-    description: "A beautiful, simple dashboard that makes data analysis accessible to everyone"
+    description: "A beautiful, simple dashboard that makes data analysis accessible to everyone",
+    detailedDescription: "Our intuitive interface guides you through each step of the analysis process with clear, actionable controls and contextual help.",
+    color: "from-blue-600/20 to-blue-700/20 group-hover:from-blue-600/40 group-hover:to-blue-700/40",
+    iconBg: "group-hover:bg-blue-500/20",
+    highlightPoints: [
+      "Drag-and-drop file upload",
+      "One-click visualizations",
+      "Guided analysis workflow"
+    ]
   },
   {
-    icon: <Server className="w-6 h-6 text-green-400" />,
+    icon: <Server className="w-6 h-6 text-green-400 group-hover:text-green-300 transition-colors duration-300" />,
     title: "Powerful Analysis Engine",
-    description: "Our behind-the-scenes technology handles complex calculations so you don't have to"
+    description: "Our behind-the-scenes technology handles complex calculations so you don't have to",
+    detailedDescription: "Built on FastAPI and Python, our analysis engine processes millions of data points in seconds using advanced statistical algorithms and machine learning models.",
+    color: "from-green-600/20 to-green-700/20 group-hover:from-green-600/40 group-hover:to-green-700/40",
+    iconBg: "group-hover:bg-green-500/20",
+    highlightPoints: [
+      "Fast distributed processing",
+      "Advanced statistical methods",
+      "Real-time data streaming"
+    ]
   },
   {
-    icon: <Brain className="w-6 h-6 text-purple-400" />,
+    icon: <Brain className="w-6 h-6 text-purple-400 group-hover:text-purple-300 transition-colors duration-300" />,
     title: "Smart AI Assistant",
-    description: "Like having a data expert by your side, providing insights in plain language"
+    description: "Like having a data expert by your side, providing insights in plain language",
+    detailedDescription: "Our AI assistant uses natural language processing to understand your questions about data and provides clear, insightful answers without requiring technical expertise.",
+    color: "from-purple-600/20 to-purple-700/20 group-hover:from-purple-600/40 group-hover:to-purple-700/40",
+    iconBg: "group-hover:bg-purple-500/20",
+    highlightPoints: [
+      "Natural language queries",
+      "Automated insight generation",
+      "Predictive analytics"
+    ]
   }
 ];
 
@@ -335,7 +405,7 @@ export default function Home() {
                 How Anilyst Works
               </h2>
               <p className="text-lg text-gray-200 mb-12 max-w-2xl mx-auto">
-                Get from raw data to valuable insights in just a few simple steps
+                Transform your raw data into valuable insights in just four simple steps — no technical skills required
               </p>
             </motion.div>
             
@@ -351,20 +421,42 @@ export default function Home() {
                     transition={{ delay: 0.2 + index * 0.1 }}
                   >
                     {/* Step Number */}
-                    <div className="absolute -left-4 -top-4 w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-xl font-bold text-white">
+                    <div className="absolute -left-4 -top-4 w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-xl font-bold text-white z-10">
                       {step.step}
                     </div>
                     
-                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 pl-8 border border-white/10">
+                    <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 pl-8 border border-white/10 h-full">
                       <div className="mb-4">
                         {step.icon}
                       </div>
                       <h3 className="text-xl font-semibold text-white mb-3">
                         {step.title}
                       </h3>
-                      <p className="text-gray-300">
+                      <p className="text-gray-300 mb-4">
                         {step.description}
                       </p>
+                      
+                      {/* Features list */}
+                      <ul className="mt-4 space-y-2">
+                        {step.details.map((detail, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <CheckCircle className="w-4 h-4 text-green-400 mt-1 flex-shrink-0" />
+                            <span className="text-sm text-white/70">{detail}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      
+                      {/* Visual indicator of next step */}
+                      {index < howItWorksSteps.length - 1 && index % 2 === 0 && (
+                        <div className="hidden md:block absolute -bottom-10 right-0 text-purple-400">
+                          <ArrowRight className="w-8 h-8" />
+                        </div>
+                      )}
+                      {index < howItWorksSteps.length - 1 && index % 2 === 1 && (
+                        <div className="hidden md:block absolute -bottom-10 -left-4 text-purple-400">
+                          <ArrowRight className="w-8 h-8" />
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 ))}
@@ -373,6 +465,21 @@ export default function Home() {
               {/* Center line for desktop */}
               <div className="hidden md:block absolute top-0 bottom-0 left-1/2 w-px bg-gradient-to-b from-blue-500/50 via-purple-500/50 to-transparent" />
             </div>
+
+            {/* Try It Now button */}
+            <motion.div
+              className="text-center mt-16"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.6 }}
+            >
+              <Link href="/main">
+                <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg shadow-purple-500/20 transform hover:scale-105">
+                  Experience It Yourself <ArrowRight className="w-5 h-5 inline-block ml-2" />
+                </button>
+              </Link>
+              <p className="text-white/60 mt-4 text-sm">No signup required. Try it with your own data in seconds.</p>
+            </motion.div>
           </div>
         </section>
 
@@ -389,29 +496,76 @@ export default function Home() {
                 Who Can Use Anilyst?
               </h2>
               <p className="text-lg text-gray-200 mb-8 max-w-2xl mx-auto">
-                Designed for everyone who works with data, not just data scientists
+                Designed for everyone who works with data, not just data scientists. No technical expertise required.
               </p>
             </motion.div>
             
-            <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+            <div className="max-w-6xl mx-auto">
               {useCases.map((useCase, index) => (
                 <motion.div
                   key={index}
-                  className="bg-gradient-to-br from-gray-900/80 to-black/90 rounded-xl p-8 border border-white/10 flex flex-col items-center text-center"
+                  className="mb-16 last:mb-0"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + index * 0.1 }}
-                  whileHover={{ y: -5 }}
                 >
-                  <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-6">
-                    {useCase.icon}
+                  <div className={`flex flex-col ${index % 2 === 1 ? 'md:flex-row-reverse' : 'md:flex-row'} gap-8 items-center`}>
+                    {/* Image side */}
+                    <div className="w-full md:w-1/2">
+                      <div className="relative overflow-hidden rounded-xl border border-white/10 shadow-lg h-[300px] group">
+                        <Image
+                          src={useCase.image}
+                          alt={useCase.title}
+                          width={800}
+                          height={600}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                          <div className="absolute bottom-0 left-0 right-0 p-6">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center backdrop-blur-sm">
+                                {useCase.icon}
+                              </div>
+                              <h3 className="text-2xl font-bold text-white">{useCase.title}</h3>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Content side */}
+                    <div className="w-full md:w-1/2">
+                      <div className="bg-white/5 backdrop-blur-sm rounded-xl p-6 border border-white/10 h-full hover:bg-white/10 transition-colors duration-300">
+                        <h3 className="text-2xl font-bold text-white mb-4 md:hidden">
+                          {useCase.title}
+                        </h3>
+                        <p className="text-gray-300 mb-6">
+                          {useCase.description}
+                        </p>
+                        
+                        <h4 className="text-lg font-medium text-white mb-3">Key Benefits:</h4>
+                        <ul className="space-y-3">
+                          {useCase.features.map((feature, idx) => (
+                            <li
+                              key={idx}
+                              className="flex items-start gap-3 text-gray-200"
+                            >
+                              <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0 mt-0.5" />
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        
+                        <div className="mt-6">
+                          <Link href="/main">
+                            <button className="px-4 py-2 bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-white rounded-lg hover:from-blue-500/50 hover:to-purple-500/50 transition-all duration-300 border border-white/10 flex items-center gap-2">
+                              Try with your data <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-3">
-                    {useCase.title}
-                  </h3>
-                  <p className="text-gray-300">
-                    {useCase.description}
-                  </p>
                 </motion.div>
               ))}
             </div>
@@ -422,11 +576,12 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
             >
-              <p className="text-lg text-white/80 mb-8">
-                Whether you're an analyst, manager, small business owner, or just curious about your data, Anilyst makes analysis simple.
+              <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">
+                Whether you're an analyst, manager, small business owner, or just curious about your data, 
+                Anilyst makes analysis simple and accessible for everyone.
               </p>
               <Link href="/main">
-                <button className="px-8 py-4 bg-white text-gray-900 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center gap-2">
+                <button className="px-8 py-4 bg-white text-gray-900 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center gap-2 shadow-lg">
                   Try It Now <ArrowRight className="w-5 h-5" />
                 </button>
               </Link>
@@ -443,7 +598,8 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+              <span className="px-4 py-1 bg-white/5 rounded-full text-white/60 text-sm inline-block mb-4">TECHNOLOGY</span>
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 inline-block text-transparent bg-clip-text">
                 Technology That Works For You
               </h2>
               <p className="text-lg text-gray-200 mb-12 max-w-2xl mx-auto">
@@ -456,45 +612,109 @@ export default function Home() {
               {userFriendlyArchitecture.map((component, index) => (
                 <motion.div
                   key={index}
-                  className="bg-black/40 backdrop-blur-lg rounded-2xl p-8 border border-white/10"
+                  className="bg-black/40 backdrop-blur-lg rounded-2xl p-8 border border-white/10 group hover:border-white/20 transition-all duration-500 hover:shadow-lg hover:shadow-blue-500/5"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.2 + index * 0.2 }}
+                  whileHover={{ y: -5 }}
                 >
-                  <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 border border-white/10 mb-4">
+                  <div className="text-center mb-6 relative">
+                    <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/5 border border-white/10 mb-4 transition-all duration-300 ${component.iconBg}`}>
                       {component.icon}
+                      {/* Animated background glow */}
+                      <div className={`absolute inset-0 rounded-full bg-gradient-to-r ${component.color} opacity-0 group-hover:opacity-60 transition-opacity duration-500 blur-md -z-10`}></div>
                     </div>
-                    <h3 className="text-xl font-bold text-white">
+                    <h3 className="text-xl font-bold text-white group-hover:text-white/90 transition-colors">
                       {component.title}
                     </h3>
+                    {/* Animated underline on hover */}
+                    <div className="h-0.5 w-0 group-hover:w-1/2 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto mt-2 transition-all duration-500"></div>
                   </div>
-                  <p className="text-gray-300 text-center">
-                    {component.description}
-                  </p>
+                  
+                  <div className="overflow-hidden">
+                    {/* Basic description that's always visible */}
+                    <p className="text-gray-300 text-center mb-4">
+                      {component.description}
+                    </p>
+                    
+                    {/* Detailed information that appears on hover */}
+                    <div className="max-h-0 group-hover:max-h-72 opacity-0 group-hover:opacity-100 transition-all duration-500 ease-in-out overflow-hidden">
+                      <p className="text-white/70 text-sm mb-4 text-center">
+                        {component.detailedDescription}
+                      </p>
+                      
+                      <div className="space-y-2 pb-2">
+                        {component.highlightPoints.map((point, idx) => (
+                          <motion.div 
+                            key={idx}
+                            className="flex items-center justify-center gap-1.5 text-sm text-white/60"
+                            initial={{ opacity: 0, x: -10 }}
+                            whileInView={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.3 + idx * 0.1 }}
+                          >
+                            <CheckCircle className="w-3.5 h-3.5 text-green-400 flex-shrink-0" />
+                            <span>{point}</span>
+                          </motion.div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Interactive button at bottom */}
+                  <div className="mt-4 text-center overflow-hidden h-8">
+                    <div className="translate-y-8 group-hover:translate-y-0 transition-transform duration-300">
+                      <Link href="/main">
+                        <button className="text-sm px-4 py-1.5 rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors inline-flex items-center gap-1">
+                          Learn more <ChevronRight className="w-3 h-3" />
+                        </button>
+                      </Link>
+                    </div>
+                  </div>
                 </motion.div>
               ))}
             </div>
             
             <motion.div 
-              className="mt-16 text-center"
+              className="mt-24 text-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8 }}
             >
-              <div className="bg-gradient-to-r from-blue-500/20 via-purple-500/20 to-pink-500/20 p-6 rounded-xl inline-block mb-8">
+              {/* Interactive testimonial card with hover effects */}
+              <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 p-8 rounded-xl max-w-3xl mx-auto mb-12 group hover:from-blue-500/20 hover:via-purple-500/20 hover:to-pink-500/20 transition-all duration-500 border border-white/5 hover:border-white/10 relative">
+                {/* Decorative quote marks */}
+                <div className="absolute -top-5 -left-5 text-6xl text-white/10 font-serif">"</div>
+                <div className="absolute -bottom-10 -right-5 text-6xl text-white/10 font-serif">"</div>
+                
                 <h4 className="text-xl font-medium text-white mb-2">Why People Love Anilyst</h4>
-                <p className="text-gray-200">
-                  "I used to spend hours creating charts and trying to make sense of my data. Now I just upload my files 
-                  and get insights immediately. It's like having a data analyst on call 24/7!"
+                <p className="text-gray-200 relative z-10">
+                  I used to spend hours creating charts and trying to make sense of my data. Now I just upload my files 
+                  and get insights immediately. It's like having a data analyst on call 24/7!
                 </p>
-                <p className="text-white/60 mt-2 text-sm">- Sarah K., Marketing Manager</p>
+                
+                <div className="mt-6 flex items-center justify-center space-x-3">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-400 flex items-center justify-center text-white font-medium">SK</div>
+                  <div className="text-left">
+                    <p className="text-white/90 font-medium">Sarah K.</p>
+                    <p className="text-white/60 text-sm">Marketing Manager</p>
+                  </div>
+                </div>
+                
+                {/* Interactive animation elements */}
+                <div className="absolute -bottom-3 -left-3 w-20 h-20 bg-blue-500/30 rounded-full filter blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-700"></div>
+                <div className="absolute -top-3 -right-3 w-20 h-20 bg-purple-500/30 rounded-full filter blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-700"></div>
               </div>
               
+              {/* Interactive CTA button */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <a href="#features" className="px-6 py-3 bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors inline-flex items-center gap-2">
-                  See Features <ChevronRight className="w-5 h-5" />
-                </a>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 10 }}
+                >
+                  <a href="#features" className="px-6 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white rounded-lg hover:from-blue-500/30 hover:to-purple-500/30 transition-colors inline-flex items-center gap-2 border border-white/10">
+                    Explore Key Features <ChevronRight className="w-5 h-5" />
+                  </a>
+                </motion.div>
               </div>
             </motion.div>
           </div>
@@ -513,84 +733,139 @@ export default function Home() {
                 Key Capabilities
               </h2>
               <p className="text-lg text-gray-200 max-w-2xl mx-auto">
-                From data processing to AI-powered insights, Anilyst offers a comprehensive suite of tools.
+                From intelligent data processing to AI-powered insights, Anilyst offers a comprehensive 
+                suite of tools designed to transform your data experience.
               </p>
             </motion.div>
             
-            <div className="relative">
-              {/* Feature Grid */}
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 lg:gap-12">
-                {featureSections.map((section, index) => (
-                  <motion.div
-                    key={index}
-                    className="bg-white/5 rounded-2xl overflow-hidden border border-white/10"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.6 + index * 0.2 }}
-                  >
-                    <Image
-                      src={section.image}
-                      alt={section.title}
-                      width={800}
-                      height={400}
-                      className="w-full object-cover h-48"
-                    />
-                    <div className="p-6 md:p-8">
-                      <h3 className="text-2xl font-bold text-white mb-4">
-                        {section.title}
-                      </h3>
-                      <p className="text-gray-300 mb-6">
-                        {section.description}
-                      </p>
-                      <ul className="space-y-3">
-                        {section.features.map((feature, i) => (
-                          <li
-                            key={i}
-                            className="flex items-center text-gray-200"
-                          >
-                            <ChevronRight className="w-5 h-5 text-blue-400 mr-2 flex-shrink-0" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
+            <div className="max-w-6xl mx-auto">
+              {featureSections.map((section, index) => (
+                <motion.div
+                  key={index}
+                  className="mb-20 last:mb-8 group"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + index * 0.1 }}
+                >
+                  {/* Feature heading for mobile */}
+                  <div className="md:hidden mb-6">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-3 rounded-xl bg-gradient-to-br ${section.color}`}>
+                        {section.icon}
+                      </div>
+                      <h3 className="text-2xl font-bold text-white">{section.title}</h3>
                     </div>
-                  </motion.div>
-                ))}
-              </div>
+                  </div>
+                  
+                  <div className="flex flex-col md:flex-row gap-8 items-stretch">
+                    {/* Image Side */}
+                    <div className="w-full md:w-1/2">
+                      <div className="relative h-full rounded-xl overflow-hidden group-hover:shadow-lg group-hover:shadow-blue-500/10 transition-all duration-500">
+                        <Image
+                          src={section.image}
+                          alt={section.title}
+                          width={800}
+                          height={500}
+                          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
+                        />
+                        <div className={`absolute inset-0 bg-gradient-to-tr ${section.color} ${section.hoverColor} opacity-80 transition-all duration-500 mix-blend-overlay`}></div>
+                        
+                        {/* Desktop title overlay */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 md:group-hover:opacity-100 transition-opacity duration-500">
+                          <div className="bg-black/70 backdrop-blur-sm px-8 py-6 rounded-xl border border-white/10">
+                            <h3 className="text-3xl font-bold text-white text-center">{section.title}</h3>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Content Side */}
+                    <div className="w-full md:w-1/2">
+                      <div className={`h-full bg-white/5 backdrop-blur-sm rounded-xl p-8 border border-white/10 relative overflow-hidden group-hover:bg-white/10 transition-all duration-500`}>
+                        {/* Desktop heading */}
+                        <div className="hidden md:flex items-center gap-3 mb-6">
+                          <div className={`p-3 rounded-xl bg-gradient-to-br ${section.color}`}>
+                            {section.icon}
+                          </div>
+                          <h3 className="text-2xl font-bold text-white">{section.title}</h3>
+                        </div>
+                        
+                        <p className="text-gray-200 mb-6 text-lg">
+                          {section.description}
+                        </p>
+                        
+                        <h4 className="text-lg font-medium text-white mb-4 flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-blue-400" />
+                          Key Features
+                        </h4>
+                        <ul className="space-y-3 mb-6">
+                          {section.features.map((feature, idx) => (
+                            <li
+                              key={idx}
+                              className="flex items-start gap-3 text-gray-200 group/item"
+                            >
+                              <div className="mt-1 flex-shrink-0 p-1 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 group-hover/item:from-blue-500/40 group-hover/item:to-purple-500/40 transition-all duration-300">
+                                <CheckCircle className="w-4 h-4 text-green-400" />
+                              </div>
+                              <span>{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        
+                        <div className="mt-6">
+                          <Link href="/main">
+                            <button className={`px-5 py-3 bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-white rounded-lg hover:from-blue-500/50 hover:to-purple-500/50 transition-all duration-300 transform hover:scale-105 border border-white/10 flex items-center gap-2`}>
+                              Try {section.title} Features <ArrowRight className="w-4 h-4" />
+                            </button>
+                          </Link>
+                        </div>
+                        
+                        {/* Background decorative element */}
+                        <div className="absolute -bottom-20 -right-20 w-48 h-48 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-full filter blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
             </div>
-          </div>
-        </section>
-
-        {/* Call to Action */}
-        <section className="min-h-[70vh] flex items-center bg-black">
-          <div className="container mx-auto px-4 py-16">
+            
+            {/* Final call to action */}
             <motion.div
-              className="text-center"
+              className="text-center mt-16 max-w-3xl mx-auto"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
+              transition={{ delay: 0.6 }}
             >
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">
-                Ready to Unlock the Power of Your Data?
-              </h2>
-              <p className="text-xl text-gray-200 mb-8 max-w-2xl mx-auto px-4">
-                Join thousands of people who've discovered hidden insights in their data without needing technical skills or expensive software.
-              </p>
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8">
+              <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 p-8 rounded-xl border border-white/5 mb-10">
+                <h3 className="text-2xl font-bold text-white mb-4">Ready to unlock your data's potential?</h3>
+                <p className="text-gray-200 mb-6">
+                  Experience the power of intelligent data analysis with no technical skills required. 
+                  Our platform adapts to your data, providing insights that drive better decisions.
+                </p>
                 <Link href="/main">
-                  <button className="px-8 py-4 bg-white text-gray-900 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center gap-2">
-                    Start Analyzing Now <ArrowRight className="w-5 h-5" />
-                  </button>
-                </Link>
-                <Link href="/pricing">
-                  <button className="px-8 py-4 bg-transparent border border-white/30 text-white rounded-lg text-lg font-medium hover:bg-white/10 transition-colors">
-                    See Pricing
+                  <button className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-lg font-medium hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg shadow-purple-500/20 transform hover:scale-105">
+                    Get Started Now <ArrowRight className="w-5 h-5 inline-block ml-2" />
                   </button>
                 </Link>
               </div>
-              <p className="text-white/60 text-sm">
-                No credit card required to start. Free plan includes 5 analyses per month.
-              </p>
+              
+              <div className="flex items-center justify-center gap-3 flex-wrap text-sm text-white/60">
+                <span className="flex items-center gap-1">
+                  <Server className="w-4 h-4" /> Cloud-based solution
+                </span>
+                <span className="mx-2">•</span>
+                <span className="flex items-center gap-1">
+                  <Lock className="w-4 h-4" /> Secure & private
+                </span>
+                <span className="mx-2">•</span>
+                <span className="flex items-center gap-1">
+                  <Zap className="w-4 h-4" /> Near-instant results
+                </span>
+                <span className="mx-2">•</span>
+                <span className="flex items-center gap-1">
+                  <HelpCircle className="w-4 h-4" /> 24/7 support
+                </span>
+              </div>
             </motion.div>
           </div>
         </section>
