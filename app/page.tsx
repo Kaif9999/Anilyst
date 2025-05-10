@@ -413,9 +413,12 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8 }}
             >
-              {/* Added small decorative element above title */}
-              <span className="inline-block bg-gradient-to-r from-blue-500 to-purple-500 text-transparent bg-clip-text text-sm font-medium tracking-wide mb-4">WELCOME TO ANILYST</span>
-              
+              {/* Product Hunt Badge */}
+              <div className="flex items-center justify-center mb-6">
+
+              <a href="https://www.producthunt.com/posts/anilyst?embed=true&utm_source=badge-featured&utm_medium=badge&utm_souce=badge-anilyst" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=945088&theme=light&t=1746875873252" alt="Anilyst - Your&#0032;Personal&#0032;AI&#0032;Data&#0032;Analyst | Product Hunt" style={{width: "250px", height: "54px"}} width="250" height="54" /></a>
+              </div>
+
               <h1 className="text-4xl py-6 sm:text-5xl md:text-7xl lg:text-8xl font-bold mb-6 text-white tracking-tight relative">
                 <span className="bg-gradient-to-r from-white via-blue-100 to-white text-transparent bg-clip-text">Make Sense of Your Data</span>
                 <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full hidden md:block"></div>

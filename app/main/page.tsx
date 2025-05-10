@@ -123,7 +123,6 @@ const OnboardingTutorial = ({ isOpen, onClose }: { isOpen: boolean; onClose: () 
                   <X className="w-5 h-5" />
                 </button>
               </div>
-              
               {/* Step 1: Introduction */}
               {step === 1 && (
                 <div className="space-y-3">
