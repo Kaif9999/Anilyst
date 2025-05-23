@@ -1,3 +1,6 @@
+"use client";
+import React from 'react';
+   
 export default function Dashboard() {
   return (
     <div>
@@ -6,4 +9,3 @@ export default function Dashboard() {
     </div>
   );
 }
-// This is a simple dashboard page that displays a welcome message.
