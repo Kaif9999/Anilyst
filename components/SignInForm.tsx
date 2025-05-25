@@ -49,7 +49,7 @@ export default function SignInForm() {
     try {
       setIsLoading(true);
       await signIn("google", {
-        callbackUrl: "/main",
+        callbackUrl: window.location.origin + "/main",
         redirect: true,
       });
     } catch (error) {

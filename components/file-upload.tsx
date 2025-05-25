@@ -87,7 +87,6 @@ export default function FileUpload({
       const arrayBuffer = await file.arrayBuffer();
       const workbook = XLSX.read(arrayBuffer);
       
-      // Get the first worksheet
       const worksheet = workbook.Sheets[workbook.SheetNames[0]];
       
       // Convert to JSON with headers
