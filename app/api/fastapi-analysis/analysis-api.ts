@@ -1,7 +1,7 @@
 import { ChartData } from "@/types";
 
 // Use the deployed URL as fallback
-const API_BASE_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://anilyst-backend-nstn.onrender.com';
+const API_BASE_URL = process.env.NEXT_PUBLIC_FASTAPI_URL;
 
 export const analysisApi = {
 

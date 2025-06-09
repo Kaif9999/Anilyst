@@ -200,7 +200,7 @@ const OnboardingTutorial = ({ isOpen, onClose }: { isOpen: boolean; onClose: () 
                   </p>
                 </div>
               )}
-              
+
               {/* Step 3: View Visualization */}
               {step === 3 && (
                 <div className="space-y-4">
