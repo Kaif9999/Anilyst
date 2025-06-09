@@ -19,10 +19,9 @@ export default function DashboardLayout({
         
         {/* Remove left padding from main content when it touches the sidebar */}
         <main className="flex-1 md:ml-64 min-h-screen bg-gray-900">
-          <div className="p-6">
-            <PageTitle />
+          
             {children}
-          </div>
+        
         </main>
       </div>
     </div>

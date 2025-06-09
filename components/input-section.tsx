@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/tooltip";
 
 // Access environment variable with fallback to deployed URL
-const NEXT_PUBLIC_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'https://anilyst-backend-nstn.onrender.com';
+const NEXT_PUBLIC_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL;
 
 interface ProcessedData {
   [key: string]: string | number;
