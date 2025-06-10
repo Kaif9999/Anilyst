@@ -10,14 +10,20 @@ import {
   User,
   ChevronRight,
   Menu,
-  X
+  X,
+  CheckCircle
 } from 'lucide-react';
+import { useFileStore } from '@/store/file-store';
+import UploadModal from './upload-modal';
 
 export default function Sidebar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [activeItem, setActiveItem] = useState('');
+  
+  // Get file store state
+  const { currentFile, hasData, setUploadModalOpen } = useFileStore();
 
   useEffect(() => {
     // Set active item based on current path on first load
@@ -55,6 +61,14 @@ export default function Sidebar() {
   // Handle item click - set active and close mobile
   const handleItemClick = (path: string) => {
     setActiveItem(path);
+    if (isMobile) {
+      setIsMobileMenuOpen(false);
+    }
+  };
+
+  // Handle upload button click
+  const handleUploadClick = () => {
+    setUploadModalOpen(true);
     if (isMobile) {
       setIsMobileMenuOpen(false);
     }
@@ -147,12 +161,28 @@ export default function Sidebar() {
         {/* Bottom section */}
         <div className="mt-auto space-y-4">
           {/* Upload Data button */}
-          <Link href="/dashboard/upload">
-            <div className="border-2 border-gray-700 rounded-xl p-4 text-center hover:bg-white/5 transition-colors flex items-center justify-center">
-                <Upload className="w-6 h-6 text-gray-200 mr-1" />
-              <span className="text-xl font-bold">Upload Data</span>
+          <button
+            onClick={handleUploadClick}
+            className="w-full border-2 border-gray-700 rounded-xl p-4 text-center hover:bg-white/5 transition-colors flex items-center justify-center group"
+          >
+            <div className="flex items-center">
+              {hasData() ? (
+                <CheckCircle className="w-6 h-6 text-green-400 mr-2" />
+              ) : (
+                <Upload className="w-6 h-6 text-gray-200 group-hover:text-white mr-2 transition-colors" />
+              )}
+              <div className="text-left">
+                <div className="text-xl font-bold">
+                  {hasData() ? 'Data Loaded' : 'Upload Data'}
+                </div>
+                {hasData() && currentFile && (
+                  <div className="text-xs text-green-400 truncate max-w-[150px]">
+                    {currentFile.name}
+                  </div>
+                )}
+              </div>
             </div>
-          </Link>
+          </button>
           
           {/* Upgrade box */}
           <div className="border-2 border-gray-700 rounded-xl p-4">
@@ -184,6 +214,9 @@ export default function Sidebar() {
           </div>
         </div>
       </aside>
+
+      {/* Upload Modal */}
+      <UploadModal />
     </>
   );
 }

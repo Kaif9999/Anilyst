@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect, createContext, useContext } from "react";
+import { useState, useEffect } from "react";
 import { Calendar, CandlestickChart, BarChart2, AlertCircle, FileSpreadsheet, FileText, Table, Info, Server, InfoIcon, CheckCircle, ServerCrash } from "lucide-react";
 import { motion } from "framer-motion";
-import { ChartData, StockData, SimpleData } from "../types";
-import FileUpload from "./file-upload";
 import { useToast } from "@/components/ui/use-toast";
+import { useFileStore, StockData, SimpleData, ChartData } from "@/store/file-store";
 import {
   Tooltip,
   TooltipContent,
@@ -19,46 +18,6 @@ const NEXT_PUBLIC_FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL;
 interface ProcessedData {
   [key: string]: string | number;
 }
-
-interface DataRow {
-  [key: string]: any;
-  Date: string;
-  Open: number;
-  High: number;
-  Low: number;
-  Close: number;
-}
-
-// Add in-memory file storage context
-export const FileStorageContext = createContext<{
-  files: Map<string, File>;
-  addFile: (id: string, file: File) => void;
-  getFile: (id: string) => File | undefined;
-}>({
-  files: new Map(),
-  addFile: () => {},
-  getFile: () => undefined,
-});
-
-export const useFileStorage = () => useContext(FileStorageContext);
-
-export const FileStorageProvider = ({ children }: { children: React.ReactNode }) => {
-  const files = new Map<string, File>();
-  
-  const addFile = (id: string, file: File) => {
-    files.set(id, file);
-  };
-  
-  const getFile = (id: string) => {
-    return files.get(id);
-  };
-  
-  return (
-    <FileStorageContext.Provider value={{ files, addFile, getFile }}>
-      {children}
-    </FileStorageContext.Provider>
-  );
-};
 
 const FileUploadInfo = () => {
   return (
@@ -119,19 +78,33 @@ const BackendIndicator = ({ isConnected }: { isConnected: boolean }) => {
 export default function InputSection({
   onResultReceived,
 }: {
-  onResultReceived: (chartData: ChartData) => void;
+  onResultReceived?: (chartData: ChartData) => void;
 }) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [selectedYear, setSelectedYear] = useState<string>("all");
-  const [availableYears, setAvailableYears] = useState<string[]>([]);
-  const [parsedData, setParsedData] = useState<StockData[] | SimpleData[]>([]);
-  const [isStockData, setIsStockData] = useState(true);
-  const [error, setError] = useState<string>("");
-  const [aiAnalysis, setAiAnalysis] = useState<string>("");
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const { toast } = useToast();
   const [backendConnected, setBackendConnected] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
+  const { toast } = useToast();
+  
+  // Zustand store
+  const {
+    currentFile,
+    rawData,
+    chartData,
+    aiAnalysis,
+    availableYears,
+    selectedYear,
+    isLoading,
+    isAnalyzing,
+    error,
+    setCurrentFile,
+    setRawData,
+    setChartData,
+    setAiAnalysis,
+    setAvailableYears,
+    setSelectedYear,
+    setLoading,
+    setAnalyzing,
+    setError,
+    isStockData,
+  } = useFileStore();
 
   const processStockData = (
     data: StockData[],
@@ -156,22 +129,22 @@ export default function InputSection({
         {
           label: "Close Price",
           data: sortedData.map((row) => row.Close),
-          backgroundColor: ["rgba(75, 192, 192, 0.6)"],
+          backgroundColor: "rgba(75, 192, 192, 0.6)",
         },
         {
           label: "Open Price",
           data: sortedData.map((row) => row.Open),
-          backgroundColor: ["rgba(255, 99, 132, 0.6)"],
+          backgroundColor: "rgba(255, 99, 132, 0.6)",
         },
         {
           label: "High",
           data: sortedData.map((row) => row.High),
-          backgroundColor: ["rgba(54, 162, 235, 0.6)"],
+          backgroundColor: "rgba(54, 162, 235, 0.6)",
         },
         {
           label: "Low",
           data: sortedData.map((row) => row.Low),
-          backgroundColor: ["rgba(255, 206, 86, 0.6)"],
+          backgroundColor: "rgba(255, 206, 86, 0.6)",
         },
       ],
     };
@@ -179,7 +152,7 @@ export default function InputSection({
 
   const processSimpleData = (data: SimpleData[]): ChartData => {
     try {
-    const keys = Object.keys(data[0]);
+      const keys = Object.keys(data[0]);
       
       // Check if we have at least two columns
       if (keys.length < 2) {
@@ -203,16 +176,16 @@ export default function InputSection({
       const labelColumn = keys.find(key => !numericColumns.includes(key)) || keys[0];
       
       // Create datasets for all numeric columns
-      const datasets = numericColumns.map(column => ({
+      const datasets = numericColumns.map((column, index) => ({
         label: column,
         data: data.map(row => {
           const value = row[column];
           return typeof value === 'number' ? value : Number(value);
         }),
-        backgroundColor: `rgba(${Math.random() * 255}, ${Math.random() * 255}, ${Math.random() * 255}, 0.6)`,
+        backgroundColor: `rgba(${75 + index * 50}, ${192 - index * 30}, ${192 + index * 20}, 0.6)`,
       }));
 
-    return {
+      return {
         labels: data.map((row) => String(row[labelColumn])),
         datasets,
       };
@@ -248,32 +221,8 @@ export default function InputSection({
     });
   };
 
-  const uploadFile = async (file: File): Promise<string> => {
-    // Generate a unique file ID instead of uploading to the server
-    const fileId = `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    try {
-      // Instead of uploading to server, store in memory
-      // Use localStorage as fallback if needed
-      if (typeof window !== 'undefined') {
-        // Store file metadata in localStorage
-        localStorage.setItem(fileId, JSON.stringify({
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          lastModified: file.lastModified,
-        }));
-      }
-      
-      return fileId;
-    } catch (error) {
-      console.error("Error storing file:", error);
-      throw new Error("Error storing file");
-    }
-  };
-
   const getAiAnalysis = async (filePath: string, fileType: string) => {
-    setIsAnalyzing(true);
+    setAnalyzing(true);
     try {
       const response = await fetch("/api/analyze", {
         method: "POST",
@@ -306,41 +255,50 @@ export default function InputSection({
         variant: "destructive",
       });
     } finally {
-      setIsAnalyzing(false);
+      setAnalyzing(false);
     }
   };
 
   const handleDataProcessed = async (data: ProcessedData[], file: File) => {
     console.log("Data processed:", data.length, "rows");
-    setParsedData(data);
     
     try {
-      // First upload the file to get metadata
-      const filePath = await uploadFile(file);
-      console.log("File uploaded to:", filePath);
-      
-      // Get AI analysis of the file
-      await getAiAnalysis(filePath, file.type);
-      
-      setIsProcessing(false);
-      setIsLoading(true);
+      setLoading(true);
+      setError('');
       
       // Detect data type
-      const isStockData = detectDataType(data);
-      console.log("Data type detection:", isStockData ? "Stock data" : "Simple data");
-      setIsStockData(isStockData);
+      const isStock = detectDataType(data);
+      console.log("Data type detection:", isStock ? "Stock data" : "Simple data");
       
-      let chartData: ChartData;
+      // Create file metadata
+      const fileMetadata = {
+        id: `file_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        uploadedAt: new Date(),
+        isStockData: isStock,
+        rowCount: data.length,
+      };
       
-      if (isStockData) {
+      // Save to store
+      setCurrentFile(fileMetadata);
+      setRawData(data);
+      
+      // Get AI analysis
+      await getAiAnalysis(fileMetadata.id, file.type);
+      
+      let processedChartData: ChartData;
+      
+      if (isStock) {
         // Extract available years for stock data
         const processedStockData = data.map(row => ({
           ...row,
-          Date: row.Date,
-          Open: typeof row.Open === 'string' ? Number(row.Open) : row.Open,
-          High: typeof row.High === 'string' ? Number(row.High) : row.High,
-          Low: typeof row.Low === 'string' ? Number(row.Low) : row.Low,
-          Close: typeof row.Close === 'string' ? Number(row.Close) : row.Close,
+          Date: row.Date as string,
+          Open: typeof row.Open === 'string' ? Number(row.Open) : row.Open as number,
+          High: typeof row.High === 'string' ? Number(row.High) : row.High as number,
+          Low: typeof row.Low === 'string' ? Number(row.Low) : row.Low as number,
+          Close: typeof row.Close === 'string' ? Number(row.Close) : row.Close as number,
         }));
         
         const years = Array.from(
@@ -352,38 +310,51 @@ export default function InputSection({
         setAvailableYears(years);
         
         // Process as stock data
-        chartData = processStockData(processedStockData as StockData[], selectedYear);
+        processedChartData = processStockData(processedStockData as StockData[], selectedYear);
       } else {
         // Clear years for non-stock data
         setAvailableYears([]);
         // Process as simple data
-        chartData = processSimpleData(data as SimpleData[]);
+        processedChartData = processSimpleData(data as SimpleData[]);
       }
       
-      console.log("Chart data prepared:", chartData);
+      console.log("Chart data prepared:", processedChartData);
       
-      // Log details before calling parent's callback
-      console.log("Calling onResultReceived with chart data:", {
-        labels: chartData.labels?.length,
-        datasets: chartData.datasets.length,
-        dataPoints: chartData.datasets.reduce((sum, ds) => sum + ds.data.length, 0)
+      // Save chart data to store
+      setChartData(processedChartData);
+      
+      // Call callback if provided (for backward compatibility)
+      if (onResultReceived) {
+        onResultReceived(processedChartData);
+      }
+      
+      toast({
+        title: "Success!",
+        description: "Your data has been processed and is ready for analysis.",
       });
       
-      // Callback to parent with prepared chart data
-      onResultReceived(chartData);
     } catch (error) {
       console.error("Error in handleDataProcessed:", error);
-      setIsProcessing(false);
-      setIsLoading(false);
       setError(error instanceof Error ? error.message : "Unknown error");
+      toast({
+        title: "Processing Error",
+        description: "There was an error processing your data.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleYearChange = (year: string) => {
     setSelectedYear(year);
-    if (parsedData.length > 0 && isStockData) {
-      const chartData = processStockData(parsedData as StockData[], year);
-      onResultReceived(chartData);
+    if (rawData.length > 0 && isStockData()) {
+      const processedChartData = processStockData(rawData as StockData[], year);
+      setChartData(processedChartData);
+      
+      if (onResultReceived) {
+        onResultReceived(processedChartData);
+      }
     }
   };
 
@@ -406,8 +377,7 @@ export default function InputSection({
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
-      setIsProcessing(true);
-      setIsLoading(true);
+      setLoading(true);
       
       toast({
         title: "Processing your file",
@@ -419,7 +389,7 @@ export default function InputSection({
       const fileExt = file.name.split('.').pop()?.toLowerCase() || '';
       
       try {
-        // Instead of server upload, process in the browser
+        // Process file based on type
         if (fileExt === 'csv') {
           const text = await file.text();
           // Parse CSV in the browser
@@ -444,30 +414,22 @@ export default function InputSection({
           }
           
           // Process the data
-          handleDataProcessed(data, file);
+          await handleDataProcessed(data, file);
           
-          toast({
-            title: "Analysis complete!",
-            description: "Your data has been successfully processed.",
-            duration: 3000,
-          });
         } else if (fileExt === 'xlsx' || fileExt === 'xls') {
-          // For Excel files, we'll need to use a library like xlsx
-          // Since we can't add libraries here, we'll send a message about it
+          // Placeholder for Excel processing
           toast({
             title: "Excel processing",
             description: "Excel processing is handled in memory but requires the xlsx library.",
             duration: 5000,
           });
           
-          // Placeholder for Excel processing
-          // In a real implementation, you'd use the xlsx library here
           const mockData = [
             { Date: "2023-01-01", Open: 100, High: 110, Low: 95, Close: 105 },
             { Date: "2023-01-02", Open: 105, High: 115, Low: 100, Close: 110 }
           ];
           
-          handleDataProcessed(mockData, file);
+          await handleDataProcessed(mockData, file);
         } else if (fileExt === 'pdf') {
           toast({
             title: "PDF processing",
@@ -475,13 +437,12 @@ export default function InputSection({
             duration: 5000,
           });
           
-          // Placeholder for PDF processing
           const mockData = [
             { Column1: "Data1", Column2: 10 },
             { Column1: "Data2", Column2: 20 }
           ];
           
-          handleDataProcessed(mockData, file);
+          await handleDataProcessed(mockData, file);
         }
       } catch (error) {
         console.error('Error processing file:', error);
@@ -493,8 +454,7 @@ export default function InputSection({
           duration: 5000,
         });
       } finally {
-        setIsProcessing(false);
-        setIsLoading(false);
+        setLoading(false);
       }
     }
   };
@@ -535,7 +495,7 @@ export default function InputSection({
           Upload your CSV, Excel or PDF files to start analyzing your data
         </p>
 
-        {/* File Upload Area - Modify to use direct file input instead of FileUpload component */}
+        {/* File Upload Area */}
         <div className="relative">
           <div className="bg-black/20 border-2 border-dashed border-white/20 rounded-2xl p-8 hover:border-blue-500/50 transition-colors">
             <input
@@ -543,6 +503,7 @@ export default function InputSection({
               accept=".csv,.xlsx,.xls,.pdf"
               onChange={handleFileChange}
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              disabled={isLoading}
             />
             <div className="flex flex-col items-center justify-center text-center">
               <FileText className="h-10 w-10 text-blue-400 mb-2" />
@@ -577,11 +538,11 @@ export default function InputSection({
         </div>
 
         {/* Data Type Indicators */}
-        {parsedData.length > 0 && (
+        {currentFile && (
           <div className="space-y-3">
             <p className="text-sm font-medium text-white/60">Detected Data Type:</p>
             <div className="flex items-center space-x-3">
-              {isStockData ? (
+              {currentFile.isStockData ? (
                 <div className="flex items-center space-x-2 bg-green-500/10 text-green-400 rounded-xl px-4 py-2">
                   <CandlestickChart className="w-4 h-4" />
                   <span className="text-sm font-medium">Stock Data</span>
@@ -597,7 +558,7 @@ export default function InputSection({
         )}
 
         {/* Year Selection for Stock Data */}
-        {isStockData && availableYears.length > 0 && (
+        {currentFile?.isStockData && availableYears.length > 0 && (
           <div className="space-y-3">
             <p className="text-sm font-medium text-white/60">Filter by Year:</p>
             <div className="flex flex-wrap gap-2">
@@ -614,9 +575,9 @@ export default function InputSection({
               {availableYears.map((year) => (
                 <button
                   key={year}
-                  onClick={() => handleYearChange(year)}
+                  onClick={() => handleYearChange(year.toString())}
                   className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                    selectedYear === year
+                    selectedYear === year.toString()
                       ? "bg-blue-500 text-white"
                       : "bg-white/5 text-white/80 hover:bg-white/10"
                   }`}
@@ -635,8 +596,8 @@ export default function InputSection({
             animate={{ opacity: 1, y: 0 }}
             className="flex items-center space-x-2 bg-red-500/10 text-red-400 rounded-xl p-4"
           >
-            {/* <AlertCircle className="w-5 h-5 flex-shrink-0" /> */}
-            <p className="text-sm"></p>
+            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <p className="text-sm">{error}</p>
           </motion.div>
         )}
       </motion.div>
@@ -655,8 +616,8 @@ export default function InputSection({
         </motion.div>
       )}
 
-      {/* Backend Processing Indicator - show when data is loaded */}
-      {parsedData.length > 0 && !isLoading && !isAnalyzing && (
+      {/* Backend Processing Indicator */}
+      {currentFile && !isLoading && !isAnalyzing && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -700,18 +661,18 @@ export default function InputSection({
       {/* Render file type helpers */}
       {renderFileTypeHelper()}
       
-      
-      {parsedData.length > 0 && !isLoading && (
+      {/* File loaded success indicator */}
+      {currentFile && !isLoading && (
         <div className="mt-6 bg-black/30 rounded-lg p-4 border border-white/10">
           <h3 className="text-lg font-medium text-white mb-2 flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-green-500" />
             Data Loaded Successfully
           </h3>
           <p className="text-white/70 text-sm mb-2">
-            {parsedData.length} rows detected
+            {currentFile.rowCount} rows detected • {currentFile.name}
           </p>
           <div className="flex flex-wrap gap-2">
-            {isStockData && parsedData.length > 0 && (parsedData as StockData[]).length > 0 && "Date" in (parsedData[0] as any) && (
+            {currentFile.isStockData ? (
               <>
                 <span className="px-2 py-1 bg-gray-800 rounded text-xs text-white/80">Date</span>
                 <span className="px-2 py-1 bg-gray-800 rounded text-xs text-white/80">Open</span>
@@ -719,6 +680,12 @@ export default function InputSection({
                 <span className="px-2 py-1 bg-gray-800 rounded text-xs text-white/80">Low</span>
                 <span className="px-2 py-1 bg-gray-800 rounded text-xs text-white/80">Close</span>
               </>
+            ) : (
+              rawData.length > 0 && Object.keys(rawData[0]).map((key) => (
+                <span key={key} className="px-2 py-1 bg-gray-800 rounded text-xs text-white/80">
+                  {key}
+                </span>
+              ))
             )}
           </div>
         </div>
