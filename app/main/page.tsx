@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import OutputDisplay from "@/components/output-display";
-import InputSection, { FileStorageProvider } from "@/components/input-section";
+import InputSection from "@/components/input-section";
 import AIAnalysisPanel from "@/components/AIAnalysisPanel";
 import { ChartData, AnalyticsResult } from "@/types";
 import StarryBackground from "@/components/starry-background";
@@ -1180,9 +1180,8 @@ ${result?.insights?.queryResponse?.answer ? '\n**Additional Insights:**\n' + res
                       transition={{ duration: 0.5, delay: 0.2 }}
                       className="h-full"
                     >
-                      <FileStorageProvider>
                         <InputSection onResultReceived={handleDataAnalysis} />
-                      </FileStorageProvider>
+                     
                     </motion.div>
                   </div>
                 </div>
