@@ -13,15 +13,16 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`min-h-screen bg-black ${inter.className}`}>
+    <div className={`min-h-screen bg-gray-900 ${inter.className}`}>
       <div className="flex">
         <Sidebar />
         
-        {/* Remove left padding from main content when it touches the sidebar */}
-        <main className="flex-1 md:ml-64 min-h-screen bg-gray-900">
-          
+        {/* Main content with matching background */}
+        <main className="flex-1 md:ml-72 min-h-screen bg-gray-900">
+          <div className="p-6 md:p-8 lg:p-10 max-w-7xl mx-auto">
+            <PageTitle />
             {children}
-        
+          </div>
         </main>
       </div>
     </div>

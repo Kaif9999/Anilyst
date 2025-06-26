@@ -11,7 +11,11 @@ import {
   ChevronRight,
   Menu,
   X,
-  CheckCircle
+  CheckCircle,
+  BarChart3,
+  TrendingUp,
+  FileText,
+  Bot
 } from 'lucide-react';
 import { useFileStore } from '@/store/file-store';
 import UploadModal from './upload-modal';
@@ -48,11 +52,11 @@ export default function Sidebar() {
   
   // Define navigation items for consistent reference
   const navItems = [
-    { name: 'Dashboard', path: '/dashboard' },
-    { name: 'Visualizations', path: '/dashboard/visualizations' },
-    { name: 'Analysis', path: '/dashboard/analysis' },
-    { name: 'Reports Analysis', path: '/dashboard/reports-analysis' },
-    { name: 'Anilyst Agent', path: '/dashboard/agent', icon: 'agent' }
+    { name: 'Dashboard', path: '/dashboard', icon: BarChart3 },
+    { name: 'Visualizations', path: '/dashboard/visualizations', icon: TrendingUp },
+    { name: 'Analysis', path: '/dashboard/analysis', icon: Brain },
+    { name: 'Reports Analysis', path: '/dashboard/reports-analysis', icon: FileText },
+    { name: 'Anilyst Agent', path: '/dashboard/agent', icon: Bot, special: true }
   ];
   
   // Check if a path is currently active
@@ -80,17 +84,17 @@ export default function Sidebar() {
       {isMobile && (
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="fixed z-30 top-1/2 -translate-y-1/2 left-0 bg-gray-800 rounded-r-lg p-2 shadow-lg"
+          className="fixed z-30 top-6 left-4 bg-gray-800 hover:bg-gray-700 rounded-lg p-2 shadow-lg transition-colors"
           aria-label="Toggle Menu"
         >
-          <ChevronRight className="w-5 h-5 text-white" />
+          <Menu className="w-5 h-5 text-white" />
         </button>
       )}
       
       {/* Mobile Backdrop */}
       {isMobile && isMobileMenuOpen && (
         <div 
-          className="fixed inset-0 bg-black/50 z-30"
+          className="fixed inset-0 bg-black/60 z-30 backdrop-blur-sm"
           onClick={() => setIsMobileMenuOpen(false)}
         ></div>
       )}
@@ -103,76 +107,76 @@ export default function Sidebar() {
               ? 'translate-x-0'
               : '-translate-x-full' 
             : 'translate-x-0'
-        } fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-300 ease-in-out min-h-screen flex flex-col bg-black text-white px-3 pt-4 pb-4 min-w-64`}
+        } fixed inset-y-0 left-0 z-40 w-72 transition-transform duration-300 ease-in-out min-h-screen flex flex-col bg-gray-900 border-r border-gray-700 text-white`}
       >
         {/* Mobile close button */}
         {isMobile && (
           <button 
             onClick={() => setIsMobileMenuOpen(false)}
-            className="absolute top-4 right-4"
+            className="absolute top-4 right-4 p-2 hover:bg-gray-800 rounded-lg transition-colors"
             aria-label="Close Menu"
           >
-            <X className="w-6 h-6 text-white" />
+            <X className="w-5 h-5 text-gray-400" />
           </button>
         )}
         
         {/* Top section - Logo */}
-        <div className="flex items-center mb-10 mt-2">
-          <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-600 to-purple-600 flex items-center justify-center mr-3">
-            <Brain className="w-7 h-7 text-white" />
+        <div className="flex items-center px-6 py-6 border-b border-gray-700">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-3 shadow-lg">
+            <Brain className="w-6 h-6 text-white" />
           </div>
-          <span className="text-2xl font-bold">Anilyst</span>
+          <span className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+            Anilyst
+          </span>
         </div>
         
         {/* Main navigation */}
-        <nav className="flex flex-col space-y-1">
-          {navItems.map((item) => (
-            <Link key={item.name} href={item.path}>
-              <div 
-                className={`pl-3 pt-3 pb-3 transition-colors ${
-                  isActive(item.path)
-                    ? 'bg-gray-900 text-white rounded-l-xl pr-6 relative -mr-3'
-                    : 'text-white/80 hover:bg-white/15 rounded-xl pr-3'
-                }`}
-                onClick={() => handleItemClick(item.path)}
-              >
-                {/* Active */}
-                {isActive(item.path) && (
-                  <div className="absolute top-0 bottom-0 right-0 w-5 bg-gray-900" style={{ right: "-5px" }}></div>
-                )}
-                
-                {item.name === 'Anilyst Agent' ? (
-                  <div className="flex items-center relative z-10">
-                    <div className="w-7 h-7 bg-gradient-to-r from-blue-400 to-cyan-300 rounded-sm flex items-center justify-center mr-2">
-                      <div className="w-3 h-3 bg-white rounded-full"></div>
-                    </div>
-                    <span className="text-2xl font-medium">{item.name}</span>
+        <nav className="flex-1 px-4 py-6">
+          <div className="space-y-2">
+            {navItems.map((item) => {
+              const IconComponent = item.icon;
+              return (
+                <Link key={item.name} href={item.path}>
+                  <div 
+                    className={`flex items-center px-4 py-3 rounded-xl transition-all duration-200 group ${
+                      isActive(item.path)
+                        ? 'bg-gray-700 text-white shadow-lg'
+                        : 'text-gray-300 hover:bg-gray-800 hover:text-white'
+                    }`}
+                    onClick={() => handleItemClick(item.path)}
+                  >
+                    {item.special ? (
+                      <div className="w-6 h-6 bg-gradient-to-r from-blue-400 to-cyan-400 rounded-lg flex items-center justify-center mr-3">
+                        <IconComponent className="w-4 h-4 text-white" />
+                      </div>
+                    ) : (
+                      <IconComponent className={`w-5 h-5 mr-3 transition-colors ${
+                        isActive(item.path) ? 'text-blue-400' : 'text-gray-400 group-hover:text-blue-400'
+                      }`} />
+                    )}
+                    <span className="font-medium">{item.name}</span>
                   </div>
-                ) : (
-                  <div className="text-2xl font-medium relative z-10">
-                    {item.name}
-                  </div>
-                )}
-              </div>
-            </Link>
-          ))}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
         
         {/* Bottom section */}
-        <div className="mt-auto space-y-4">
+        <div className="px-4 pb-6 space-y-4">
           {/* Upload Data button */}
           <button
             onClick={handleUploadClick}
-            className="w-full border-2 border-gray-700 rounded-xl p-4 text-center hover:bg-white/5 transition-colors flex items-center justify-center group"
+            className="w-full bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-xl p-4 text-center transition-all duration-200 group"
           >
-            <div className="flex items-center">
+            <div className="flex items-center justify-center">
               {hasData() ? (
-                <CheckCircle className="w-6 h-6 text-green-400 mr-2" />
+                <CheckCircle className="w-5 h-5 text-green-400 mr-3" />
               ) : (
-                <Upload className="w-6 h-6 text-gray-200 group-hover:text-white mr-2 transition-colors" />
+                <Upload className="w-5 h-5 text-gray-400 group-hover:text-blue-400 mr-3 transition-colors" />
               )}
               <div className="text-left">
-                <div className="text-xl font-bold">
+                <div className="font-semibold text-white">
                   {hasData() ? 'Data Loaded' : 'Upload Data'}
                 </div>
                 {hasData() && currentFile && (
@@ -185,31 +189,33 @@ export default function Sidebar() {
           </button>
           
           {/* Upgrade box */}
-          <div className="border-2 border-gray-700 rounded-xl p-4">
-            <div className="text-center mb-2">
-               
-              <Link href="/pricing" className="text-xl font-bold flex items-center justify-center border-2 border-gray-700 rounded-xl p-2">
-               <Crown className="w-6 h-6 text-grray-200 mr-1" /> Upgrade </Link>
-              <p className="text-sm text-gray-400">
-                Get more features and unlimited access
+          <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-4">
+            <Link href="/pricing" className="block">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center">
+                  <Crown className="w-5 h-5 text-amber-400 mr-2" />
+                  <span className="font-semibold text-white">Upgrade</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </div>
+              <p className="text-sm text-gray-300 mb-3">
+                Get unlimited access and advanced features
               </p>
-            </div>
-            
-            <div className="text-sm mb-1">0/3 Analysis Free</div>
-            
-            <div className="h-1 w-full bg-gray-700 rounded-full">
-              <div className="h-1 rounded-full bg-gray-500 w-0"></div>
-            </div>
+              <div className="text-sm text-gray-400 mb-2">0/3 Analysis Free</div>
+              <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-amber-400 to-orange-400 w-0 rounded-full"></div>
+              </div>
+            </Link>
           </div>
           
           {/* User Profile */}
-          <div className="border-2 border-gray-700 rounded-xl p-3 flex items-center">
-            <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center mr-3">
-              <User className="w-6 h-6 text-gray-400" />
+          <div className="bg-gray-800 border border-gray-700 rounded-xl p-4 flex items-center">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-3">
+              <User className="w-5 h-5 text-white" />
             </div>
-            <div>
-              <div className="font-medium">Mohd Kaif</div>
-              <div className="text-xs text-gray-400">kaifmohd@gmail.com</div>
+            <div className="flex-1">
+              <div className="font-medium text-white">Mohd Kaif</div>
+              <div className="text-sm text-gray-400">kaifmohd@gmail.com</div>
             </div>
           </div>
         </div>
