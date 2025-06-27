@@ -394,10 +394,10 @@ What would you like to explore first?`,
     // Clean up any remaining agent artifacts (same as before)
     if (responseContent.includes('Thought:') || responseContent.includes('Action:')) {
       const patterns = [
-        /AI:\s*(.*?)(?:\n```|$)/s,
-        /Final Answer:\s*(.*?)(?:\n```|$)/s,
-        /Answer:\s*(.*?)(?:\n```|$)/s,
-        /Response:\s*(.*?)(?:\n```|$)/s
+        /AI:\s*(.*?)(?:\n```|$)/,
+        /Final Answer:\s*(.*?)(?:\n```|$)/,
+        /Answer:\s*(.*?)(?:\n```|$)/,
+        /Response:\s*(.*?)(?:\n```|$)/
       ];
       
       for (const pattern of patterns) {
