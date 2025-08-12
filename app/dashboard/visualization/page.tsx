@@ -296,14 +296,6 @@ export default function VisualizationPage() {
                             onFullScreen={() => setIsFullScreen(true)}
                           />
                         </div>
-                        
-                        {/* Floating action hint */}
-                        <div className="absolute top-4 right-4 bg-gray-800 rounded-lg px-3 py-2 border border-gray-700 z-10">
-                          <p className="text-xs text-white/70 flex items-center gap-2">
-                            <Eye className="w-3 h-3" />
-                            Hover to interact
-                          </p>
-                        </div>
                       </div>
                     </div>
                   </div>

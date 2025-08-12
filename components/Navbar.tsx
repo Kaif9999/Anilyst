@@ -91,23 +91,24 @@ export default function Navbar() {
               )}
             </div>
             <div className="border-t border-white/10 pt-40">
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  signIn(undefined, { callbackUrl: "/main" });
-                }}
-                className="block w-full py-3 text-center text-xl text-black bg-white hover:bg-green-400 rounded-lg mb-4"
-              >
-                Sign In
-              </button>
-              <Link
-                href="/signup"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-orange-400 rounded-lg"
-              >
-                Get Started
-              </Link>
+            
             </div>
+            <button
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                signIn(undefined, { callbackUrl: "/dashboard" });
+              }}
+              className="block w-full py-3 text-center text-xl text-black bg-white hover:bg-green-400 rounded-lg mb-4"
+            >
+              Sign In
+            </button>
+            <Link
+              href="/signup"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="block w-full py-3 text-center text-xl bg-white text-black hover:bg-orange-400 rounded-lg"
+            >
+              Get Started
+            </Link>
           </div>
         </div>
       </div>
@@ -197,13 +198,13 @@ export default function Navbar() {
               {/* CTA Buttons */}
               <div className="hidden md:flex items-center space-x-6">
                 <button
-                  onClick={() => signIn(undefined, { callbackUrl: "/main" })}
+                  onClick={() => signIn(undefined, { callbackUrl: "/dashboard" })}
                   className="px-5 py-2.5 text-white/80 hover:text-white transition-colors"
                 >
                   Sign In
                 </button>
                 <Link
-                  href="/main"
+                  href="/signup"
                   className="px-5 py-2.5 bg-white text-gray-900 rounded-xl hover:bg-white/90 transition-colors"
                 >
                   Get Started

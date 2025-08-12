@@ -100,10 +100,8 @@ export const useFileStore = create<FileStore>()(
         currentFile: null,
         rawData: [],
         chartData: null,
-        aiAnalysis: '',
         availableYears: [],
         selectedYear: 'all',
-        error: '',
       }),
       
       // Computed getters

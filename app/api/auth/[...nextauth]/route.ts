@@ -93,7 +93,6 @@ export const authOptions: AuthOptions = {
                   session_state: account.session_state,
                 },
               });
-              prisma;
             }
             return true;
           }
@@ -151,6 +150,10 @@ export const authOptions: AuthOptions = {
         token.accessToken = account.access_token;
       }
       return token;
+    },
+    async redirect({ url, baseUrl }) {
+      // Always redirect to dashboard after successful authentication
+      return `${baseUrl}/dashboard`;
     },
   },
   session: {

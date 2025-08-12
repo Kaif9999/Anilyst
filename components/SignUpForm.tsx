@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
+import { signIn } from "next-auth/react";
 
 export default function SignUpForm() {
   const [isLoading, setIsLoading] = useState(false);
@@ -25,9 +26,23 @@ export default function SignUpForm() {
       if (res.ok) {
         toast({
           title: "Success!",
-          description: "Account created successfully. Please sign in.",
+          description: "Account created successfully. Signing you in...",
         });
-        router.push("/signin?registered=true");
+
+        // Automatically sign in the user after successful registration
+        const signInResult = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+        });
+
+        if (signInResult?.ok) {
+          // Redirect to dashboard after successful sign in
+          router.push("/dashboard");
+        } else {
+          // If auto sign-in fails, redirect to sign-in page
+          router.push("/signin?registered=true&callbackUrl=/dashboard");
+        }
       } else {
         toast({
           variant: "destructive",
@@ -40,7 +55,7 @@ export default function SignUpForm() {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "An error occurred during registration",
+        description: "An unexpected error occurred",
       });
     } finally {
       setIsLoading(false);

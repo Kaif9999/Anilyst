@@ -12,6 +12,7 @@ import {
   Zap,
   Target
 } from 'lucide-react';
+import Link from 'next/link';
 
 export default function Dashboard() {
   const stats = [
@@ -150,15 +151,21 @@ export default function Dashboard() {
           <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl p-6">
             <h3 className="text-lg md:text-xl font-bold text-white mb-5">Quick Actions</h3>
             <div className="space-y-3">
-              <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-4 font-medium transition-colors text-left">
-                Create Visualization
-              </button>
-              <button className="w-full bg-white/10 hover:bg-white/20 text-white rounded-lg p-4 font-medium transition-colors text-left">
-                Run Analysis
-              </button>
-              <button className="w-full bg-white/10 hover:bg-white/20 text-white rounded-lg p-4 font-medium transition-colors text-left">
-                Generate Report
-              </button>
+              <Link href="/dashboard/visualization">
+                <button className="w-full bg-blue-600 hover:bg-blue-700 text-white rounded-lg p-4 font-medium transition-colors text-left">
+                  Create Visualization
+                </button>
+              </Link>
+              <Link href="/dashboard/analysis">
+                <button className="w-full bg-white/10 hover:bg-white/20 text-white rounded-lg p-4 font-medium transition-colors text-left">
+                  Run Analysis
+                </button>
+              </Link>
+              <Link href="/dashboard/agent">
+                <button className="w-full bg-white/10 hover:bg-white/20 text-white rounded-lg p-4 font-medium transition-colors text-left">
+                  Ask Anilyst Agent
+                </button>
+              </Link>
             </div>
           </div>
           

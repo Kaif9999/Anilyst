@@ -55,6 +55,8 @@ import {
   GitPullRequest,
   Maximize2,
   X,
+  Eye,
+  Calendar,
 } from "lucide-react";
 import regression from "regression";
 import * as ss from "simple-statistics";
@@ -392,7 +394,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
   const [showInsights, setShowInsights] = useState(false);
   const [settings, setSettings] = useState<ChartSettings>({
     showGrid: true,
-    showLegend: true,
+    showLegend: false,
     enableAnimation: true,
     chartTitle: "Data Visualization",
     xAxisLabel: "Categories",
@@ -416,6 +418,12 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
 
   // Define a ref for directly accessing the canvas element
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Add new state for data filtering
+  const [availableTimeOptions, setAvailableTimeOptions] = useState<string[]>([]);
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState<string>("all");
+  const [timeFilterType, setTimeFilterType] = useState<"year" | "month" | "week" | "none">("none");
+  const [filteredChartData, setFilteredChartData] = useState<ChartData | null>(null);
 
   // Advanced Analytics Functions
   const performAnalytics = (data: number[]): AnalyticsResult | null => {
@@ -900,21 +908,23 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
   };
 
   const handleExportData = () => {
-    if (!data.labels) return;
+    const dataToExport = filteredChartData || data;
+    if (!dataToExport.labels) return;
     
     const csvContent = [
       // Header
-      ["Category", ...data.datasets.map((ds) => ds.label)].join(","),
+      ["Category", ...dataToExport.datasets.map((ds) => ds.label)].join(","),
       // Data rows
-      ...data.labels.map((label, i) =>
-        [label, ...data.datasets.map((ds) => ds.data[i])].join(",")
+      ...dataToExport.labels.map((label, i) =>
+        [label, ...dataToExport.datasets.map((ds) => ds.data[i])].join(",")
       ),
     ].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `${settings.chartTitle}.csv`;
+    const filterSuffix = selectedTimeFilter !== "all" ? `_${selectedTimeFilter}` : "";
+    link.download = `${settings.chartTitle}${filterSuffix}.csv`;
     link.click();
   };
 
@@ -989,28 +999,227 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
     }
   }, [predictionResult, chartRef, data]);
 
+  // Function to detect time periods in labels with improved logic
+  const detectTimePeriods = (labels: string[]): { type: "year" | "month" | "week" | "none", options: string[] } => {
+    if (!labels || labels.length === 0) return { type: "none", options: [] };
+
+    const yearPattern = /\b(19|20)\d{2}\b/;
+    const monthYearPattern = /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|January|February|March|April|May|June|July|August|September|October|November|December)\s*(19|20)\d{2}\b/i;
+    const datePattern = /\d{1,2}[-/]\d{1,2}[-/]\d{2,4}/;
+
+    let dates: Date[] = [];
+    let years = new Set<string>();
+    let months = new Set<string>();
+    let weeks = new Set<string>();
+
+    // First pass: extract all valid dates and time periods
+    labels.forEach(label => {
+      const labelStr = String(label);
+      
+      // Try to parse as date first
+      const parsedDate = new Date(labelStr);
+      if (!isNaN(parsedDate.getTime())) {
+        dates.push(parsedDate);
+        years.add(parsedDate.getFullYear().toString());
+        months.add(`${parsedDate.toLocaleString('default', { month: 'short' })} ${parsedDate.getFullYear()}`);
+        
+        // Get week of year
+        const weekNumber = getWeekNumber(parsedDate);
+        weeks.add(`Week ${weekNumber} ${parsedDate.getFullYear()}`);
+        return;
+      }
+
+      // Check for month-year pattern
+      const monthYearMatch = labelStr.match(monthYearPattern);
+      if (monthYearMatch) {
+        const monthDate = new Date(labelStr);
+        if (!isNaN(monthDate.getTime())) {
+          dates.push(monthDate);
+          months.add(labelStr.trim());
+          const yearMatch = labelStr.match(yearPattern);
+          if (yearMatch) {
+            years.add(yearMatch[0]);
+          }
+        }
+        return;
+      }
+
+      // Check for year pattern
+      const yearMatch = labelStr.match(yearPattern);
+      if (yearMatch) {
+        years.add(yearMatch[0]);
+        const yearDate = new Date(`${yearMatch[0]}-01-01`);
+        dates.push(yearDate);
+        return;
+      }
+
+      // Check for date pattern
+      const dateMatch = labelStr.match(datePattern);
+      if (dateMatch) {
+        const parsedDate = new Date(dateMatch[0]);
+        if (!isNaN(parsedDate.getTime())) {
+          dates.push(parsedDate);
+          years.add(parsedDate.getFullYear().toString());
+          months.add(`${parsedDate.toLocaleString('default', { month: 'short' })} ${parsedDate.getFullYear()}`);
+          
+          const weekNumber = getWeekNumber(parsedDate);
+          weeks.add(`Week ${weekNumber} ${parsedDate.getFullYear()}`);
+        }
+      }
+    });
+
+    // If we couldn't extract any dates, return none
+    if (dates.length === 0) return { type: "none", options: [] };
+
+    // Calculate the data span
+    const sortedDates = dates.sort((a, b) => a.getTime() - b.getTime());
+    const firstDate = sortedDates[0];
+    const lastDate = sortedDates[sortedDates.length - 1];
+    const spanInDays = (lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24);
+    const spanInYears = spanInDays / 365.25;
+
+    console.log(`Data span: ${spanInDays} days (${spanInYears.toFixed(1)} years)`);
+    console.log(`Years: ${years.size}, Months: ${months.size}, Weeks: ${weeks.size}`);
+
+    // Decision logic based on data span
+    if (spanInYears >= 10) {
+      // 10+ years of data: filter by year
+      return { type: "year", options: Array.from(years).sort() };
+    } else if (spanInYears >= 2 || (spanInYears >= 1 && months.size > 12)) {
+      // 2+ years OR 1+ year with many months: filter by year
+      return { type: "year", options: Array.from(years).sort() };
+    } else if (spanInDays >= 180) {
+      // 6 months to 2 years: filter by month
+      return { type: "month", options: Array.from(months).sort() };
+    } else if (spanInDays >= 14 && weeks.size > 1) {
+      // 2 weeks to 6 months: filter by week
+      return { type: "week", options: Array.from(weeks).sort() };
+    } else if (years.size > 1) {
+      // Multiple years detected: filter by year
+      return { type: "year", options: Array.from(years).sort() };
+    } else if (months.size > 1) {
+      // Multiple months detected: filter by month
+      return { type: "month", options: Array.from(months).sort() };
+    }
+
+    return { type: "none", options: [] };
+  };
+
+  // Helper function to get week number
+  const getWeekNumber = (date: Date): number => {
+    const startOfYear = new Date(date.getFullYear(), 0, 1);
+    const dayOfYear = Math.floor((date.getTime() - startOfYear.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return Math.ceil(dayOfYear / 7);
+  };
+
+  // Function to filter data based on selected time period
+  const filterDataByTime = (data: ChartData, filter: string, filterType: "year" | "month" | "week"): ChartData => {
+    if (filter === "all" || !data.labels) return data;
+
+    const filteredIndices: number[] = [];
+    
+    data.labels.forEach((label, index) => {
+      const labelStr = String(label);
+      
+      if (filterType === "year") {
+        if (labelStr.includes(filter)) {
+          filteredIndices.push(index);
+        }
+      } else if (filterType === "month") {
+        if (labelStr.includes(filter) || labelStr === filter) {
+          filteredIndices.push(index);
+        }
+      } else if (filterType === "week") {
+        // For week filtering, check if the date falls within the selected week
+        const parsedDate = new Date(labelStr);
+        if (!isNaN(parsedDate.getTime())) {
+          const weekNumber = getWeekNumber(parsedDate);
+          const weekString = `Week ${weekNumber} ${parsedDate.getFullYear()}`;
+          if (weekString === filter) {
+            filteredIndices.push(index);
+          }
+        }
+      }
+    });
+
+    return {
+      labels: filteredIndices.map(i => data.labels![i]),
+      datasets: data.datasets.map(dataset => ({
+        ...dataset,
+        data: filteredIndices.map(i => dataset.data[i])
+      }))
+    };
+  };
+
+  // Update useEffect to detect time periods and set up filtering
+  useEffect(() => {
+    if (data && data.labels) {
+      const { type, options } = detectTimePeriods(data.labels);
+      setTimeFilterType(type);
+      setAvailableTimeOptions(options);
+      setSelectedTimeFilter("all");
+      
+      // Set initial filtered data
+      setFilteredChartData(data);
+    }
+  }, [data]);
+
+  // Update filtered data when filter changes
+  useEffect(() => {
+    if (data && timeFilterType !== "none") {
+      const filtered = filterDataByTime(data, selectedTimeFilter, timeFilterType);
+      setFilteredChartData(filtered);
+    } else {
+      setFilteredChartData(data);
+    }
+  }, [data, selectedTimeFilter, timeFilterType]);
+
+  // Update useEffect to handle sorting with filtered data
+  useEffect(() => {
+    if (filteredChartData) {
+      const sorted = sortData(filteredChartData, sortOrder);
+      setSortedData(sorted);
+    }
+  }, [filteredChartData, sortOrder]);
+
+  // Update useEffect to use filtered data for analytics
+  useEffect(() => {
+    if (filteredChartData?.datasets[0]?.data) {
+      // Detect if we're showing all years by checking the number of labels
+      setIsShowingAllYears(Boolean(filteredChartData.labels && filteredChartData.labels.length > 15));
+      
+      const numericData = filteredChartData.datasets[0].data.filter((d): d is number => typeof d === "number");
+      const analyticsResult = performAnalytics(numericData);
+      if (analyticsResult) {
+        setAnalytics(analyticsResult);
+        setInsights(generateInsights(analyticsResult));
+        setTimeSeriesAnalysis(analyzeTimeSeries(numericData));
+      }
+    }
+  }, [filteredChartData]);
+
   return (
     <motion.div
-      className="flex-grow space-y-8 mb-8"
+      className="flex-grow space-y-6 mb-8"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
     >
       <motion.div
-        className="backdrop-blur-md bg-white bg-opacity-10 rounded-2xl overflow-hidden shadow-lg relative border border-white/10"
+        className="bg-gray-900 rounded-xl overflow-hidden shadow-lg relative border border-gray-700"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
         {/* Chart Header */}
-        <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700 flex justify- items-end space-x-4">
-          <h2 className="text-2xl font-semibold text-blue-400">
+        <div className="p-4 bg-gray-800 border-b border-gray-700 flex justify-between items-center">
+          <h2 className="text-xl font-semibold text-white">
             Data Visualization
           </h2>
-          <div className="pl-64 flex space-x-2">
+          <div className="flex space-x-2">
             <motion.button
               onClick={handleDownload}
-              className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white"
+              className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Download as PNG"
@@ -1019,7 +1228,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
             </motion.button>
             <motion.button
               onClick={handleExportData}
-              className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 text-white"
+              className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Export Data as CSV"
@@ -1028,9 +1237,9 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
             </motion.button>
             <motion.button
               onClick={() => setShowSettings(!showSettings)}
-              className={`p-2 rounded-full ${
-                showSettings ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"
-              } text-white`}
+              className={`p-2 rounded-lg transition-colors ${
+                showSettings ? "bg-blue-600 text-white" : "bg-gray-700 hover:bg-gray-600 text-white"
+              }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Chart Settings"
@@ -1039,9 +1248,9 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
             </motion.button>
             <motion.button
               onClick={() => setShowInsights(!showInsights)}
-              className={`p-2 rounded-full ${
-                showInsights ? "bg-blue-600" : "bg-gray-700 hover:bg-gray-600"
-              } text-white`}
+              className={`p-2 rounded-lg transition-colors ${
+                showInsights ? "bg-blue-600 text-white" : "bg-gray-700 hover:bg-gray-600 text-white"
+              }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Show AI Insights"
@@ -1052,11 +1261,11 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
               onClick={() =>
                 setSettings((s) => ({ ...s, showTrendline: !s.showTrendline }))
               }
-              className={`p-2 rounded-full ${
+              className={`p-2 rounded-lg transition-colors ${
                 settings.showTrendline
-                  ? "bg-blue-600"
-                  : "bg-gray-700 hover:bg-gray-600"
-              } text-white`}
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 hover:bg-gray-600 text-white"
+              }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Show Trendline"
@@ -1067,11 +1276,11 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
               onClick={() =>
                 setSettings((s) => ({ ...s, showForecast: !s.showForecast }))
               }
-              className={`p-2 rounded-full ${
+              className={`p-2 rounded-lg transition-colors ${
                 settings.showForecast
-                  ? "bg-blue-600"
-                  : "bg-gray-700 hover:bg-gray-600"
-              } text-white`}
+                  ? "bg-blue-600 text-white"
+                  : "bg-gray-700 hover:bg-gray-600 text-white"
+              }`}
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               title="Show Forecast"
@@ -1083,7 +1292,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
 
         {/* Settings Panel */}
         {showSettings && (
-          <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
+          <div className="p-4 bg-gray-800 border-b border-gray-700">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <input
                 type="text"
@@ -1092,7 +1301,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                   setSettings({ ...settings, chartTitle: e.target.value })
                 }
                 placeholder="Chart Title"
-                className="bg-gray-700 text-white px-3 py-2 rounded-lg"
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
               />
               <input
                 type="text"
@@ -1101,7 +1310,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                   setSettings({ ...settings, xAxisLabel: e.target.value })
                 }
                 placeholder="X-Axis Label"
-                className="bg-gray-700 text-white px-3 py-2 rounded-lg"
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
               />
               <input
                 type="text"
@@ -1110,7 +1319,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                   setSettings({ ...settings, yAxisLabel: e.target.value })
                 }
                 placeholder="Y-Axis Label"
-                className="bg-gray-700 text-white px-3 py-2 rounded-lg"
+                className="bg-gray-700 text-white px-3 py-2 rounded-lg border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none"
               />
               <label className="flex items-center space-x-2 text-white">
                 <input
@@ -1119,7 +1328,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                   onChange={(e) =>
                     setSettings({ ...settings, showGrid: e.target.checked })
                   }
-                  className="form-checkbox"
+                  className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                 />
                 <span>Show Grid</span>
               </label>
@@ -1130,7 +1339,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                   onChange={(e) =>
                     setSettings({ ...settings, showLegend: e.target.checked })
                   }
-                  className="form-checkbox"
+                  className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                 />
                 <span>Show Legend</span>
               </label>
@@ -1144,7 +1353,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                       enableAnimation: e.target.checked,
                     })
                   }
-                  className="form-checkbox"
+                  className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
                 />
                 <span>Enable Animation</span>
               </label>
@@ -1154,7 +1363,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
 
         {/* AI Insights Panel */}
         {showInsights && insights.length > 0 && (
-          <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
+          <div className="p-4 bg-gray-800 border-b border-gray-700">
             <h3 className="text-lg font-semibold text-white mb-3">
               AI Insights
             </h3>
@@ -1162,7 +1371,7 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
               {insights.map((insight, index) => (
                 <motion.div
                   key={index}
-                  className="bg-gray-800 bg-opacity-50 rounded-lg p-4"
+                  className="bg-gray-700 rounded-lg p-4 border border-gray-600"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
@@ -1177,14 +1386,14 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                     {insight.type === "pattern" && (
                       <Brain className="w-4 h-4 text-purple-400" />
                     )}
-                    <h4 className="text-white font-semibold">
+                    <h4 className="text-white font-medium">
                       {insight.title}
                     </h4>
                   </div>
-                  <p className="text-gray-300 text-sm">{insight.description}</p>
-                  <div className="mt-2 flex items-center space-x-2">
+                  <p className="text-gray-300 text-sm mb-2">{insight.description}</p>
+                  <div className="flex items-center space-x-2">
                     <div className="text-xs text-gray-400">Confidence:</div>
-                    <div className="flex-1 bg-gray-700 rounded-full h-1">
+                    <div className="flex-1 bg-gray-600 rounded-full h-1">
                       <div
                         className="bg-blue-500 rounded-full h-1"
                         style={{ width: `${insight.confidence * 100}%` }}
@@ -1202,13 +1411,13 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
 
         {/* Time Series Analysis Panel */}
         {timeSeriesAnalysis && chartType === "line" && (
-          <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
+          <div className="p-4 bg-gray-800 border-b border-gray-700">
             <h3 className="text-lg font-semibold text-white mb-3">
               Time Series Analysis
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-gray-800 bg-opacity-50 rounded-lg p-4">
-                <h4 className="text-white font-semibold mb-2">Trend</h4>
+              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                <h4 className="text-white font-medium mb-2">Trend</h4>
                 <p className="text-gray-300 text-sm">
                   Type: {timeSeriesAnalysis.trend.type}
                   <br />
@@ -1217,8 +1426,8 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                   R²: {timeSeriesAnalysis.trend.r2.toFixed(3)}
                 </p>
               </div>
-              <div className="bg-gray-800 bg-opacity-50 rounded-lg p-4">
-                <h4 className="text-white font-semibold mb-2">Seasonality</h4>
+              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                <h4 className="text-white font-medium mb-2">Seasonality</h4>
                 <p className="text-gray-300 text-sm">
                   {timeSeriesAnalysis.seasonality.detected ? (
                     <>
@@ -1235,8 +1444,8 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                   )}
                 </p>
               </div>
-              <div className="bg-gray-800 bg-opacity-50 rounded-lg p-4">
-                <h4 className="text-white font-semibold mb-2">
+              <div className="bg-gray-700 rounded-lg p-4 border border-gray-600">
+                <h4 className="text-white font-medium mb-2">
                   Quality Metrics
                 </h4>
                 <p className="text-gray-300 text-sm">
@@ -1256,74 +1465,14 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
 
         {/* Chart Container */}
         <div className="p-6">
-          <div className={`${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'overflow-x-auto' : ''}`}>
-            <div className={`chart-container relative bg-gray-900 rounded-lg p-4 border border-gray-800 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[1200px]' : ''} h-[500px]`}>
-              {renderChart()}
-            </div>
+          <div className="chart-container relative bg-black rounded-lg p-4 border border-gray-700 h-[500px]">
+            {renderChart()}
           </div>
         </div>
 
-        {/* Data Controls */}
-        <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
-          <div className="flex flex-wrap gap-2 justify-center">
-            <motion.button
-              onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
-              className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
-                sortOrder === "asc"
-                  ? "bg-blue-600"
-                  : "bg-gray-700 hover:bg-gray-600"
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <SortAsc className="w-4 h-4" />
-              <span>Sort Ascending</span>
-            </motion.button>
-            <motion.button
-              onClick={() =>
-                setSortOrder(sortOrder === "desc" ? "none" : "desc")
-              }
-              className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
-                sortOrder === "desc"
-                  ? "bg-blue-600"
-                  : "bg-gray-700 hover:bg-gray-600"
-              }`}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <SortDesc className="w-4 h-4" />
-              <span>Sort Descending</span>
-            </motion.button>
-          </div>
-        </div>
-
-        {/* Color Scheme Buttons */}
-        <div className="p-4 bg-black bg-opacity-30 border-b border-gray-700">
-          <div className="flex flex-wrap gap-2 justify-center">
-            {Object.keys(colorSchemes).map((scheme) => (
-              <motion.button
-                key={scheme}
-                onClick={() =>
-                  setSelectedColorScheme(scheme as keyof typeof colorSchemes)
-                }
-                className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
-                  selectedColorScheme === scheme
-                    ? "bg-gradient-to-r from-blue-600 to-purple-600"
-                    : "bg-gray-700 hover:bg-gray-600"
-                }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Palette className="w-4 h-4" />
-                <span className="capitalize">{scheme}</span>
-              </motion.button>
-            ))}
-          </div>
-        </div>
-
-        {/* Chart Type Buttons */}
-        <div className="p-4 bg-black bg-opacity-30 relative z-10">
-          <div className="flex flex-wrap gap-2 justify-center">
+        {/* Chart Type Controls */}
+        <div className="p-4 bg-gray-800 border-t border-gray-700">
+          <div className="flex flex-wrap gap-2 justify-center mb-4">
             {Object.entries(chartComponents).map(([type, _]) => {
               const Icon =
                 chartIcons[type as keyof typeof chartIcons] || Activity;
@@ -1331,13 +1480,13 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
                 <motion.button
                   key={type}
                   onClick={() => setChartType(type as ExtendedChartType)}
-                  className={`px-4 py-2 rounded-full text-white transition-colors flex items-center space-x-2 ${
+                  className={`px-3 py-2 rounded-lg text-white transition-colors flex items-center space-x-2 text-sm ${
                     chartType === type
-                      ? "bg-gradient-to-r from-blue-600 to-purple-600"
+                      ? "bg-blue-600"
                       : "bg-gray-700 hover:bg-gray-600"
                   }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                 >
                   <Icon className="w-4 h-4" />
                   <span className="capitalize">{type}</span>
@@ -1345,26 +1494,135 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
               );
             })}
           </div>
+
+          {/* Color Schemes */}
+          <div className="flex flex-wrap gap-2 justify-center mb-4">
+            {Object.keys(colorSchemes).map((scheme) => (
+              <motion.button
+                key={scheme}
+                onClick={() =>
+                  setSelectedColorScheme(scheme as keyof typeof colorSchemes)
+                }
+                className={`px-3 py-2 rounded-lg text-white transition-colors flex items-center space-x-2 text-sm ${
+                  selectedColorScheme === scheme
+                    ? "bg-purple-600"
+                    : "bg-gray-700 hover:bg-gray-600"
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Palette className="w-4 h-4" />
+                <span className="capitalize">{scheme}</span>
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Sort Controls */}
+          <div className="flex gap-2 justify-center">
+            <motion.button
+              onClick={() => setSortOrder(sortOrder === "asc" ? "none" : "asc")}
+              className={`px-3 py-2 rounded-lg text-white transition-colors flex items-center space-x-2 text-sm ${
+                sortOrder === "asc"
+                  ? "bg-green-600"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <SortAsc className="w-4 h-4" />
+              <span>Sort Asc</span>
+            </motion.button>
+            <motion.button
+              onClick={() =>
+                setSortOrder(sortOrder === "desc" ? "none" : "desc")
+              }
+              className={`px-3 py-2 rounded-lg text-white transition-colors flex items-center space-x-2 text-sm ${
+                sortOrder === "desc"
+                  ? "bg-green-600"
+                  : "bg-gray-700 hover:bg-gray-600"
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <SortDesc className="w-4 h-4" />
+              <span>Sort Desc</span>
+            </motion.button>
+          </div>
         </div>
+
+        {/* Time Filter Panel */}
+        {timeFilterType !== "none" && availableTimeOptions.length > 0 && (
+          <div className="p-4 bg-gray-800 border-b border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-3 flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Time Period Filter ({timeFilterType === "year" ? "Years" : timeFilterType === "month" ? "Months" : "Weeks"})
+            </h3>
+            <div className="flex flex-wrap gap-2">
+              <motion.button
+                onClick={() => setSelectedTimeFilter("all")}
+                className={`px-4 py-2 rounded-lg text-white transition-colors flex items-center space-x-2 text-sm ${
+                  selectedTimeFilter === "all"
+                    ? "bg-blue-600"
+                    : "bg-gray-700 hover:bg-gray-600"
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Eye className="w-4 h-4" />
+                <span>Show All Data</span>
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded">
+                  {data.labels?.length || 0} points
+                </span>
+              </motion.button>
+              
+              {availableTimeOptions.map((option) => (
+                <motion.button
+                  key={option}
+                  onClick={() => setSelectedTimeFilter(option)}
+                  className={`px-3 py-2 rounded-lg text-white transition-colors text-sm ${
+                    selectedTimeFilter === option
+                      ? "bg-purple-600"
+                      : "bg-gray-700 hover:bg-gray-600"
+                  }`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {option}
+                </motion.button>
+              ))}
+            </div>
+            
+            {selectedTimeFilter !== "all" && (
+              <div className="mt-3 text-sm text-gray-400">
+                Showing {filteredChartData?.labels?.length || 0} data points for {selectedTimeFilter}
+                {timeFilterType === "year" && ` (${filteredChartData?.labels?.length || 0} entries from ${selectedTimeFilter})`}
+                {timeFilterType === "month" && ` (${filteredChartData?.labels?.length || 0} entries from ${selectedTimeFilter})`}
+                {timeFilterType === "week" && ` (${filteredChartData?.labels?.length || 0} entries from ${selectedTimeFilter})`}
+              </div>
+            )}
+            
+            {/* Data span info */}
+            <div className="mt-2 text-xs text-gray-500">
+              Filter automatically selected based on data span: {timeFilterType === "year" ? "Multi-year dataset" : timeFilterType === "month" ? "Monthly dataset" : "Weekly dataset"}
+            </div>
+          </div>
+        )}
 
         {!isFullScreen && onFullScreen && (
           <button
             onClick={onFullScreen}
-            className="absolute top-2 right-2 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-colors z-10"
+            className="absolute top-2 right-2 p-2 rounded-lg bg-gray-700 hover:bg-gray-600 text-white transition-colors z-10"
             title="Fullscreen"
           >
             <Maximize2 className="w-4 h-4" />
           </button>
         )}
 
-        {/* Add a fallback close button that only shows in fullscreen mode if no parent close handler exists
-            This acts as a safety feature in case the parent modal's close button isn't properly shown */}
         {isFullScreen && onClose && (
           <div className="absolute top-2 right-2 p-3 z-20">
-            {/* Fallback close button with visible red styling that matches the main close button */}
             <button
               onClick={onClose}
-              className="p-2 rounded-2xl bg-red-500/70 hover:bg-red-600 text-white transition-colors shadow-lg border border-red-400/30"
+              className="p-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors"
               title="Close Fullscreen"
             >
               <X className="w-5 h-5" />

@@ -870,17 +870,21 @@ export default function Home() {
                           ))}
                         </ul>
                         
-                        <div className="mt-8 relative z-10">
-                          <Link href="/main">
+                        <div className="mt-8">
+                          <Link href="/signup">
                             <motion.button 
-                              className="px-5 py-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white rounded-lg border border-white/10 flex items-center gap-2 group-hover:from-blue-500/30 group-hover:to-purple-500/30 transition-all duration-300 group/btn"
+                              className={`px-6 py-3 bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-white rounded-lg hover:from-blue-500/50 hover:to-purple-500/50 transition-all duration-300 border border-white/10 flex items-center gap-2 group/btn`}
                               whileHover={{ scale: 1.03 }}
                               transition={{ type: "spring", stiffness: 400, damping: 10 }}
                             >
-                              Try with your data <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
+                              Try {useCase.title} Features <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
                             </motion.button>
                           </Link>
                         </div>
+                        
+                        {/* Enhanced background decorative element */}
+                        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-full filter blur-3xl opacity-20 group-hover:opacity-40 transition-opacity duration-500"></div>
+                        <div className="absolute -top-20 -left-20 w-48 h-48 bg-gradient-to-r from-purple-500/5 to-blue-500/5 rounded-full filter blur-3xl opacity-0 group-hover:opacity-30 transition-opacity duration-500"></div>
                       </motion.div>
                     </div>
                   </div>
@@ -1201,7 +1205,7 @@ export default function Home() {
                         </ul>
                         
                         <div className="mt-8">
-                          <Link href="/main">
+                          <Link href="/signup">
                             <motion.button 
                               className={`px-6 py-3 bg-gradient-to-r from-blue-500/30 to-purple-500/30 text-white rounded-lg hover:from-blue-500/50 hover:to-purple-500/50 transition-all duration-300 border border-white/10 flex items-center gap-2 group/btn`}
                               whileHover={{ scale: 1.03 }}
@@ -1241,7 +1245,7 @@ export default function Home() {
                   Experience the power of intelligent data analysis with no technical skills required. 
                   Our platform adapts to your data, providing insights that drive better decisions.
                 </p>
-                <Link href="/main">
+                <Link href="/signup">
                   <motion.button 
                     className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-lg font-medium transition-all shadow-lg shadow-purple-500/20 relative overflow-hidden group/btn"
                     whileHover={{ 

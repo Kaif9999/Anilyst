@@ -15,7 +15,8 @@ import {
   BarChart3,
   TrendingUp,
   FileText,
-  Bot
+  Bot,
+  Trash2
 } from 'lucide-react';
 import { useFileStore } from '@/store/file-store';
 import UploadModal from './upload-modal';
@@ -24,21 +25,11 @@ export default function Sidebar() {
   const pathname = usePathname();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [activeItem, setActiveItem] = useState('');
   
   // Get file store state
-  const { currentFile, hasData, setUploadModalOpen } = useFileStore();
+  const { currentFile, hasData, setUploadModalOpen, clearData } = useFileStore();
 
   useEffect(() => {
-    // Set active item based on current path on first load
-    const matchingItem = navItems.find(item => pathname.includes(item.path));
-    if (matchingItem) {
-      setActiveItem(matchingItem.path);
-    } else {
-      // Default to dashboard if no match
-      setActiveItem('/dashboard');
-    }
-    
     const checkIfMobile = () => {
       setIsMobile(window.innerWidth < 768);
     };
@@ -48,7 +39,7 @@ export default function Sidebar() {
     return () => {
       window.removeEventListener('resize', checkIfMobile);
     };
-  }, [pathname]);
+  }, []);
   
   // Define navigation items for consistent reference
   const navItems = [
@@ -59,12 +50,18 @@ export default function Sidebar() {
     { name: 'Anilyst Agent', path: '/dashboard/agent', icon: Bot, special: true }
   ];
   
-  // Check if a path is currently active
-  const isActive = (path: string) => path === activeItem;
+  // Check if a path is currently active - use pathname directly
+  const isActive = (path: string) => {
+    if (path === '/dashboard') {
+      // For dashboard, only match exact path or root dashboard path
+      return pathname === '/dashboard' || pathname === '/dashboard/';
+    }
+    // For other paths, check if pathname starts with the path
+    return pathname === path || pathname.startsWith(path + '/');
+  };
   
-  // Handle item click - set active and close mobile
-  const handleItemClick = (path: string) => {
-    setActiveItem(path);
+  // Handle item click - just close mobile menu, let Next.js handle routing
+  const handleItemClick = () => {
     if (isMobile) {
       setIsMobileMenuOpen(false);
     }
@@ -75,6 +72,14 @@ export default function Sidebar() {
     setUploadModalOpen(true);
     if (isMobile) {
       setIsMobileMenuOpen(false);
+    }
+  };
+
+  // Handle remove data
+  const handleRemoveData = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent triggering the upload modal
+    if (confirm('Are you sure you want to remove the uploaded data?')) {
+      clearData();
     }
   };
   
@@ -151,7 +156,7 @@ export default function Sidebar() {
                         ? 'bg-gradient-to-r from-blue-600/80 to-purple-600/80 text-white shadow-lg shadow-blue-500/20 border border-white/10'
                         : 'text-gray-300 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent'
                     }`}
-                    onClick={() => handleItemClick(item.path)}
+                    onClick={handleItemClick}
                   >
                     {/* Hover glow effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
@@ -188,22 +193,35 @@ export default function Sidebar() {
             {/* Animated background */}
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             
-            <div className="flex items-center justify-center relative z-10">
-              {hasData() ? (
-                <CheckCircle className="w-5 h-5 text-green-400 mr-2 group-hover:scale-110 transition-transform duration-300" />
-              ) : (
-                <Upload className="w-5 h-5 text-gray-400 group-hover:text-gray-300 mr-2 transition-all duration-300 group-hover:scale-110" />
-              )}
-              <div className="text-left">
-                <div className="text-sm font-medium text-white">
-                  {hasData() ? 'Data Loaded' : 'Upload Data'}
-                </div>
-                {hasData() && currentFile && (
-                  <div className="text-xs text-green-400 truncate max-w-[140px]">
-                    {currentFile.name}
-                  </div>
+            <div className="flex items-center justify-between relative z-10">
+              <div className="flex items-center">
+                {hasData() ? (
+                  <CheckCircle className="w-5 h-5 text-green-400 mr-2 group-hover:scale-110 transition-transform duration-300" />
+                ) : (
+                  <Upload className="w-5 h-5 text-gray-400 group-hover:text-gray-300 mr-2 transition-all duration-300 group-hover:scale-110" />
                 )}
+                <div className="text-left">
+                  <div className="text-sm font-medium text-white">
+                    {hasData() ? 'Data Loaded' : 'Upload Data'}
+                  </div>
+                  {hasData() && currentFile && (
+                    <div className="text-xs text-green-400 truncate max-w-[120px]">
+                      {currentFile.name}
+                    </div>
+                  )}
+                </div>
               </div>
+              
+              {/* Remove button - only show when data is loaded */}
+              {hasData() && (
+                <button
+                  onClick={handleRemoveData}
+                  className="p-1 rounded-md bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 transition-all duration-200 group/remove"
+                  title="Remove uploaded data"
+                >
+                  <Trash2 className="w-3 h-3 text-red-400 group-hover/remove:text-red-300" />
+                </button>
+              )}
             </div>
           </button>
           
