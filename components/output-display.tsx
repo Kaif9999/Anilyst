@@ -1254,10 +1254,10 @@ export default function OutputDisplay({ data, title, predictionResult, isFullScr
           </div>
         )}
 
-        {/* Chart Container with conditional styling for horizontal scrolling */}
-        <div className="p-6 bg-gradient-to-br from-gray-900/90 to-black/90 overflow-hidden rounded-2xl">
+        {/* Chart Container */}
+        <div className="p-6">
           <div className={`${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'overflow-x-auto' : ''}`}>
-            <div className={`chart-container relative bg-black/40 p-6 border border-white/5 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[12800px]' : ''} h-[500px]`}>
+            <div className={`chart-container relative bg-gray-900 rounded-lg p-4 border border-gray-800 ${(isShowingAllYears && (chartType === 'bar' || chartType === 'horizontalBar' || chartType === 'stackedBar')) ? 'min-w-[1200px]' : ''} h-[500px]`}>
               {renderChart()}
             </div>
           </div>
