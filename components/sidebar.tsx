@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import Image from 'next/image';
 import { 
   Brain,
   Upload,
@@ -23,6 +25,7 @@ import UploadModal from './upload-modal';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
@@ -81,6 +84,12 @@ export default function Sidebar() {
     if (confirm('Are you sure you want to remove the uploaded data?')) {
       clearData();
     }
+  };
+
+  // Function to truncate text with ellipsis
+  const truncateText = (text: string, maxLength: number) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
   };
   
   return (
@@ -253,12 +262,31 @@ export default function Sidebar() {
             {/* Subtle animated background */}
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center mr-3 shadow-lg shadow-blue-500/20 relative z-10 group-hover:scale-110 transition-transform duration-300">
-              <User className="w-4 h-4 text-white" />
+            {/* User Avatar */}
+            <div className="w-8 h-8 rounded-full overflow-hidden mr-3 shadow-lg shadow-blue-500/20 relative z-10 group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+              {session?.user?.image ? (
+                <Image
+                  src={session.user.image}
+                  alt={session.user.name || 'User'}
+                  width={32}
+                  height={32}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                  <User className="w-4 h-4 text-white" />
+                </div>
+              )}
             </div>
-            <div className="flex-1 relative z-10">
-              <div className="text-sm font-medium text-white">Mohd Kaif</div>
-              <div className="text-xs text-gray-400">kaifmohd@gmail.com</div>
+            
+            {/* User Info */}
+            <div className="flex-1 relative z-10 min-w-0">
+              <div className="text-sm font-medium text-white truncate">
+                {session?.user?.name ? truncateText(session.user.name, 16) : 'User'}
+              </div>
+              <div className="text-xs text-gray-400 truncate">
+                {session?.user?.email ? truncateText(session.user.email, 20) : 'user@example.com'}
+              </div>
             </div>
           </div>
         </div>
