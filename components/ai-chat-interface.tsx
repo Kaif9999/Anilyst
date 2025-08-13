@@ -909,33 +909,17 @@ Would you like to upload some data to analyze?`;
               )}
               
               <div className={`max-w-[85%] ${message.role === 'user' ? 'order-first' : ''}`}>
-                <div className={`relative rounded-3xl p-6 ${
+                <div className={`relative rounded-2xl ${
                   message.role === 'user' 
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white shadow-lg shadow-blue-500/20' 
-                    : 'bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100'
+                    ? 'bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-4' 
+                    : 'bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-6'
                 }`}>
                   <div className="prose prose-sm max-w-none text-current prose-headings:text-current prose-strong:text-current prose-code:text-current">
                     <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
                   </div>
                   
-                  {/* Data Context Display */}
-                  {message.dataContext && (
-                    <div className="mt-4 pt-4 border-t border-white/20">
-                      <div className="flex flex-wrap gap-2 mb-2">
-                        <Badge variant="secondary" className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-xs">
-                          <FileText className="h-3 w-3 mr-1" />
-                          {message.dataContext.fileName}
-                        </Badge>
-                        <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30 text-xs">
-                          <Database className="h-3 w-3 mr-1" />
-                          {message.dataContext.rowCount.toLocaleString()} rows
-                        </Badge>
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Analysis Results */}
-                  {message.analysis_results && (
+                  {/* Only show analysis results for assistant messages - removed data context section */}
+                  {message.role === 'assistant' && message.analysis_results && (
                     <div className="mt-4 pt-4 border-t border-white/20">
                       <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
                         <BarChart3 className="h-3 w-3 mr-1" />
@@ -944,8 +928,8 @@ Would you like to upload some data to analyze?`;
                     </div>
                   )}
                   
-                  {/* Message Footer */}
-                  <div className="flex items-center justify-between mt-4 pt-3 border-t border-white/20">
+                  {/* Simplified Message Footer - only time and copy button */}
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/20">
                     <span className="text-xs text-gray-400">
                       {new Date(message.timestamp).toLocaleTimeString([], { 
                         hour: '2-digit', 
@@ -957,7 +941,7 @@ Would you like to upload some data to analyze?`;
                       variant="ghost"
                       size="sm"
                       onClick={() => copyMessage(message.content, index)}
-                      className="h-8 w-8 p-0 text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-xl"
+                      className="h-8 w-8 p-0 rounded-xl text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
                     >
                       {copiedMessageId === index.toString() ? (
                         <Check className="h-4 w-4 text-green-400" />
