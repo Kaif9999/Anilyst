@@ -443,7 +443,7 @@ export default function Home() {
               </div>
               
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link href="/main">
+                <Link href="/dashboard">
                   <motion.button 
                     className="px-6 py-3 md:px-8 md:py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-lg font-medium transition-all inline-flex items-center gap-2 shadow-lg shadow-blue-600/20"
                     whileHover={{ 
