@@ -20,7 +20,7 @@ export const metadata: Metadata = {
         url: "/landing_page.jpg",
         width: 1200,
         height: 630,
-        alt: "Anilyst Platform Preview",
+        alt: "Anilyst Platform",
       },
     ],
     type: "website",
