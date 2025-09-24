@@ -37,11 +37,11 @@ export default function SignUpForm() {
         });
 
         if (signInResult?.ok) {
-          // Redirect to dashboard after successful sign in
+
           router.push("/dashboard");
         } else {
-          // If auto sign-in fails, redirect to sign-in page
-          router.push("/signin?registered=true&callbackUrl=/dashboard");
+
+          router.push("/signin?registered=true&callbackUrl=/dashboard/agent");
         }
       } else {
         toast({

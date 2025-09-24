@@ -96,7 +96,7 @@ export default function Navbar() {
             <button
               onClick={() => {
                 setIsMobileMenuOpen(false);
-                signIn(undefined, { callbackUrl: "/dashboard" });
+                signIn(undefined, { callbackUrl: "/dashboard/agent" });
               }}
               className="block w-full py-3 text-center text-xl text-black bg-white hover:bg-green-400 rounded-lg mb-4"
             >
@@ -198,7 +198,7 @@ export default function Navbar() {
               {/* CTA Buttons */}
               <div className="hidden md:flex items-center space-x-6">
                 <button
-                  onClick={() => signIn(undefined, { callbackUrl: "/dashboard" })}
+                  onClick={() => signIn(undefined, { callbackUrl: "/dashboard/agent" })}
                   className="px-5 py-2.5 text-white/80 hover:text-white transition-colors"
                 >
                   Sign In

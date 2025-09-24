@@ -152,8 +152,8 @@ export const authOptions: AuthOptions = {
       return token;
     },
     async redirect({ url, baseUrl }) {
-      // Always redirect to dashboard after successful authentication
-      return `${baseUrl}/dashboard`;
+
+      return `${baseUrl}/dashboard/agent`;
     },
   },
   session: {

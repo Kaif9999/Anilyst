@@ -274,17 +274,7 @@ const useCases = [
       "Identify market trends and correlations"
     ]
   },
-  {
-    title: "Health & Fitness",
-    description: "Track your progress and discover patterns in your personal health data. Perfect for health enthusiasts, trainers, and healthcare professionals who want to understand patterns in health metrics and optimize wellness programs.",
-    icon: <Heart className="w-8 h-8" />,
-    image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=600&fit=crop",
-    features: [
-      "Visualize fitness progress over time",
-      "Identify factors affecting health outcomes",
-      "Optimize workout and nutrition plans"
-    ]
-  },
+
 ];
 
 // Update userFriendlyArchitecture with more details and hover effects
@@ -399,11 +389,7 @@ export default function Home() {
 
         {/* Enhanced Hero Section */}
         <section className="min-h-screen py-10 flex items-center justify-center relative">
-          {/* Subtle floating elements */}
-          <div className="absolute w-64 h-64 border border-white/5 rounded-full top-1/4 left-1/4 animate-float-slow"></div>
-          <div className="absolute w-32 h-32 border border-white/5 rounded-full bottom-1/4 right-1/4 animate-float-medium"></div>
-          <div className="absolute w-8 h-8 bg-blue-500/10 rounded-full top-1/3 right-1/3 animate-pulse"></div>
-          <div className="absolute w-6 h-6 bg-purple-500/10 rounded-full bottom-1/3 left-1/3 animate-pulse animation-delay-2000"></div>
+        
           
           <div className="container mx-auto px-4 pt-32 pb-20">
             <motion.div
@@ -420,7 +406,7 @@ export default function Home() {
 
               <h1 className="text-4xl py-6 sm:text-5xl md:text-7xl lg:text-8xl font-bold mb-6 text-white tracking-tight relative">
                 <span className="bg-gradient-to-r from-white via-blue-100 to-white text-transparent bg-clip-text">Make Sense of Your Data</span>
-                <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full hidden md:block"></div>
+                
               </h1>
               
               <p className="text-lg sm:text-xl md:text-2xl text-gray-100 max-w-3xl mx-auto leading-relaxed mb-8 font-light px-4">
@@ -434,7 +420,7 @@ export default function Home() {
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full hover:bg-white/10 transition-all duration-300 group">
                   <CheckCircle className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
-                  <span className="text-white/80">Works with your files</span>
+                  <span className="text-white/80">Works with your data</span>
                 </div>
                 <div className="flex items-center gap-2 px-4 py-2 bg-white/5 backdrop-blur-sm border border-white/10 rounded-full hover:bg-white/10 transition-all duration-300 group">
                   <CheckCircle className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform" />
@@ -556,11 +542,7 @@ export default function Home() {
                         <Clock className="w-3.5 h-3.5" /> {feature.comingsoon}
                       </p>
                       
-                      <Link href="/waitlist">
-                        <button className="text-xs px-3 py-1 bg-white/5 hover:bg-white/10 rounded-full text-white/70 transition-colors">
-                          Get notified
-                        </button>
-                      </Link>
+                     
                     </div>
                   </motion.div>
                 ))}
@@ -569,15 +551,10 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Enhanced How It Works Section */}
+
         <section id="how-it-works" className="min-h-screen flex items-center bg-black py-32 relative">
-          {/* Background decorative elements */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-64 bg-gradient-to-b from-blue-500/5 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 w-full h-64 bg-gradient-to-t from-purple-500/5 to-transparent"></div>
-            <div className="absolute right-10 top-20 w-72 h-72 border border-blue-500/10 rounded-full"></div>
-            <div className="absolute left-10 bottom-20 w-40 h-40 border border-purple-500/10 rounded-full"></div>
-          </div>
+  
+         
           
           <div className="container mx-auto px-4 relative z-10">
             <motion.div
@@ -737,7 +714,7 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
             >
-              <Link href="/main">
+              <Link href="/dashboard/agent">
                 <motion.button
                   className="px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all shadow-lg shadow-purple-600/20 transform relative overflow-hidden group"
                   whileHover={{ 
@@ -999,7 +976,7 @@ export default function Home() {
                   {/* Interactive button at bottom */}
                   <div className="mt-4 text-center overflow-hidden h-8">
                     <div className="translate-y-8 group-hover:translate-y-0 transition-transform duration-300">
-                      <Link href="/main">
+                      <Link href="/dashboard/agent">
                         <button className="text-sm px-4 py-1.5 rounded-full bg-white/10 text-white/70 hover:bg-white/20 hover:text-white transition-colors inline-flex items-center gap-1">
                           Learn more <ChevronRight className="w-3 h-3" />
                         </button>

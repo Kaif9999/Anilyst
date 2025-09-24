@@ -39,33 +39,22 @@ export default function Footer() {
                                         About
                                     </Link>
                                 </li>
-                                <li>
-                                    <Link href="#blog" className="text-gray-400 hover:text-white transition-colors">
-                                        Blog
-                                    </Link>
-                                </li>
-                                <li>
-                                    <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                                        Careers
-                                    </Link>
-                                </li>
+                               
                             </ul>
                         </div>
                         <div>
                             <h4 className="text-white font-bold mb-4">Connect</h4>
                             <div className="flex space-x-4">
-                                <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                                <Link href="https://github.com/kaif9999/" className="text-gray-400 hover:text-white transition-colors">
                                     <Github className="w-5 h-5" />
                                 </Link>
-                                <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                                <Link href="https://x.com/kaif9998" className="text-gray-400 hover:text-white transition-colors">
                                     <Twitter className="w-5 h-5" />
                                 </Link>
-                                <Link href="#" className="text-gray-400 hover:text-white transition-colors">
-                                    <Linkedin className="w-5 h-5" />
-                                </Link>
-                                <Link href="#" className="text-gray-400 hover:text-white transition-colors">
+                               
+                                <Link href="mailto:kaifmohd5000@gmail.com?subject=Anilyst Inquiry&body=Hello,%0D%0A%0D%0AI'm interested in learning more about Anilyst." className="text-gray-400 hover:text-white transition-colors">
                                     <Mail className="w-5 h-5" />
-                                </Link>
+                                </Link> 
                             </div>
                         </div>
                     </div>
