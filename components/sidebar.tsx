@@ -49,21 +49,19 @@ export default function Sidebar() {
     { name: 'Dashboard', path: '/dashboard', icon: BarChart3 },
     { name: 'Visualizations', path: '/dashboard/visualization', icon: TrendingUp },
     { name: 'Analysis', path: '/dashboard/analysis', icon: Brain },
-    // { name: 'Reports Analysis', path: '/dashboard/reports-analysis', icon: FileText },
     { name: 'Anilyst Agent', path: '/dashboard/agent', icon: Bot, special: true }
   ];
   
-  // Check if a path is currently active - use pathname directly
+ 
   const isActive = (path: string) => {
     if (path === '/dashboard') {
-      // For dashboard, only match exact path or root dashboard path
+
       return pathname === '/dashboard' || pathname === '/dashboard/';
     }
-    // For other paths, check if pathname starts with the path
+
     return pathname === path || pathname.startsWith(path + '/');
   };
-  
-  // Handle item click - just close mobile menu, let Next.js handle routing
+
   const handleItemClick = () => {
     if (isMobile) {
       setIsMobileMenuOpen(false);

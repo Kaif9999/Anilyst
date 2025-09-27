@@ -29,7 +29,7 @@ export default function SignUpForm() {
           description: "Account created successfully. Signing you in...",
         });
 
-        // Automatically sign in the user after successful registration
+      
         const signInResult = await signIn("credentials", {
           email,
           password,
