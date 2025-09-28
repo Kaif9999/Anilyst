@@ -1035,15 +1035,7 @@ export default function Home() {
 
         {/* Enhanced Features Section */}
         <section id="features" className="min-h-screen flex items-center bg-black py-32 relative">
-          {/* Background decorative elements */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden">
-            <div className="absolute top-0 left-0 right-0 h-80 bg-gradient-to-b from-purple-900/10 to-transparent"></div>
-            <div className="absolute bottom-0 left-0 right-0 h-80 bg-gradient-to-t from-blue-900/10 to-transparent"></div>
-            <div className="absolute top-40 left-20 w-96 h-96 border border-blue-500/10 rounded-full"></div>
-            <div className="absolute bottom-40 right-20 w-72 h-72 border border-purple-500/10 rounded-full"></div>
-            <div className="absolute top-1/3 right-1/3 w-4 h-4 bg-blue-500/20 rounded-full animate-ping-slow"></div>
-            <div className="absolute bottom-1/3 left-1/3 w-3 h-3 bg-purple-500/20 rounded-full animate-ping-slow animation-delay-2000"></div>
-          </div>
+         
 
           <div className="container mx-auto px-4 relative z-10">
             <motion.div
