@@ -13,12 +13,12 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className={`min-h-screen bg-black ${inter.className}`}>
+    <div className={`min-h-screen bg-black/70 ${inter.className}`}>
       <div className="flex">
         <Sidebar />
         
         {/* Main content with matching black background */}
-        <main className="flex-1 md:ml-72 min-h-screen bg-black">
+        <main className="flex-1 md:ml-72 min-h-screen bg-black/70">
           <div className="max-w-7xl mx-auto">
             {children}
           </div>

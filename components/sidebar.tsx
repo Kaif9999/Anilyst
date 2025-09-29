@@ -119,15 +119,9 @@ export default function Sidebar() {
               ? 'translate-x-0'
               : '-translate-x-full' 
             : 'translate-x-0'
-        } fixed inset-y-0 left-0 z-40 w-64 transition-transform duration-300 ease-in-out min-h-screen flex flex-col bg-black/95 backdrop-blur-xl border-r border-white/10 text-white shadow-2xl overflow-hidden`}
+        } fixed inset-y-0 left-0 z-40 w-65 transition-transform duration-300 ease-in-out min-h-screen flex flex-col bg-black/80 backdrop-blur-xl text-white shadow-2xl overflow-hidden`}
       >
-        {/* Animated background elements matching main site */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-20 right-10 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-40 left-5 w-24 h-24 bg-purple-500/10 rounded-full blur-2xl"></div>
-          <div className="absolute top-1/2 left-10 w-2 h-2 bg-blue-400/30 rounded-full animate-pulse"></div>
-          <div className="absolute top-1/3 right-8 w-1 h-1 bg-purple-400/30 rounded-full animate-pulse"></div>
-        </div>
+      
 
         {/* Mobile close button */}
         {isMobile && (

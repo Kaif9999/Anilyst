@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -11,10 +10,12 @@ import {
   BarChart3, Brain, TrendingUp,
   Loader2, Copy, Check, Mic, MoreHorizontal,
   Sparkles, Database, FileText, Calendar,
-  Activity, PieChart, LineChart, AlertCircle
+  Activity, PieChart, LineChart, AlertCircle,
+  ArrowUp
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useFileData } from '@/hooks/use-file-data';
+import { Arrow } from '@radix-ui/react-tooltip';
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
@@ -66,23 +67,10 @@ const EXAMPLE_PROMPTS = [
     icon: <FileText className="h-5 w-5" />,
     title: "Data Quality",
     description: "Help me identify data quality issues",
-    prompt: "🔧 Help me identify and fix data quality issues including outliers, missing values, and inconsistencies"
+    prompt: " Help me identify and fix data quality issues including outliers, missing values, and inconsistencies"
   }
 ];
 
-// Animation styles for the blob
-const animationStyles = `
-@keyframes blob {
-  0% { transform: translate(0px, 0px) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-  100% { transform: translate(0px, 0px) scale(1); }
-}
-
-.animate-blob {
-  animation: blob 7s infinite;
-}
-`;
 
 export default function AgentPage() {
   const [isMounted, setIsMounted] = useState(false);
@@ -95,7 +83,7 @@ export default function AgentPage() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
 
-  // Get file data from store with comprehensive context
+
   const { 
     currentFile, 
     hasData, 
@@ -109,7 +97,7 @@ export default function AgentPage() {
     isLoading: fileLoading
   } = useFileData();
 
-  // Ensure component is mounted before rendering client-side features
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
@@ -134,7 +122,6 @@ export default function AgentPage() {
     if (!isMounted) return;
     
     const styleElement = document.createElement('style');
-    styleElement.innerHTML = animationStyles;
     document.head.appendChild(styleElement);
     
     return () => {
@@ -144,7 +131,7 @@ export default function AgentPage() {
     };
   }, [isMounted]);
 
-  // Get data columns and summary for context
+
   const getDataContext = () => {
     if (!hasData || !rawData.length) return null;
 
@@ -234,13 +221,13 @@ What would you like to explore first?`,
     setIsLoading(true);
 
     try {
-      // Prepare a comprehensive request payload that matches backend expectations
+
       const requestPayload = {
-        message: formatUserPrompt(currentInput, hasData, dataContext), // Use formatted prompt
+        message: formatUserPrompt(currentInput, hasData, dataContext), 
         
-        // Include actual data if available - this is key for the LoadData tool
+
         dataset: hasData && rawData.length > 0 ? {
-          data: rawData.slice(0, 500), // Send up to 500 rows to avoid payload size issues
+          data: rawData.slice(0, 500), 
           metadata: {
             filename: currentFile?.name || 'uploaded_data.csv',
             total_rows: rawData.length,
@@ -253,12 +240,12 @@ What would you like to explore first?`,
           }
         } : null,
         
-        // Additional context for the AI
+
         context: {
           has_uploaded_data: hasData,
           user_request_type: detectRequestType(currentInput),
           previous_analysis: aiAnalysis || null,
-          handle_parsing_errors: true // Add this flag to handle parsing errors
+          handle_parsing_errors: true 
         }
       };
 
@@ -643,7 +630,7 @@ Would you like to upload some data to analyze?`;
   // Don't render animations until mounted
   if (!isMounted) {
     return (
-      <div className="h-screen bg-black text-white flex flex-col overflow-hidden relative">
+      <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-4" />
@@ -657,29 +644,11 @@ Would you like to upload some data to analyze?`;
   // Welcome screen when no messages
   if (messages.length === 0 && !fileLoading) {
     return (
-      <div className="h-screen bg-black text-white flex flex-col overflow-hidden relative">
-        {/* Animated Background Blob */}
-        <div className="fixed inset-0 overflow-hidden pointer-events-none">
-          <div 
-            className="absolute top-[20%] left-[15%] w-96 h-96 bg-purple-600/30 rounded-full mix-blend-overlay filter blur-3xl opacity-70 animate-blob" 
-            style={{
-              transform: `translate(${mousePosition.x * 0.02}px, ${mousePosition.y * 0.02}px)`,
-              transition: 'transform 0.5s ease-out'
-            }}
-          />
-          <div 
-            className="absolute top-[50%] right-[20%] w-[28rem] h-[28rem] bg-blue-500/40 rounded-full mix-blend-overlay filter blur-3xl opacity-60 animate-blob" 
-            style={{
-              transform: `translate(${-mousePosition.x * 0.015}px, ${mousePosition.y * 0.015}px)`,
-              transition: 'transform 0.5s ease-out',
-              animationDelay: '2s'
-            }}
-          />
-          <div className="absolute bottom-[20%] left-[35%] w-[24rem] h-[24rem] bg-pink-500/35 rounded-full mix-blend-overlay filter blur-3xl opacity-50 animate-blob" style={{ animationDelay: '4s' }} />
-        </div>
+      <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
+       
 
         {/* Header */}
-        <div className="backdrop-blur-sm bg-black/40 border-b border-white/10 sticky top-0 z-10">
+        <div className="backdrop-blur-sm bg-black/70 sticky top-0 z-10">
           <div className="max-w-6xl mx-auto p-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
@@ -751,18 +720,18 @@ Would you like to upload some data to analyze?`;
                 {/* Action Buttons */}
                 <div className="absolute bottom-4 right-4 flex items-center gap-3">
                   <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10">
-                    <Mic className="h-5 w-5" />
+                    {/* <Mic className="h-5 w-5" /> */}
                   </Button>
                   <Button 
                     onClick={handleSend} 
                     disabled={!input.trim() || isLoading || fileLoading}
                     size="sm"
-                    className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl h-10 w-10 p-0 transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
+                    className=" bg-purple-700 hover:bg-purple-800  text-white rounded-xl h-10 w-10 p-0 transition-all duration-300 shadow-lg"
                   >
                     {isLoading || fileLoading ? (
                       <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      <Send className="h-5 w-5" />
+                      <ArrowUp />
                     )}
                   </Button>
                 </div>
@@ -813,52 +782,19 @@ Would you like to upload some data to analyze?`;
                 </button>
               ))}
             </div>
-
-            {/* Footer */}
-            <div className="text-center text-gray-500 text-sm mt-8">
-              <p>Press <kbd className="px-2 py-1 bg-white/10 rounded text-xs">Enter</kbd> to send • <kbd className="px-2 py-1 bg-white/10 rounded text-xs">Shift + Enter</kbd> for new line</p>
-              {hasData && (
-                <p className="mt-2 text-xs">
-                  ✅ Context: {currentFile?.name} • {currentFile?.rowCount?.toLocaleString()} rows • Ready for analysis
-                </p>
-              )}
-              {!hasData && (
-                <p className="mt-2 text-xs text-orange-400">
-                  📤 Upload data using the sidebar to enable full analysis capabilities
-                </p>
-              )}
-            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Chat interface when messages exist (continue with existing chat UI)
   return (
-    <div className="h-screen bg-black text-white flex flex-col overflow-hidden relative">
-      {/* Animated Background Blob - smaller for chat mode */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div 
-          className="absolute top-[10%] right-[10%] w-64 h-64 bg-purple-600/20 rounded-full mix-blend-overlay filter blur-3xl opacity-50 animate-blob" 
-          style={{
-            transform: `translate(${mousePosition.x * 0.01}px, ${mousePosition.y * 0.01}px)`,
-            transition: 'transform 0.5s ease-out'
-          }}
-        />
-        <div 
-          className="absolute bottom-[15%] left-[15%] w-72 h-72 bg-blue-500/25 rounded-full mix-blend-overlay filter blur-3xl opacity-40 animate-blob" 
-          style={{
-            transform: `translate(${-mousePosition.x * 0.008}px, ${mousePosition.y * 0.008}px)`,
-            transition: 'transform 0.5s ease-out',
-            animationDelay: '3s'
-          }}
-        />
-      </div>
+    <div className="h-screen  text-white flex flex-col overflow-hidden relative">
+      
 
       {/* Header */}
-      <div className="backdrop-blur-sm bg-black/50 border-b border-white/10 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto p-4">
+      <div className="backdrop-blur-sm max-h-20  sticky top-0 z-10 hidden md:block">
+        <div className="max-w-6xl mx-auto py-2 px-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
@@ -866,27 +802,13 @@ Would you like to upload some data to analyze?`;
               </div>
               <div>
                 <span className="font-semibold text-lg">Anilyst AI Agent</span>
-                {hasData && currentFile && (
-                  <p className="text-xs text-gray-400">
-                    Analyzing {currentFile.name} ({currentFile.rowCount?.toLocaleString()} rows)
-                  </p>
-                )}
+               
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
-                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                Online
-              </Badge>
+              
               <DataStatusBadge />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearChat}
-                className="text-gray-400 hover:text-white hover:bg-white/10 rounded-xl"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              
             </div>
           </div>
         </div>
@@ -1025,78 +947,23 @@ Would you like to upload some data to analyze?`;
               </Button>
             </div>
           </div>
-          
-          <div className="text-center mt-3">
-            <p className="text-xs text-gray-500">
-              Press <kbd className="px-2 py-1 bg-gray-800 rounded text-xs">Enter</kbd> to send • 
-              <kbd className="px-2 py-1 bg-gray-800 rounded text-xs ml-1">Shift + Enter</kbd> for new line
-              {hasData && (
-                <span className="ml-2">• Context: {currentFile?.name} ({currentFile?.rowCount?.toLocaleString()} rows)</span>
-              )}
-            </p>
-          </div>
+        
         </div>
       </div>
     </div>
   );
 }
 
-// Add this helper function before the handleSend function
 const formatUserPrompt = (input: string, hasData: boolean, dataContext: any): string => {
   let prompt = input.trim();
   
-  // Add context to help the agent provide better structured responses
   if (hasData && dataContext) {
     prompt += `\n\nCONTEXT: I have uploaded a dataset "${dataContext.fileName}" with ${dataContext.rowCount} rows and these columns: ${dataContext.columns.join(', ')}. Please analyze this data in your response.`;
   } else {
     prompt += `\n\nCONTEXT: I don't have any data uploaded yet. Please provide general guidance and suggest what data I should upload for better analysis.`;
   }
   
-  // Add instruction for better response format
   prompt += `\n\nINSTRUCTION: Please provide a clear, direct response without using agent thinking patterns or structured formats. Just give me the analysis and insights directly.`;
   
   return prompt;
-};
-
-// Add this as a backup if the main response fails
-
-const generateFallbackResponse = (userInput: string, hasData: boolean, dataContext: any): string => {
-  const lowerInput = userInput.toLowerCase();
-  
-  if (lowerInput.includes('invest') && lowerInput.includes('2050')) {
-    return `📈 **Long-term Investment Analysis Framework (Until 2050)**
-
-To provide specific investment advice, I'd need to analyze actual financial data. However, here's a comprehensive framework for long-term investment decisions:
-
-**Key Factors to Consider:**
-
-🔍 **Company Fundamentals:**
-• Revenue growth trends over the past 5-10 years
-• Profit margins and profitability consistency  
-• Debt-to-equity ratio and financial stability
-• Market position and competitive advantages
-
-📊 **Market Analysis:**
-• Industry growth potential until 2050
-• Technological disruption risks and opportunities
-• Regulatory environment changes
-• Global economic trends affecting the sector
-
-⚡ **Growth Drivers for 2050:**
-• Sustainability and ESG compliance
-• Digital transformation capabilities
-• Innovation and R&D investment
-• Adaptability to climate change
-
-**Recommendation:** ${hasData ? `Upload the company's financial data (stock prices, earnings, balance sheet) and I can provide specific analysis and investment recommendations based on actual data.` : `To get specific investment advice, please upload:\n• Historical stock price data\n• Financial statements\n• Market performance data\n\nThen I can analyze the specific investment opportunity.`}
-
-What company are you considering? Upload their data for detailed analysis! 💼`;
-  }
-  
-  // Add more fallback patterns as needed
-  return `I understand you're asking about "${userInput.slice(0, 100)}${userInput.length > 100 ? '...' : ''}". 
-
-${hasData ? `I can analyze your uploaded data "${dataContext?.fileName}" to provide insights.` : 'To provide specific analysis, please upload relevant data first.'}
-
-Could you rephrase your question or be more specific about what analysis you'd like?`;
 };
