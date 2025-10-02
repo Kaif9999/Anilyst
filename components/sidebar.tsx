@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -80,7 +80,7 @@ const mockChatHistory: ChatHistoryItem[] = [
   }
 ];
 
-export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
@@ -474,3 +474,19 @@ export default function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     </>
   );
 }
+
+function SidebarWithSuspense(props: SidebarProps) {
+  return (
+    <Suspense fallback={
+      <aside className="fixed inset-y-0 left-0 z-40 w-16 bg-black/40 backdrop-blur-md flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center animate-pulse">
+          <Brain className="w-6 h-6 text-white" />
+        </div>
+      </aside>
+    }>
+      <Sidebar {...props} />
+    </Suspense>
+  );
+}
+
+export default SidebarWithSuspense;

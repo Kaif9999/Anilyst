@@ -1,6 +1,5 @@
 /** @type {import('next').NextConfig} */
 const config = {
-    output: 'standalone',
     experimental: {
       serverActions: true,
     },
@@ -9,12 +8,9 @@ const config = {
     },
     images: { 
       unoptimized: true,
-      domains: ['images.unsplash.com']
+      domains: ['images.unsplash.com', 'lh3.googleusercontent.com']
     },
     
-    // Add trailing slashes to URLs
-    trailingSlash: true,
-    // Disable server components for static export
     typescript: {
       ignoreBuildErrors: true,
     }
