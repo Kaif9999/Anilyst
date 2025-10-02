@@ -8,14 +8,16 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Bot, User, Send, Trash2, 
   BarChart3, Brain, TrendingUp,
-  Loader2, Copy, Check, Mic, MoreHorizontal,
+  Loader2, Copy, Check, Mic,
   Sparkles, Database, FileText, Calendar,
   Activity, PieChart, LineChart, AlertCircle,
-  ArrowUp
+  ArrowUp, PanelRightOpen,
+  PanelLeftOpen,
+  PanelLeftClose
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useFileData } from '@/hooks/use-file-data';
-import { Arrow } from '@radix-ui/react-tooltip';
+import { useSidebar } from '@/app/dashboard/layout';
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
@@ -30,6 +32,10 @@ interface Message {
     dataType: string;
     columns: string[];
   };
+}
+
+interface AgentPageProps {
+  isSidebarCollapsed?: boolean;
 }
 
 const EXAMPLE_PROMPTS = [
@@ -71,8 +77,8 @@ const EXAMPLE_PROMPTS = [
   }
 ];
 
-
 export default function AgentPage() {
+  const { isSidebarCollapsed, toggleSidebar } = useSidebar();
   const [isMounted, setIsMounted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -82,7 +88,6 @@ export default function AgentPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { toast } = useToast();
-
 
   const { 
     currentFile, 
@@ -96,7 +101,6 @@ export default function AgentPage() {
     error,
     isLoading: fileLoading
   } = useFileData();
-
 
   useEffect(() => {
     setIsMounted(true);
@@ -131,7 +135,6 @@ export default function AgentPage() {
     };
   }, [isMounted]);
 
-
   const getDataContext = () => {
     if (!hasData || !rawData.length) return null;
 
@@ -165,8 +168,8 @@ export default function AgentPage() {
         role: 'assistant',
         content: `Hello! I can see you've uploaded "${dataContext?.fileName}" with ${dataContext?.rowCount?.toLocaleString()} rows of ${dataContext?.dataType}.
 
-**✅ Data Status:** Loaded and ready for analysis
-**📊 Data Overview:**
+** Data Status:** Loaded and ready for analysis
+** Data Overview:**
 • File: ${dataContext?.fileName}
 • Rows: ${dataContext?.rowCount?.toLocaleString()}
 • Columns: ${dataContext?.totalColumns} (${dataContext?.columns.slice(0, 5).join(', ')}${(dataContext?.totalColumns || 0) > 5 ? '...' : ''})
@@ -292,7 +295,7 @@ What would you like to explore first?`,
       }
 
       const result = await response.json();
-      console.log('✅ FastAPI response received successfully');
+      console.log(' FastAPI response received successfully');
       
       // Enhanced response cleanup for different response formats
       let responseContent = extractCleanResponse(result);
@@ -419,7 +422,7 @@ What would you like to explore first?`,
     
     // Handle parsing errors specifically
     if (errorStr.includes('parsing error') || errorStr.includes('Could not parse LLM output')) {
-      return `⚠️ I understand your question "${userInput.slice(0, 100)}${userInput.length > 100 ? '...' : ''}", but there was a formatting issue with my response.
+      return `I understand your question "${userInput.slice(0, 100)}${userInput.length > 100 ? '...' : ''}", but there was a formatting issue with my response.
 
 **What you asked about:** ${userInput}
 
@@ -443,7 +446,7 @@ Would you like to rephrase your question or upload some data for me to analyze?`
     
     // Handle other errors
     return hasData 
-      ? `❌ I apologize, but I encountered an error while analyzing "${dataContext?.fileName}".
+      ? `I apologize, but I encountered an error while analyzing "${dataContext?.fileName}".
 
 **Error Details:**
 ${errorStr}
@@ -469,7 +472,7 @@ ${errorStr}
 4. Check if the data format is compatible
 
 Please try a simpler question about your dataset.`
-      : `❌ I can help you with data analysis, but I need data to work with first.
+      : `I can help you with data analysis, but I need data to work with first.
 
 **Your Question:** "${userInput}"
 
@@ -645,11 +648,25 @@ Would you like to upload some data to analyze?`;
   if (messages.length === 0 && !fileLoading) {
     return (
       <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
-       
+
+        {isSidebarCollapsed && (
+          <button
+            onClick={toggleSidebar}
+            className="fixed bottom-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-full px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl"
+            title="Expand Sidebar"
+          >
+            <div className="flex items-center gap-2">
+              <PanelLeftClose className="w-4 h-4 text-gray-300 group-hover:text-white transition-colors" />
+ 
+            </div>
+          </button>
+        )}
 
         {/* Header */}
-        <div className="backdrop-blur-sm bg-black/70 sticky top-0 z-10">
-          <div className="max-w-6xl mx-auto p-6">
+        <div className="backdrop-blur-sm sticky top-0 z-10">
+          <div className={`mx-auto p-6 transition-all duration-300 ${
+            isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl'
+          }`}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-4">
                 <div className="relative">
@@ -678,9 +695,7 @@ Would you like to upload some data to analyze?`;
                     No Data
                   </Badge>
                 )}
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/10">
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
+                
               </div>
             </div>
           </div>
@@ -688,7 +703,9 @@ Would you like to upload some data to analyze?`;
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col justify-center items-center p-8 overflow-y-auto relative z-10">
-          <div className="max-w-4xl w-full text-center space-y-12">
+          <div className={`w-full text-center space-y-12 transition-all duration-300 ${
+            isSidebarCollapsed ? 'max-w-5xl' : 'max-w-4xl'
+          }`}>
             {/* Welcome Message */}
             <div className="space-y-6">
               <div className="relative">
@@ -789,26 +806,29 @@ Would you like to upload some data to analyze?`;
   }
 
   return (
-    <div className="h-screen  text-white flex flex-col overflow-hidden relative">
-      
+    <div className="h-screen text-white flex flex-col overflow-hidden relative">
+     
+      {isSidebarCollapsed && (
+        <button
+          onClick={toggleSidebar}
+          className="fixed top-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-xl px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl hidden md:flex"
+          title="Expand Sidebar"
+        >
+          <div className="flex items-center gap-2">
+            <PanelLeftOpen className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" />
+           
+          </div>
+        </button>
+      )}
 
       {/* Header */}
-      <div className="backdrop-blur-sm max-h-20  sticky top-0 z-10 hidden md:block">
-        <div className="max-w-6xl mx-auto py-2 px-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <Bot className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <span className="font-semibold text-lg">Anilyst AI Agent</span>
-               
-              </div>
-            </div>
+      <div className="backdrop-blur-sm max-h-20 sticky top-0 z-10 hidden md:block">
+        <div className={`mx-auto py-2 px-4 transition-all duration-300 ${
+          isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl'
+        }`}>
+          <div className="flex items-center justify-end">
             <div className="flex items-center gap-2">
-              
               <DataStatusBadge />
-              
             </div>
           </div>
         </div>
@@ -816,19 +836,15 @@ Would you like to upload some data to analyze?`;
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 relative z-10">
-        <div className="max-w-5xl mx-auto space-y-8">
+        <div className={`mx-auto space-y-8 transition-all duration-300 ${
+          isSidebarCollapsed ? 'max-w-4xl' : 'max-w-3xl'
+        }`}>
           {messages.map((message, index) => (
             <div
               key={index}
               className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {message.role === 'assistant' && (
-                <Avatar className="w-10 h-10 mt-1">
-                  <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                    <Bot className="h-5 w-5" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
+            
               
               <div className={`max-w-[85%] ${message.role === 'user' ? 'order-first' : ''}`}>
                 <div className={`relative rounded-2xl ${
@@ -842,7 +858,7 @@ Would you like to upload some data to analyze?`;
                   
                   {/* Only show analysis results for assistant messages - removed data context section */}
                   {message.role === 'assistant' && message.analysis_results && (
-                    <div className="mt-4 pt-4 border-t border-white/20">
+                    <div className="mt-4 pt-4">
                       <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
                         <BarChart3 className="h-3 w-3 mr-1" />
                         Analysis Complete
@@ -850,38 +866,10 @@ Would you like to upload some data to analyze?`;
                     </div>
                   )}
                   
-                  {/* Simplified Message Footer - only time and copy button */}
-                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-white/20">
-                    <span className="text-xs text-gray-400">
-                      {new Date(message.timestamp).toLocaleTimeString([], { 
-                        hour: '2-digit', 
-                        minute: '2-digit' 
-                      })}
-                    </span>
-                    
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyMessage(message.content, index)}
-                      className="h-8 w-8 p-0 rounded-xl text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
-                    >
-                      {copiedMessageId === index.toString() ? (
-                        <Check className="h-4 w-4 text-green-400" />
-                      ) : (
-                        <Copy className="h-4 w-4" />
-                      )}
-                    </Button>
-                  </div>
                 </div>
               </div>
               
-              {message.role === 'user' && (
-                <Avatar className="w-10 h-10 mt-1">
-                  <AvatarFallback className="bg-gray-700 text-white">
-                    <User className="h-5 w-5" />
-                  </AvatarFallback>
-                </Avatar>
-              )}
+             
             </div>
           ))}
           
@@ -916,8 +904,10 @@ Would you like to upload some data to analyze?`;
       </div>
 
       {/* Input Area */}
-      <div className="backdrop-blur-sm bg-black/20 border-t border-white/10 p-6">
-        <div className="max-w-5xl mx-auto relative">
+      <div className="backdrop-blur-sm  p-6">
+        <div className={`mx-auto relative transition-all duration-300 ${
+          isSidebarCollapsed ? 'max-w-4xl' : 'max-w-3xl'
+        }`}>
           <div className="relative group">
             <Textarea
               ref={textareaRef}

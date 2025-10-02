@@ -1,25 +1,21 @@
-// Define types for chart data
 export interface Dataset {
   label?: string;
   data: any[];
   backgroundColor?: string | string[];
   borderColor?: string | string[];
-  [key: string]: any; // Allow for additional properties
+  [key: string]: any;
 }
 
-// Function to estimate token count - crude approximation based on text length
-// OpenAI tokens are roughly 4 characters per token
 export const estimateTokenCount = (text: string): number => {
   return Math.ceil(text.length / 4);
 };
 
-// Function to trim data to fit within token limits
 export const trimDataForTokenLimit = (data: any, maxTokens: number = 100000): any => {
   let jsonData = JSON.stringify(data, null, 2);
   let estimatedTokens = estimateTokenCount(jsonData);
   
   if (estimatedTokens <= maxTokens) {
-    return data; // No trimming needed
+    return data;
   }
   
   console.log(`Data exceeds token limit: ${estimatedTokens} tokens (limit: ${maxTokens})`);
@@ -67,7 +63,6 @@ export const trimDataForTokenLimit = (data: any, maxTokens: number = 100000): an
     for (const key of keysToKeep) {
       if (typeof data[key] === 'object' && data[key] !== null) {
         if (estimateTokenCount(JSON.stringify(data[key])) > maxTokens / 2) {
-          // This nested object is too large, provide a summary instead
           trimmedData[key] = { _trimmed: true, _summary: `Original ${key} was too large (${estimateTokenCount(JSON.stringify(data[key]))} tokens)` };
         } else {
           trimmedData[key] = data[key];
