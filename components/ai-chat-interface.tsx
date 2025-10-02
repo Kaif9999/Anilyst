@@ -8,10 +8,12 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Bot, User, Send, Trash2, 
   BarChart3, Brain, TrendingUp,
-  Loader2, Copy, Check, Mic, MoreHorizontal,
+  Loader2, Copy, Check, Mic,
   Sparkles, Database, FileText, Calendar,
   Activity, PieChart, LineChart, AlertCircle,
-  ArrowUp
+  ArrowUp, PanelRightOpen,
+  PanelLeftOpen,
+  PanelLeftClose
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useFileData } from '@/hooks/use-file-data';
@@ -76,7 +78,7 @@ const EXAMPLE_PROMPTS = [
 ];
 
 export default function AgentPage() {
-  const { isSidebarCollapsed } = useSidebar();
+  const { isSidebarCollapsed, toggleSidebar } = useSidebar();
   const [isMounted, setIsMounted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -646,7 +648,19 @@ Would you like to upload some data to analyze?`;
   if (messages.length === 0 && !fileLoading) {
     return (
       <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
-       
+
+        {isSidebarCollapsed && (
+          <button
+            onClick={toggleSidebar}
+            className="fixed bottom-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-full px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl"
+            title="Expand Sidebar"
+          >
+            <div className="flex items-center gap-2">
+              <PanelLeftClose className="w-4 h-4 text-gray-300 group-hover:text-white transition-colors" />
+ 
+            </div>
+          </button>
+        )}
 
         {/* Header */}
         <div className="backdrop-blur-sm sticky top-0 z-10">
@@ -681,9 +695,7 @@ Would you like to upload some data to analyze?`;
                     No Data
                   </Badge>
                 )}
-                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-white/10">
-                  <MoreHorizontal className="h-5 w-5" />
-                </Button>
+                
               </div>
             </div>
           </div>
@@ -795,7 +807,19 @@ Would you like to upload some data to analyze?`;
 
   return (
     <div className="h-screen text-white flex flex-col overflow-hidden relative">
-      
+     
+      {isSidebarCollapsed && (
+        <button
+          onClick={toggleSidebar}
+          className="fixed top-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-xl px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl hidden md:flex"
+          title="Expand Sidebar"
+        >
+          <div className="flex items-center gap-2">
+            <PanelLeftOpen className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" />
+           
+          </div>
+        </button>
+      )}
 
       {/* Header */}
       <div className="backdrop-blur-sm max-h-20 sticky top-0 z-10 hidden md:block">
@@ -803,7 +827,6 @@ Would you like to upload some data to analyze?`;
           isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl'
         }`}>
           <div className="flex items-center justify-end">
-            
             <div className="flex items-center gap-2">
               <DataStatusBadge />
             </div>
