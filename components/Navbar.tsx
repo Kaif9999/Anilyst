@@ -15,6 +15,26 @@ export default function Navbar() {
   // Only show the backend status on main app pages
   const showBackendStatus = pathname?.startsWith('/main');
 
+  // Handle sign in with proper error handling
+  const handleSignIn = async () => {
+    try {
+      // Use direct navigation to signin page instead of signIn()
+      window.location.href = "/signin?callbackUrl=" + encodeURIComponent("/dashboard/agent");
+    } catch (error) {
+      console.error("Sign in error:", error);
+    }
+  };
+
+  const handleMobileSignIn = async () => {
+    setIsMobileMenuOpen(false);
+    try {
+      // Use direct navigation to signin page instead of signIn()
+      window.location.href = "/signin?callbackUrl=" + encodeURIComponent("/dashboard/agent");
+    } catch (error) {
+      console.error("Sign in error:", error);
+    }
+  };
+
   return (
     <>
       {/* Mobile Menu */}
@@ -94,10 +114,7 @@ export default function Navbar() {
             
             </div>
             <button
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                signIn(undefined, { callbackUrl: "/dashboard/agent" });
-              }}
+              onClick={handleMobileSignIn}
               className="block w-full py-3 text-center text-xl text-black bg-white hover:bg-green-400 rounded-lg mb-4"
             >
               Sign In
@@ -198,7 +215,7 @@ export default function Navbar() {
               {/* CTA Buttons */}
               <div className="hidden md:flex items-center space-x-6">
                 <button
-                  onClick={() => signIn(undefined, { callbackUrl: "/dashboard/agent" })}
+                  onClick={handleSignIn}
                   className="px-5 py-2.5 text-white/80 hover:text-white transition-colors"
                 >
                   Sign In

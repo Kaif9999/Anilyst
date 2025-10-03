@@ -85,8 +85,14 @@ export default function AgentPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [showTransitionBox, setShowTransitionBox] = useState(false);
+  const [transitionInput, setTransitionInput] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const welcomeTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const transitionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
   const { 
@@ -106,7 +112,7 @@ export default function AgentPage() {
     setIsMounted(true);
   }, []);
 
-  // Move mouse tracking to useEffect
+
   useEffect(() => {
     if (!isMounted) return;
     
@@ -139,7 +145,7 @@ export default function AgentPage() {
     if (!hasData || !rawData.length) return null;
 
     const columns = Object.keys(rawData[0]);
-    const sampleData = rawData.slice(0, 5); // First 5 rows as sample
+    const sampleData = rawData.slice(0, 5); 
     
     return {
       fileName: currentFile?.name || 'Unknown File',
@@ -160,7 +166,7 @@ export default function AgentPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Add initial message when data is available
+ 
   useEffect(() => {
     if (hasData && messages.length === 0 && isMounted && !fileLoading && rawData.length > 0) {
       const dataContext = getDataContext();
@@ -202,13 +208,35 @@ What would you like to explore first?`,
     }
   }, [hasData, currentFile, isStockData, messages.length, fileLoading, rawData, isMounted]);
 
-  const handleSend = async () => {
+  const handleSend = async (isFromWelcomeScreen = false) => {
     if (!input.trim() || isLoading) return;
+
+    // Store the input value for transition
+    const currentInput = input;
+    setTransitionInput(currentInput);
+
+    // Start transition if coming from welcome screen
+    if (isFromWelcomeScreen && showWelcome) {
+      setIsTransitioning(true);
+      setShowTransitionBox(true);
+      
+
+      setTimeout(() => {
+        setShowWelcome(false);
+      }, 200);
+      
+   
+      setTimeout(() => {
+        setIsTransitioning(false);
+        setShowTransitionBox(false);
+        setTransitionInput('');
+      }, 1200);
+    }
 
     const dataContext = getDataContext();
     const userMessage: Message = {
       role: 'user',
-      content: input,
+      content: currentInput,
       timestamp: new Date().toISOString(),
       dataContext: dataContext ? {
         fileName: dataContext.fileName,
@@ -219,16 +247,12 @@ What would you like to explore first?`,
     };
 
     setMessages(prev => [...prev, userMessage]);
-    const currentInput = input;
     setInput('');
     setIsLoading(true);
 
     try {
-
       const requestPayload = {
         message: formatUserPrompt(currentInput, hasData, dataContext), 
-        
-
         dataset: hasData && rawData.length > 0 ? {
           data: rawData.slice(0, 500), 
           metadata: {
@@ -242,8 +266,6 @@ What would you like to explore first?`,
             selected_year: selectedYear !== 'all' ? selectedYear : 'all'
           }
         } : null,
-        
-
         context: {
           has_uploaded_data: hasData,
           user_request_type: detectRequestType(currentInput),
@@ -276,7 +298,7 @@ What would you like to explore first?`,
         let errorMessage = `Server returned ${response.status}`;
         try {
           const errorData = await response.json();
-          console.error('❌ FastAPI error response:', errorData);
+          console.error(' FastAPI error response:', errorData);
           errorMessage = errorData.detail || errorData.message || errorMessage;
           
           if (response.status === 422 && errorData.detail) {
@@ -297,7 +319,6 @@ What would you like to explore first?`,
       const result = await response.json();
       console.log(' FastAPI response received successfully');
       
-      // Enhanced response cleanup for different response formats
       let responseContent = extractCleanResponse(result);
       
       const assistantMessage: Message = {
@@ -366,22 +387,22 @@ What would you like to explore first?`,
     return 'general_analysis';
   };
 
-  // Update the extractCleanResponse function
+
   const extractCleanResponse = (result: any): string => {
-    // Handle the new response format from backend
+
     let responseContent = result.response || result.message || result.output || result.answer || '';
     
-    // Handle fallback responses
+   
     if (result.status === 'fallback' && result.error) {
-      console.info('Using fallback response due to agent error'); // Changed from logger.info
+      console.info('Using fallback response due to agent error'); 
     }
     
-    // Handle error responses
+
     if (result.status === 'error') {
       return result.response || 'I encountered an error processing your request. Please try again.';
     }
     
-    // Clean up any remaining agent artifacts (same as before)
+
     if (responseContent.includes('Thought:') || responseContent.includes('Action:')) {
       const patterns = [
         /AI:\s*(.*?)(?:\n```|$)/,
@@ -495,12 +516,13 @@ Would you like to upload some data to analyze?`;
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSend();
+      handleSend(showWelcome);
     }
   };
 
   const clearChat = () => {
     setMessages([]);
+    setShowWelcome(true);
     toast({
       title: "🔄 Chat Cleared",
       description: "Conversation history has been reset"
@@ -528,7 +550,11 @@ Would you like to upload some data to analyze?`;
 
   const useExamplePrompt = (prompt: string) => {
     setInput(prompt);
-    textareaRef.current?.focus();
+    if (showWelcome) {
+      welcomeTextareaRef.current?.focus();
+    } else {
+      textareaRef.current?.focus();
+    }
   };
 
   // Enhanced example prompts based on actual data context
@@ -644,170 +670,211 @@ Would you like to upload some data to analyze?`;
     );
   }
 
-  // Welcome screen when no messages
-  if (messages.length === 0 && !fileLoading) {
+  // Transition box component
+  const TransitionBox = () => {
+    if (!showTransitionBox) return null;
+
     return (
-      <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
-
-        {isSidebarCollapsed && (
-          <button
-            onClick={toggleSidebar}
-            className="fixed bottom-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-full px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl"
-            title="Expand Sidebar"
-          >
-            <div className="flex items-center gap-2">
-              <PanelLeftClose className="w-4 h-4 text-gray-300 group-hover:text-white transition-colors" />
- 
-            </div>
-          </button>
-        )}
-
-        {/* Header */}
-        <div className="backdrop-blur-sm sticky top-0 z-10">
-          <div className={`mx-auto p-6 transition-all duration-300 ${
-            isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                    <Bot className="h-7 w-7 text-white" />
-                  </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-black animate-pulse"></div>
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold bg-white bg-clip-text text-transparent">
-                    Anilyst AI Agent
-                  </h1>
-                  <p className="text-gray-400 text-sm">
-                    {hasData 
-                      ? `Analyzing ${currentFile?.name} (${currentFile?.rowCount?.toLocaleString()} rows)`
-                      : 'Advanced Data Analysis Assistant'
-                    }
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <DataStatusBadge />
-                {!hasData && (
-                  <Badge variant="secondary" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-                    <AlertCircle className="h-3 w-3 mr-1" />
-                    No Data
-                  </Badge>
-                )}
-                
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 flex flex-col justify-center items-center p-8 overflow-y-auto relative z-10">
-          <div className={`w-full text-center space-y-12 transition-all duration-300 ${
-            isSidebarCollapsed ? 'max-w-5xl' : 'max-w-4xl'
-          }`}>
-            {/* Welcome Message */}
-            <div className="space-y-6">
-              <div className="relative">
-                <h1 className="text-5xl font-bold text-white leading-tight">
-                  {hasData ? "Let's analyze your data!" : "Ready for data analysis?"}
-                </h1>
-              </div>
-              <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
-                {hasData 
-                  ? `I have complete access to "${currentFile?.name}" with ${currentFile?.rowCount?.toLocaleString()} rows of ${isStockData ? 'stock' : 'general'} data. Ask me anything about patterns, trends, insights, or specific analysis you need.`
-                  : "Upload your data first, then I can help you with comprehensive analysis, market insights, statistical analysis, and business intelligence"
-                }
-              </p>
-            </div>
-
-            {/* Input Area */}
-            <div className="relative max-w-3xl mx-auto">
-              <div className="relative group">
-                <Textarea
-                  ref={textareaRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder={hasData ? `Ask anything about ${currentFile?.name}...` : "Upload data first, then ask me questions..."}
-                  className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10"
-                  disabled={isLoading || fileLoading}
-                />
-                
-                {/* Action Buttons */}
-                <div className="absolute bottom-4 right-4 flex items-center gap-3">
-                  <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10">
-                    {/* <Mic className="h-5 w-5" /> */}
-                  </Button>
-                  <Button 
-                    onClick={handleSend} 
-                    disabled={!input.trim() || isLoading || fileLoading}
-                    size="sm"
-                    className=" bg-purple-700 hover:bg-purple-800  text-white rounded-xl h-10 w-10 p-0 transition-all duration-300 shadow-lg"
-                  >
-                    {isLoading || fileLoading ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <ArrowUp />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-
-            {/* Example Prompts Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12">
-              {contextualPrompts.map((example, index) => (
-                <button
-                  key={index}
-                  onClick={() => useExamplePrompt(example.prompt)}
-                  disabled={!hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"}
-                  className={`group relative text-left p-6 rounded-2xl transition-all duration-300 border ${
-                    !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
-                      ? 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
-                      : 'bg-white/5 backdrop-blur-sm hover:bg-white/10 border-white/10 hover:border-white/20 hover:scale-105 cursor-pointer'
-                  }`}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-xl transition-all duration-300 ${
-                      !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
-                        ? 'bg-gray-500/20 text-gray-500'
-                        : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 group-hover:from-blue-500/30 group-hover:to-purple-500/30'
-                    }`}>
-                      {example.icon}
-                    </div>
-                    <div className="flex-1">
-                      <h3 className={`font-semibold mb-2 transition-colors ${
-                        !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
-                          ? 'text-gray-500'
-                          : 'text-white group-hover:text-blue-300'
-                      }`}>
-                        {example.title}
-                      </h3>
-                      <p className={`text-sm transition-colors ${
-                        !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
-                          ? 'text-gray-600'
-                          : 'text-gray-400 group-hover:text-gray-300'
-                      }`}>
-                        {example.description}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Hover effect overlay */}
-                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
-                </button>
-              ))}
+      <div className="fixed inset-0 z-50 pointer-events-none">
+        <div 
+          ref={transitionRef}
+          className={`absolute left-1/2 transform -translate-x-1/2 transition-all duration-1000 ease-in-out ${
+            isTransitioning ? 'top-[calc(100%-8rem)] scale-90' : 'top-1/2 -translate-y-1/2 scale-100'
+          }`}
+          style={{ width: 'min(768px, 80vw)' }}
+        >
+          <div className="relative group">
+            <Textarea
+              value={transitionInput}
+              readOnly
+              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 transition-all duration-300"
+            />
+            <div className="absolute bottom-4 right-4 flex items-center gap-3">
+              <Button 
+                size="sm"
+                className="bg-purple-700 text-white rounded-xl h-10 w-10 p-0 transition-all duration-300 shadow-lg"
+              >
+                <Loader2 className="h-5 w-5 animate-spin" />
+              </Button>
             </div>
           </div>
         </div>
       </div>
     );
+  };
+
+  // Welcome screen when no messages
+  if ((messages.length === 0 && !fileLoading) || showWelcome) {
+    return (
+      <>
+        <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
+          {isSidebarCollapsed && (
+            <button
+              onClick={toggleSidebar}
+              className="fixed bottom-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-full px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl"
+              title="Expand Sidebar"
+            >
+              <div className="flex items-center gap-2">
+                <PanelLeftClose className="w-4 h-4 text-gray-300 group-hover:text-white transition-colors" />
+              </div>
+            </button>
+          )}
+
+          {/* Header */}
+          <div className={`backdrop-blur-sm sticky top-0 z-10 transition-all duration-800 ${
+            isTransitioning ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'
+          }`}>
+            <div className={`mx-auto p-6 transition-all duration-300 ${
+              isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
+                      <Bot className="h-7 w-7 text-white" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-black animate-pulse"></div>
+                  </div>
+                  <div>
+                    <h1 className="text-2xl font-bold bg-white bg-clip-text text-transparent">
+                      Anilyst AI Agent
+                    </h1>
+                    <p className="text-gray-400 text-sm">
+                      {hasData 
+                        ? `Analyzing ${currentFile?.name} (${currentFile?.rowCount?.toLocaleString()} rows)`
+                        : 'Advanced Data Analysis Assistant'
+                      }
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <DataStatusBadge />
+                  {!hasData && (
+                    <Badge variant="secondary" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
+                      <AlertCircle className="h-3 w-3 mr-1" />
+                      No Data
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 flex flex-col justify-center items-center p-8 overflow-y-auto relative z-10">
+            <div className={`w-full text-center space-y-12 transition-all duration-800 ${
+              isSidebarCollapsed ? 'max-w-5xl' : 'max-w-4xl'
+            } ${isTransitioning ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}`}>
+              {/* Welcome Message */}
+              <div className="space-y-6">
+                <div className="relative">
+                  <h1 className="text-5xl font-bold text-white leading-tight">
+                    {hasData ? "Let's analyze your data!" : "Ready for data analysis?"}
+                  </h1>
+                </div>
+                <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
+                  {hasData 
+                    ? `I have complete access to "${currentFile?.name}" with ${currentFile?.rowCount?.toLocaleString()} rows of ${isStockData ? 'stock' : 'general'} data. Ask me anything about patterns, trends, insights, or specific analysis you need.`
+                    : "Upload your data first, then I can help you with comprehensive analysis, market insights, statistical analysis, and business intelligence"
+                  }
+                </p>
+              </div>
+
+              {/* Input Area */}
+              <div className="relative max-w-3xl mx-auto">
+                <div className={`relative group transition-all duration-300 ${
+                  showTransitionBox ? 'opacity-0' : 'opacity-100'
+                }`}>
+                  <Textarea
+                    ref={welcomeTextareaRef}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    placeholder={hasData ? `Ask anything about ${currentFile?.name}...` : "Upload data first, then ask me questions..."}
+                    className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10"
+                    disabled={isLoading || fileLoading}
+                  />
+                  
+                  {/* Action Buttons */}
+                  <div className="absolute bottom-4 right-4 flex items-center gap-3">
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10">
+                      {/* <Mic className="h-5 w-5" /> */}
+                    </Button>
+                    <Button 
+                      onClick={() => handleSend(true)} 
+                      disabled={!input.trim() || isLoading || fileLoading}
+                      size="sm"
+                      className="bg-purple-700 hover:bg-purple-800 text-white rounded-xl h-10 w-10 p-0 transition-all duration-300 shadow-lg"
+                    >
+                      {isLoading || fileLoading ? (
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                      ) : (
+                        <ArrowUp />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Example Prompts Grid */}
+              <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12 transition-all duration-800 delay-200 ${
+                isTransitioning ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'
+              }`}>
+                {contextualPrompts.map((example, index) => (
+                  <button
+                    key={index}
+                    onClick={() => useExamplePrompt(example.prompt)}
+                    disabled={!hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"}
+                    className={`group relative text-left p-6 rounded-2xl transition-all duration-300 border ${
+                      !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
+                        ? 'bg-white/5 border-white/10 opacity-50 cursor-not-allowed'
+                        : 'bg-white/5 backdrop-blur-sm hover:bg-white/10 border-white/10 hover:border-white/20 hover:scale-105 cursor-pointer'
+                    }`}
+                    style={{ transitionDelay: `${index * 100}ms` }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className={`p-3 rounded-xl transition-all duration-300 ${
+                        !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
+                          ? 'bg-gray-500/20 text-gray-500'
+                          : 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 group-hover:from-blue-500/30 group-hover:to-purple-500/30'
+                      }`}>
+                        {example.icon}
+                      </div>
+                      <div className="flex-1">
+                        <h3 className={`font-semibold mb-2 transition-colors ${
+                          !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
+                            ? 'text-gray-500'
+                            : 'text-white group-hover:text-blue-300'
+                        }`}>
+                          {example.title}
+                        </h3>
+                        <p className={`text-sm transition-colors ${
+                          !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
+                            ? 'text-gray-600'
+                            : 'text-gray-400 group-hover:text-gray-300'
+                        }`}>
+                          {example.description}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Hover effect overlay */}
+                    <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Transition Box */}
+        <TransitionBox />
+      </>
+    );
   }
 
   return (
     <div className="h-screen text-white flex flex-col overflow-hidden relative">
-     
       {isSidebarCollapsed && (
         <button
           onClick={toggleSidebar}
@@ -816,7 +883,6 @@ Would you like to upload some data to analyze?`;
         >
           <div className="flex items-center gap-2">
             <PanelLeftOpen className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" />
-           
           </div>
         </button>
       )}
@@ -842,10 +908,14 @@ Would you like to upload some data to analyze?`;
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${
+                index === 0 ? 'animate-fade-in-up' : ''
+              }`}
+              style={{ 
+                animationDelay: index === 0 ? '400ms' : '0ms',
+                animationFillMode: 'both'
+              }}
             >
-            
-              
               <div className={`max-w-[85%] ${message.role === 'user' ? 'order-first' : ''}`}>
                 <div className={`relative rounded-2xl ${
                   message.role === 'user' 
@@ -865,16 +935,13 @@ Would you like to upload some data to analyze?`;
                       </Badge>
                     </div>
                   )}
-                  
                 </div>
               </div>
-              
-             
             </div>
           ))}
           
           {isLoading && (
-            <div className="flex gap-4 justify-start">
+            <div className="flex gap-4 justify-start animate-fade-in-up">
               <Avatar className="w-10 h-10 mt-1">
                 <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
                   <Bot className="h-5 w-5" />
@@ -904,7 +971,7 @@ Would you like to upload some data to analyze?`;
       </div>
 
       {/* Input Area */}
-      <div className="backdrop-blur-sm  p-6">
+      <div className="backdrop-blur-sm p-6 animate-slide-up">
         <div className={`mx-auto relative transition-all duration-300 ${
           isSidebarCollapsed ? 'max-w-4xl' : 'max-w-3xl'
         }`}>
@@ -924,7 +991,7 @@ Would you like to upload some data to analyze?`;
                 <Mic className="h-4 w-4" />
               </Button>
               <Button 
-                onClick={handleSend} 
+                onClick={() => handleSend(false)} 
                 disabled={!input.trim() || isLoading || !hasData || fileLoading}
                 size="sm"
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl h-9 w-9 p-0 transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
@@ -937,9 +1004,41 @@ Would you like to upload some data to analyze?`;
               </Button>
             </div>
           </div>
-        
         </div>
       </div>
+
+      {/* Add custom CSS for animations */}
+      <style jsx>{`
+        @keyframes fade-in-up {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes slide-up {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .animate-fade-in-up {
+          animation: fade-in-up 0.6s ease-out;
+        }
+
+        .animate-slide-up {
+          animation: slide-up 0.8s ease-out 600ms both;
+        }
+      `}</style>
     </div>
   );
 }
