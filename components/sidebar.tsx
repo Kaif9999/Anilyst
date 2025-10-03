@@ -1,30 +1,20 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { 
   Brain,
   Upload,
-  Crown,
   User,
-  ChevronRight,
   Menu,
   X,
   CheckCircle,
-  BarChart3,
-  TrendingUp,
-  FileText,
-  Bot,
   Trash2,
   PanelRightClose,
-  PanelLeftOpen,
   History,
   MessageSquare,
-  Clock,
-  MoreVertical
 } from 'lucide-react';
 import { useFileStore } from '@/store/file-store';
 import UploadModal from './upload-modal';
@@ -89,10 +79,9 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>(mockChatHistory);
   const [sessionFetched, setSessionFetched] = useState(false);
   
-  // Get file store state
+
   const { currentFile, hasData, setUploadModalOpen, clearData } = useFileStore();
 
-  // Force session fetch after OAuth redirect
   useEffect(() => {
     const handleOAuthCallback = async () => {
       const isOAuthCallback = searchParams.get('code') || searchParams.get('state');
