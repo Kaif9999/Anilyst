@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { signIn } from "next-auth/react";
+import { useState, Suspense, useEffect } from "react";
+import { signIn, getSession } from "next-auth/react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -16,6 +16,26 @@ function SignInContent() {
   const [isLoading, setIsLoading] = useState(false);
 
   const callbackUrl = searchParams.get("callbackUrl") || "/dashboard/agent";
+  const urlError = searchParams.get("error");
+
+  // Handle URL errors
+  useEffect(() => {
+    if (urlError && urlError !== "undefined") {
+      setError("Authentication failed. Please try again.");
+    }
+  }, [urlError]);
+
+  // Check for existing session and redirect
+  useEffect(() => {
+    const checkSession = async () => {
+      const session = await getSession();
+      if (session) {
+        console.log("✅ Session found, redirecting to:", callbackUrl);
+        router.push(callbackUrl);
+      }
+    };
+    checkSession();
+  }, [callbackUrl, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,12 +47,16 @@ function SignInContent() {
         email,
         password,
         redirect: false,
+        callbackUrl,
       });
 
       if (result?.error) {
         setError("Invalid email or password");
-      } else {
+      } else if (result?.ok) {
+        // Wait a bit for session to be established
+        await new Promise(resolve => setTimeout(resolve, 500));
         router.push(callbackUrl);
+        router.refresh();
       }
     } catch (error) {
       setError("An error occurred. Please try again.");
@@ -43,9 +67,24 @@ function SignInContent() {
 
   const handleGoogleSignIn = async () => {
     try {
-      await signIn("google", { callbackUrl });
+      setIsLoading(true);
+      setError("");
+      
+      console.log("🔄 Starting Google OAuth flow...");
+      
+      // Use window.location for full page redirect
+      const result = await signIn("google", {
+        callbackUrl,
+        redirect: true, // This will do a full page redirect
+      });
+      
+      // This code won't execute because of redirect: true
+      console.log("Google sign in result:", result);
+      
     } catch (error) {
+      console.error("❌ Google sign in error:", error);
       setError("Failed to sign in with Google. Please try again.");
+      setIsLoading(false);
     }
   };
 
@@ -80,6 +119,45 @@ function SignInContent() {
               <span>{error}</span>
             </motion.div>
           )}
+
+          {/* Google Sign In - Put it first for prominence */}
+          <button
+            onClick={handleGoogleSignIn}
+            disabled={isLoading}
+            className="w-full bg-white hover:bg-gray-100 text-gray-900 rounded-xl py-3 flex items-center justify-center gap-3 font-medium mb-6 transition-colors disabled:opacity-50"
+          >
+            <svg
+              className="w-5 h-5"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                fill="#4285F4"
+              />
+              <path
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                fill="#34A853"
+              />
+              <path
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                fill="#FBBC05"
+              />
+              <path
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                fill="#EA4335"
+              />
+            </svg>
+            <span>{isLoading ? "Signing in..." : "Continue with Google"}</span>
+          </button>
+
+          {/* Divider */}
+          <div className="my-6 flex items-center">
+            <div className="flex-1 border-t border-white/10"></div>
+            <span className="px-4 text-sm text-gray-400">Or continue with email</span>
+            <div className="flex-1 border-t border-white/10"></div>
+          </div>
 
           {/* Sign In Form */}
           <form onSubmit={handleSubmit} className="space-y-6">
@@ -125,44 +203,6 @@ function SignInContent() {
               {isLoading ? "Signing in..." : "Sign In"}
             </button>
           </form>
-
-          {/* Divider */}
-          <div className="my-6 flex items-center">
-            <div className="flex-1 border-t border-white/10"></div>
-            <span className="px-4 text-sm text-gray-400">Or continue with</span>
-            <div className="flex-1 border-t border-white/10"></div>
-          </div>
-
-          {/* Google Sign In */}
-          <button
-            onClick={handleGoogleSignIn}
-            className="w-full bg-white/5 border border-white/10 rounded-xl py-3 flex items-center justify-center gap-3 text-white hover:bg-white/10 transition-colors"
-          >
-            <svg
-              className="w-5 h-5"
-              viewBox="0 0 24 24"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                fill="#4285F4"
-              />
-              <path
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                fill="#34A853"
-              />
-              <path
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                fill="#FBBC05"
-              />
-              <path
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                fill="#EA4335"
-              />
-            </svg>
-            <span>Google</span>
-          </button>
 
           {/* Sign Up Link */}
           <p className="mt-6 text-center text-gray-400">

@@ -10,7 +10,7 @@ export default function SignInForm() {
   const [error, setError] = useState("");
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") || "/main";
+  const callbackUrl = searchParams.get("callbackUrl") || "/dashboard/agent";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,9 +49,9 @@ export default function SignInForm() {
     try {
       setIsLoading(true);
       await signIn("google", {
-        callbackUrl: window.location.origin + "/main",
+        callbackUrl: callbackUrl,
         redirect: true,
-      });
+      }); 
     } catch (error) {
       setError("An error occurred during Google sign in");
       setIsLoading(false);

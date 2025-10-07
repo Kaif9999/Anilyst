@@ -31,6 +31,13 @@ export const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
     CredentialsProvider({
       name: "credentials",
@@ -39,40 +46,53 @@ export const authOptions: AuthOptions = {
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
+        console.log("🔐 Credentials authorize called with:", { email: credentials?.email });
+        
         if (!credentials?.email || !credentials?.password) {
+          console.error("❌ Missing credentials");
           throw new Error("Invalid credentials");
         }
 
-        const user = await prisma.user.findUnique({
-          where: {
-            email: credentials.email,
-          },
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: {
+              email: credentials.email,
+            },
+          });
 
-        if (!user || !user?.password) {
+          if (!user || !user?.password) {
+            console.error("❌ User not found or no password set");
+            throw new Error("Invalid credentials");
+          }
+
+          const isCorrectPassword = await bcrypt.compare(
+            credentials.password,
+            user.password,
+          );
+
+          if (!isCorrectPassword) {
+            console.error("❌ Invalid password");
+            throw new Error("Invalid credentials");
+          }
+
+          console.log("✅ User authenticated:", { id: user.id, email: user.email });
+          return user;
+        } catch (error) {
+          console.error("❌ Database error during authorization:", error);
           throw new Error("Invalid credentials");
         }
-
-        const isCorrectPassword = await bcrypt.compare(
-          credentials.password,
-          user.password,
-        );
-
-        if (!isCorrectPassword) {
-          throw new Error("Invalid credentials");
-        }
-
-        return user;
       },
     }),
   ],
   pages: {
     signIn: "/signin",
-    error: "/auth/error",
+    error: "/signin", // Redirect all errors back to signin page
   },
   callbacks: {
     async signIn({ account, profile, user }) {
       console.log("🔐 SignIn Callback - Provider:", account?.provider);
+      console.log("👤 User object:", user ? { id: user.id, email: user.email } : "absent");
+      console.log("📋 Profile object:", profile ? { email: profile.email } : "absent");
       
       if (account?.provider === "google" && profile) {
         try {
@@ -82,7 +102,12 @@ export const authOptions: AuthOptions = {
           }
 
           const googleProfile = profile as any;
-          
+          console.log("📸 Google Profile Data:", {
+            email: googleProfile.email,
+            name: googleProfile.name,
+            picture: googleProfile.picture
+          });
+
           const existingUser = await prisma.user.findUnique({
             where: { email: googleProfile.email },
             include: { accounts: true },
@@ -103,6 +128,7 @@ export const authOptions: AuthOptions = {
             );
 
             if (!hasGoogleAccount) {
+              console.log("🔗 Creating Google account link...");
               await prisma.account.create({
                 data: {
                   userId: existingUser.id,
@@ -162,6 +188,14 @@ export const authOptions: AuthOptions = {
           return false;
         }
       }
+      
+      // For credentials provider
+      if (account?.provider === "credentials" && user) {
+        console.log("✅ Credentials sign in successful");
+        return true;
+      }
+      
+      console.log("✅ Default sign in allowed");
       return true;
     },
     async jwt({ token, user, profile, account, trigger }) {
@@ -171,10 +205,16 @@ export const authOptions: AuthOptions = {
       if (user) {
         token.sub = user.id;
         token.id = user.id;
-        token.name = user.name || "";
-        token.email = user.email || "";
-        token.picture = user.image || "";
-        
+        token.name = user.name || undefined;
+        token.email = user.email || undefined;
+        token.picture = user.image || undefined;
+        console.log("✅ JWT from user object:", { 
+          sub: token.sub,
+          id: user.id, 
+          name: user.name, 
+          email: user.email, 
+          image: user.image 
+        });
         return token;
       }
       
@@ -208,9 +248,26 @@ export const authOptions: AuthOptions = {
           console.error("❌ Error fetching user in JWT callback:", error);
         }
       }
+      
+      // On subsequent requests, token already has the data
+      console.log("📤 Returning existing JWT token:", { 
+        sub: token.sub, 
+        id: token.id,
+        name: token.name, 
+        email: token.email, 
+        picture: token.picture 
+      });
       return token;
     },
     async session({ session, token }) {
+      console.log("🎫 SESSION CALLBACK FIRED! 🎫");
+      console.log("📥 Token data:", { 
+        sub: token.sub, 
+        id: token.id,
+        name: token.name, 
+        email: token.email, 
+        picture: token.picture 
+      });
       
       if (session?.user && token) {
         session.user.id = (token.sub || token.id) as string;
@@ -218,13 +275,30 @@ export const authOptions: AuthOptions = {
         session.user.email = token.email as string;
         session.user.image = token.picture as string;
         
-       
+        console.log("✅ Session populated with user data:", { 
+          id: session.user.id, 
+          name: session.user.name, 
+          email: session.user.email, 
+          image: session.user.image 
+        });
       }
       
       return session;
     },
     async redirect({ url, baseUrl }) {
       console.log("🔄 Redirect callback - URL:", url, "BaseURL:", baseUrl);
+      
+      // Handle error redirects
+      if (url.includes('/api/auth/error') || url.includes('/auth/error')) {
+        console.log("🔄 Error redirect detected, sending to signin");
+        return `${baseUrl}/signin?error=auth_error`;
+      }
+      
+      // Remove trailing slashes to prevent redirect loops
+      if (url.endsWith('/') && url !== baseUrl + '/') {
+        url = url.slice(0, -1);
+        console.log("🔄 Removed trailing slash:", url);
+      }
       
       // If url is relative, prefix with baseUrl
       if (url.startsWith("/")) {
@@ -239,9 +313,9 @@ export const authOptions: AuthOptions = {
         return url;
       }
       
-      // Fallback to base URL
-      console.log("🔄 Fallback redirect to baseUrl");
-      return baseUrl;
+      // Fallback to dashboard
+      console.log("🔄 Fallback redirect to dashboard");
+      return `${baseUrl}/dashboard/agent`;
     },
   },
   session: {
@@ -258,6 +332,9 @@ export const authOptions: AuthOptions = {
         email: user.email, 
         image: user.image 
       });
+    },
+    async signOut() {
+      console.log("👋 Sign out event");
     },
   },
 };
