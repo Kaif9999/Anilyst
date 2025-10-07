@@ -6,12 +6,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Bot, User, Send, Trash2, 
+  Bot, Send, 
   BarChart3, Brain, TrendingUp,
-  Loader2, Copy, Check, Mic,
+  Loader2, Mic,
   Sparkles, Database, FileText, Calendar,
   Activity, PieChart, LineChart, AlertCircle,
-  ArrowUp, PanelRightOpen,
+  ArrowUp,
   PanelLeftOpen,
   PanelLeftClose
 } from 'lucide-react';
@@ -557,7 +557,6 @@ Would you like to upload some data to analyze?`;
     }
   };
 
-  // Enhanced example prompts based on actual data context
   const getContextualPrompts = () => {
     if (!hasData) {
       return [
@@ -656,7 +655,7 @@ Would you like to upload some data to analyze?`;
     );
   };
 
-  // Don't render animations until mounted
+
   if (!isMounted) {
     return (
       <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">

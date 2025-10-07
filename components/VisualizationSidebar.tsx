@@ -66,7 +66,7 @@ export default function VisualizationSidebar({
               </button>
             </div>
 
-            {/* Sessions List - rest of the code remains the same */}
+         
             <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
               {/* ... existing sessions list code ... */}
             </div>

@@ -32,43 +32,42 @@ interface ChatHistoryItem {
   lastMessage: string;
 }
 
-const mockChatHistory: ChatHistoryItem[] = [
-  {
-    id: '1',
-    title: 'Stock Analysis Q3 2024',
-    timestamp: '2024-10-02T10:30:00Z',
-    messageCount: 12,
-    lastMessage: 'Generated quarterly performance report with key insights...'
-  },
-  {
-    id: '2',
-    title: 'Sales Data Deep Dive',
-    timestamp: '2024-10-01T15:45:00Z',
-    messageCount: 8,
-    lastMessage: 'Identified correlation between marketing spend and sales...'
-  },
-  {
-    id: '3',
-    title: 'Customer Segmentation',
-    timestamp: '2024-09-30T09:15:00Z',
-    messageCount: 15,
-    lastMessage: 'Created customer personas based on purchasing behavior...'
-  },
-  {
-    id: '4',
-    title: 'Revenue Forecasting',
-    timestamp: '2024-09-29T14:20:00Z',
-    messageCount: 6,
-    lastMessage: 'Projected 23% growth for next quarter based on trends...'
-  },
-  {
-    id: '5',
-    title: 'Market Trend Analysis',
-    timestamp: '2024-09-28T11:00:00Z',
-    messageCount: 10,
-    lastMessage: 'Analyzed market volatility and risk factors...'
-  }
-];
+//   {
+//     id: '1',
+//     title: 'Stock Analysis Q3 2024',
+//     timestamp: '2024-10-02T10:30:00Z',
+//     messageCount: 12,
+//     lastMessage: 'Generated quarterly performance report with key insights...'
+//   },
+//   {
+//     id: '2',
+//     title: 'Sales Data Deep Dive',
+//     timestamp: '2024-10-01T15:45:00Z',
+//     messageCount: 8,
+//     lastMessage: 'Identified correlation between marketing spend and sales...'
+//   },
+//   {
+//     id: '3',
+//     title: 'Customer Segmentation',
+//     timestamp: '2024-09-30T09:15:00Z',
+//     messageCount: 15,
+//     lastMessage: 'Created customer personas based on purchasing behavior...'
+//   },
+//   {
+//     id: '4',
+//     title: 'Revenue Forecasting',
+//     timestamp: '2024-09-29T14:20:00Z',
+//     messageCount: 6,
+//     lastMessage: 'Projected 23% growth for next quarter based on trends...'
+//   },
+//   {
+//     id: '5',
+//     title: 'Market Trend Analysis',
+//     timestamp: '2024-09-28T11:00:00Z',
+//     messageCount: 10,
+//     lastMessage: 'Analyzed market volatility and risk factors...'
+//   }
+// ];
 
 function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
@@ -76,7 +75,6 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const { data: session, status, update } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>(mockChatHistory);
   const [sessionFetched, setSessionFetched] = useState(false);
   
 
@@ -116,7 +114,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         console.log('⚠️ User data incomplete, forcing session update...');
         update().then(() => {
           setSessionFetched(true);
-          console.log('✅ Session update completed');
+          console.log('Session update completed');
         });
       }
     }
@@ -166,16 +164,6 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     return text.substring(0, maxLength) + '...';
   };
 
-  const formatRelativeTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
-    
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 48) return 'Yesterday';
-    return date.toLocaleDateString();
-  };
 
   const getUserData = () => {
     if (status === 'loading') {
@@ -333,39 +321,8 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               {/* History List */}
               <div className="flex-1 overflow-y-auto px-2 py-2">
                 <div className="space-y-1">
-                  {chatHistory.map((chat) => (
-                    <button
-                      key={chat.id}
-                      onClick={() => handleChatHistoryClick(chat.id)}
-                      className="w-full text-left p-3 rounded-lg transition-all duration-200 group hover:bg-white/5 border border-transparent hover:border-white/10 relative"
-                    >
-                      <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg"></div>
-                      
-                      <div className="relative z-10">
-                        <div className="flex items-start justify-between mb-1">
-                          <h4 className="text-sm font-medium text-white truncate pr-2 group-hover:text-blue-300 transition-colors">
-                            {truncateText(chat.title, 20)}
-                          </h4>
-                          <span className="text-xs text-gray-500 flex-shrink-0">
-                            {formatRelativeTime(chat.timestamp)}
-                          </span>
-                        </div>
-                        
-                        <p className="text-xs text-gray-400 line-clamp-2 mb-2 group-hover:text-gray-300 transition-colors">
-                          {truncateText(chat.lastMessage, 60)}
-                        </p>
-                        
-                        <div className="flex items-center gap-1">
-                          <MessageSquare className="w-3 h-3 text-gray-500" />
-                          <span className="text-xs text-gray-500">
-                            {chat.messageCount} messages
-                          </span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                
                   
-                  {/* New Chat Button */}
                   <button
                     onClick={() => {
                       console.log('Starting new chat');
