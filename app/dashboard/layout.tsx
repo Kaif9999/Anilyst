@@ -31,17 +31,17 @@ export default function DashboardLayout({
 
   return (
     <SidebarContext.Provider value={{ isSidebarCollapsed, toggleSidebar }}>
-      <div className={`min-h-screen bg-black/70 ${inter.className}`}>
+      <div className={`min-h-screen ${inter.className}`}>
         <div className="flex">
           <Sidebar 
             isCollapsed={isSidebarCollapsed}
             onToggle={toggleSidebar}
           />
           
-          <main className={`flex-1 min-h-screen bg-black/70 transition-all duration-300 ${
-            isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[246px]'
+          <main className={`flex-1 min-h-screen transition-all duration-300 ${
+            isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[260px]'
           }`}>
-            <div className="w-full">
+            <div className="w-full h-full bg-black">
               {children}
             </div>
           </main>
