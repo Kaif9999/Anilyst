@@ -221,7 +221,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               : '-translate-x-full' 
             : 'translate-x-0'
         } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white shadow-2xl overflow-hidden ${
-          isCollapsed && !isMobile ? 'w-16 bg-black/80 backdrop-blur-md' : 'w-[260px] bg-black/80 backdrop-blur-xl'
+          isCollapsed && !isMobile ? 'w-16 bg-black backdrop-blur-md' : 'w-[260px] bg-black/80 backdrop-blur-xl'
         }`}
       >
         {/* Collapsed View - Icon Only */}
@@ -237,21 +237,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             {/* Spacer */}
             <div className="flex-1"></div>
 
-            {/* Upload Icon */}
-            <button
-              onClick={handleUploadClick}
-              className="p-2 hover:bg-white/10 rounded-lg transition-colors group relative"
-              title="Upload Data"
-            >
-              {hasData() ? (
-                <CheckCircle className="w-5 h-5 text-green-400" />
-              ) : (
-                <Upload className="w-5 h-5 text-gray-400 group-hover:text-white" />
-              )}
-              {hasData() && (
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-black/40"></div>
-              )}
-            </button>
+           
 
             {/* User Avatar */}
             <div className="w-10 h-10 rounded-full overflow-hidden shadow-lg shadow-blue-500/20 cursor-pointer hover:scale-110 transition-transform duration-300">
@@ -341,44 +327,6 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             
             {/* Bottom section */}
             <div className="px-4 pb-4 space-y-3 relative z-10 border-t border-white/10 pt-4">
-              {/* Upload Data button */}
-              <button
-                onClick={handleUploadClick}
-                className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg p-3 text-center transition-all duration-300 group backdrop-blur-sm relative overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                
-                <div className="flex items-center relative z-10 justify-between">
-                  <div className="flex items-center">
-                    {hasData() ? (
-                      <CheckCircle className="w-5 h-5 text-green-400 group-hover:scale-110 transition-transform duration-300 mr-2" />
-                    ) : (
-                      <Upload className="w-5 h-5 text-gray-400 group-hover:text-gray-300 transition-all duration-300 group-hover:scale-110 mr-2" />
-                    )}
-                    
-                    <div className="text-left">
-                      <div className="text-sm font-medium text-white">
-                        {hasData() ? 'Data Loaded' : 'Upload Data'}
-                      </div>
-                      {hasData() && currentFile && (
-                        <div className="text-xs text-green-400 truncate max-w-[120px]">
-                          {currentFile.name}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {hasData() && (
-                    <button
-                      onClick={handleRemoveData}
-                      className="p-1 rounded-md bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 transition-all duration-200 group/remove"
-                      title="Remove uploaded data"
-                    >
-                      <Trash2 className="w-3 h-3 text-red-400 group-hover/remove:text-red-300" />
-                    </button>
-                  )}
-                </div>
-              </button>
               
               {/* User Profile */}
               <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden cursor-pointer">
@@ -424,7 +372,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 function SidebarWithSuspense(props: SidebarProps) {
   return (
     <Suspense fallback={
-      <aside className="fixed inset-y-0 left-0 z-40 w-16 bg-black/40 backdrop-blur-md flex items-center justify-center">
+      <aside className="fixed inset-y-0 left-0 z-40 w-16 bg-black/90 backdrop-blur-md flex items-center justify-center">
         <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center animate-pulse">
           <Brain className="w-6 h-6 text-white" />
         </div>
