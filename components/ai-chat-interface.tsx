@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -14,12 +14,14 @@ import {
   ArrowUp,
   PanelLeftOpen,
   PanelLeftClose,
-  Lightbulb  // Add this for vector context
+  Lightbulb,
+  Paperclip
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
-import { useFileData } from '@/hooks/use-file-data';
 import { useSidebar } from '@/app/dashboard/layout';
 import { useSearchParams } from 'next/navigation';
+import ChatUploadModal from './chat-upload-modal';
+import { useChatSessions } from '@/hooks/useChatSessions';
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
@@ -28,8 +30,8 @@ interface Message {
   content: string;
   timestamp: string;
   analysis_results?: any;
-  vector_context_used?: boolean;  // Add this
-  context_summary?: {            // Add this
+  vector_context_used?: boolean;
+  context_summary?: {
     similar_analyses_count: number;
     suggested_sources: string[];
     suggested_analysis_types: string[];
@@ -42,7 +44,6 @@ interface Message {
   };
 }
 
-// Add vector context interface
 interface VectorContext {
   similar_analyses: Array<{
     id: string;
@@ -56,7 +57,17 @@ interface VectorContext {
   has_context: boolean;
 }
 
-// Add vector context hook
+interface ChatData {
+  data: any[];
+  metadata: {
+    filename: string;
+    rowCount: number;
+    columns: string[];
+    fileSize: number;
+    uploadedAt: string;
+  };
+}
+
 function useVectorContext(query: string, sessionId: string | null) {
   const [context, setContext] = useState<VectorContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -76,7 +87,7 @@ function useVectorContext(query: string, sessionId: string | null) {
           body: JSON.stringify({
             query,
             session_id: sessionId,
-            user_id: 'user_123' // You can get this from session context
+            user_id: 'user_123'
           })
         });
 
@@ -96,7 +107,6 @@ function useVectorContext(query: string, sessionId: string | null) {
       }
     };
 
-    // Debounce the context fetch
     const timer = setTimeout(getContext, 1000);
     return () => clearTimeout(timer);
   }, [query, sessionId]);
@@ -104,50 +114,7 @@ function useVectorContext(query: string, sessionId: string | null) {
   return { context, isLoading };
 }
 
-interface AgentPageProps {
-  isSidebarCollapsed?: boolean;
-}
-
-const EXAMPLE_PROMPTS = [
-  {
-    icon: <BarChart3 className="h-5 w-5" />,
-    title: "Statistical Analysis",
-    description: "Analyze my data and provide statistical insights",
-    prompt: "📊 Analyze my data and provide comprehensive statistical insights including distributions, correlations, and key metrics"
-  },
-  {
-    icon: <Database className="h-5 w-5" />,
-    title: "Data Structure",
-    description: "Help me understand my dataset structure",
-    prompt: "🔍 Help me understand my dataset structure, data types, missing values, and data quality issues"
-  },
-  {
-    icon: <TrendingUp className="h-5 w-5" />,
-    title: "Pattern Recognition",
-    description: "What are the key patterns in my data?",
-    prompt: "📈 What are the key patterns, trends, and anomalies in my data? Show me the most important insights"
-  },
-  {
-    icon: <Brain className="h-5 w-5" />,
-    title: "Business Intelligence",
-    description: "Generate business insights from my data",
-    prompt: "💼 Generate actionable business insights and KPIs from my data with recommendations for decision making"
-  },
-  {
-    icon: <Sparkles className="h-5 w-5" />,
-    title: "Data Questions",
-    description: "What questions should I ask about my data?",
-    prompt: "🤔 What are the most important questions I should ask about my data to uncover valuable insights?"
-  },
-  {
-    icon: <FileText className="h-5 w-5" />,
-    title: "Data Quality",
-    description: "Help me identify data quality issues",
-    prompt: "✅ Help me identify and fix data quality issues including outliers, missing values, and inconsistencies"
-  }
-];
-
-export default function AgentPage() {
+function AgentPageContent() {
   const { isSidebarCollapsed, toggleSidebar } = useSidebar();
   const searchParams = useSearchParams();
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -161,33 +128,83 @@ export default function AgentPage() {
   const [showWelcome, setShowWelcome] = useState(true);
   const [showTransitionBox, setShowTransitionBox] = useState(false);
   const [transitionInput, setTransitionInput] = useState('');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  
+  // ✅ Store data per session - scoped to this chat only (NOT in localStorage)
+  const [chatData, setChatData] = useState<ChatData | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const welcomeTextareaRef = useRef<HTMLTextAreaElement>(null);
   const transitionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  // Add vector context hook
+  const {
+    currentSession,
+    sessions,
+    addMessage,
+    updateSessionData,
+    generateTitle,
+    createSession,
+    isLoading: sessionsLoading
+  } = useChatSessions();
+
   const { context: vectorContext, isLoading: isContextLoading } = useVectorContext(input, sessionId);
 
-  const { 
-    currentFile, 
-    hasData, 
-    rawData, 
-    chartData, 
-    aiAnalysis,
-    isStockData,
-    availableYears,
-    selectedYear,
-    error,
-    isLoading: fileLoading
-  } = useFileData();
+  const hasData = !!chatData;
+  const rawData = chatData?.data || [];
+  const currentFile = chatData ? {
+    name: chatData.metadata.filename,
+    rowCount: chatData.metadata.rowCount
+  } : null;
+  const isStockData = false;
+  const availableYears: string[] = [];
+  const selectedYear = 'all';
+  const fileLoading = false;
 
-  // Add session ID effect
+  // ✅ Initialize or get session on mount and when search params change
   useEffect(() => {
-    const sessionParam = searchParams.get('session');
-    setSessionId(sessionParam || `session_${Date.now()}`);
-  }, [searchParams]);
+    const initializeSession = async () => {
+      const sessionParam = searchParams.get('session');
+      
+      if (sessionParam) {
+        // Use existing session
+        console.log('📌 Using existing session:', sessionParam);
+        setSessionId(sessionParam);
+      } else {
+        // Create new session
+        try {
+          const newSession = await createSession();
+          if (newSession) {
+            console.log('🆕 Created new session:', newSession.id);
+            setSessionId(newSession.id);
+            
+            // Update URL with new session ID
+            const url = new URL(window.location.href);
+            url.searchParams.set('session', newSession.id);
+            window.history.pushState({}, '', url.toString());
+          }
+        } catch (error) {
+          console.error('Error creating session:', error);
+          // Fallback to temporary session
+          const tempSessionId = `session_${Date.now()}`;
+          setSessionId(tempSessionId);
+        }
+      }
+    };
+
+    if (isMounted && !sessionsLoading) {
+      initializeSession();
+    }
+  }, [searchParams, isMounted, sessionsLoading, createSession]);
+
+  // ✅ Clear data when session changes
+  useEffect(() => {
+    console.log('🔄 Session changed, clearing chat data');
+    setChatData(null);
+    setMessages([]);
+    setShowWelcome(true);
+  }, [sessionId]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -201,13 +218,9 @@ export default function AgentPage() {
     };
 
     window.addEventListener('mousemove', handleMouseMove);
-    
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-    };
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [isMounted]);
 
-  // Move style injection to useEffect
   useEffect(() => {
     if (!isMounted) return;
     
@@ -221,10 +234,76 @@ export default function AgentPage() {
     };
   }, [isMounted]);
 
+  // ✅ Modified: Only store data locally, don't send to AI yet
+  const handleUploadComplete = async (data: any[], metadata: any) => {
+    console.log('📁 Data uploaded to chat session:', {
+      filename: metadata.filename,
+      rows: data.length,
+      sessionId
+    });
+
+    // ✅ Store data locally in this chat session only (NOT in localStorage)
+    setChatData({
+      data,
+      metadata
+    });
+
+    toast({
+      title: "🎯 Data Loaded!",
+      description: `${data.length} rows ready for analysis in this chat`,
+    });
+
+    // ✅ Update session metadata in database (for history/display purposes only)
+    if (currentSession && data.length > 0) {
+      try {
+        await updateSessionData(
+          currentSession.id,
+          metadata.filename,
+          data.length,
+          Object.keys(data[0] || {})
+        );
+      } catch (error) {
+        console.error('Error updating session metadata:', error);
+      }
+    }
+
+    // ✅ Show a simple confirmation message, don't analyze yet
+    const confirmationMessage: Message = {
+      role: 'assistant',
+      content: `📊 **Data Loaded Successfully!**
+
+I've loaded "${metadata.filename}" with **${data.length.toLocaleString()} rows** into this chat session.
+
+**File Details:**
+• Filename: ${metadata.filename}
+• Rows: ${data.length.toLocaleString()}
+• Columns: ${Object.keys(data[0] || {}).length} (${Object.keys(data[0] || {}).slice(0, 5).join(', ')}${Object.keys(data[0] || {}).length > 5 ? '...' : ''})
+• Size: ${(metadata.fileSize / 1024).toFixed(2)} KB
+
+**Ready for Analysis!** 🚀
+Ask me anything about your data and I'll analyze it for you. For example:
+• "Analyze the key trends in this data"
+• "What are the statistical insights?"
+• "Show me correlations between columns"
+
+*Note: I'll only process your data when you send a message - saving your API credits!* 💡`,
+      timestamp: new Date().toISOString(),
+      dataContext: {
+        fileName: metadata.filename,
+        rowCount: data.length,
+        dataType: 'General Data',
+        columns: Object.keys(data[0] || {})
+      }
+    };
+
+    setMessages([confirmationMessage]);
+    setShowWelcome(false);
+  };
+
   const getDataContext = () => {
     if (!hasData || !rawData.length) return null;
 
-    const columns = Object.keys(rawData[0]);
+    const columns = Object.keys(rawData[0] || {});
     const sampleData = rawData.slice(0, 5); 
     
     return {
@@ -236,72 +315,21 @@ export default function AgentPage() {
       totalColumns: columns.length,
       availableYears: availableYears.length > 0 ? availableYears : null,
       selectedYear: selectedYear !== 'all' ? selectedYear : null,
-      hasChartData: !!chartData,
-      previousAnalysis: aiAnalysis || null
+      hasChartData: false,
+      previousAnalysis: null
     };
   };
 
-  // Auto scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  useEffect(() => {
-    if (hasData && messages.length === 0 && isMounted && !fileLoading && rawData.length > 0) {
-      const dataContext = getDataContext();
-      const welcomeMessage: Message = {
-        role: 'assistant',
-        content: `Hello! I can see you've uploaded "${dataContext?.fileName}" with ${dataContext?.rowCount?.toLocaleString()} rows of ${dataContext?.dataType}.
-
-**📊 Data Status:** Loaded and ready for analysis
-**📈 Data Overview:**
-• File: ${dataContext?.fileName}
-• Rows: ${dataContext?.rowCount?.toLocaleString()}
-• Columns: ${dataContext?.totalColumns} (${dataContext?.columns.slice(0, 5).join(', ')}${(dataContext?.totalColumns || 0) > 5 ? '...' : ''})
-• Type: ${dataContext?.dataType}
-${dataContext?.availableYears ? `• Years Available: ${dataContext.availableYears.join(', ')}` : ''}
-${dataContext?.selectedYear ? `• Currently Viewing: ${dataContext.selectedYear}` : ''}
-
-**🔍 Sample Data Preview:**
-${dataContext?.sampleData.slice(0, 2).map((row, i) => 
-  `Row ${i + 1}: ${Object.entries(row).slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(', ')}`
-).join('\n')}
-
-**🧠 Enhanced with AI Intelligence:**
-I now have vector-powered context awareness, which means I can:
-• Learn from your analysis patterns
-• Provide contextual suggestions based on similar queries
-• Remember insights from previous analyses
-• Suggest relevant data analysis approaches
-
-I have full access to your data and can perform comprehensive analysis. Ask me anything about:
-• Statistical analysis and market insights
-• Data patterns and trends
-• Business recommendations
-• Specific column analysis
-• Stock performance (if applicable)
-
-What would you like to explore first?`,
-        timestamp: new Date().toISOString(),
-        dataContext: dataContext ? {
-          fileName: dataContext.fileName,
-          rowCount: dataContext.rowCount,
-          dataType: dataContext.dataType,
-          columns: dataContext.columns
-        } : undefined
-      };
-      setMessages([welcomeMessage]);
-    }
-  }, [hasData, currentFile, isStockData, messages.length, fileLoading, rawData, isMounted]);
-
   const handleSend = async (isFromWelcomeScreen = false) => {
     if (!input.trim() || isLoading) return;
 
-    // Store the input value for transition
     const currentInput = input;
     setTransitionInput(currentInput);
 
-    // Start transition if coming from welcome screen
     if (isFromWelcomeScreen && showWelcome) {
       setIsTransitioning(true);
       setShowTransitionBox(true);
@@ -335,8 +363,17 @@ What would you like to explore first?`,
     setIsLoading(true);
 
     try {
+      // ✅ Only send data to AI when user sends a message
+      console.log('🚀 Sending message to AI with data:', {
+        hasData,
+        dataRows: hasData ? rawData.length : 0,
+        message: currentInput,
+        sessionId
+      });
+
       const requestPayload = {
         message: formatUserPrompt(currentInput, hasData, dataContext), 
+        // ✅ Send data only when user asks a question
         dataset: hasData && rawData.length > 0 ? {
           data: rawData.slice(0, 500), 
           metadata: {
@@ -353,19 +390,19 @@ What would you like to explore first?`,
         context: {
           has_uploaded_data: hasData,
           user_request_type: detectRequestType(currentInput),
-          previous_analysis: aiAnalysis || null,
+          previous_analysis: null,
           handle_parsing_errors: true,
-          user_id: 'user_123', // Get this from session context
+          user_id: 'user_123',
           session_id: sessionId,
-          original_query: currentInput  // Store original query
+          original_query: currentInput
         }
       };
 
-      console.log('🚀 Sending enhanced request with vector context:', {
+      console.log('📤 Sending request to FastAPI:', {
         url: `${FASTAPI_URL}/ai-chat`,
         hasData,
-        hasVectorContext: !!vectorContext?.has_context,
-        vectorSuggestions: vectorContext?.suggested_analysis_types?.length || 0
+        dataRowsSent: requestPayload.dataset?.data?.length || 0,
+        sessionId
       });
 
       const response = await fetch(`${FASTAPI_URL}/ai-chat`, {
@@ -377,24 +414,12 @@ What would you like to explore first?`,
         body: JSON.stringify(requestPayload),
       });
 
-      console.log('📡 Response status:', response.status);
-
       if (!response.ok) {
         let errorMessage = `Server returned ${response.status}`;
         try {
           const errorData = await response.json();
           console.error('❌ FastAPI error response:', errorData);
           errorMessage = errorData.detail || errorData.message || errorMessage;
-          
-          if (response.status === 422 && errorData.detail) {
-            if (Array.isArray(errorData.detail)) {
-              errorMessage = `Validation error: ${errorData.detail.map((e: any) => 
-                `${e.loc?.join('.') || 'field'}: ${e.msg}`
-              ).join(', ')}`;
-            } else {
-              errorMessage = `Validation error: ${errorData.detail}`;
-            }
-          }
         } catch (e) {
           console.error('Failed to parse error response:', e);
         }
@@ -402,7 +427,7 @@ What would you like to explore first?`,
       }
 
       const result = await response.json();
-      console.log('✅ FastAPI response received successfully');
+      console.log('✅ FastAPI response received');
       
       let responseContent = extractCleanResponse(result);
       
@@ -429,6 +454,50 @@ What would you like to explore first?`,
           `AI analyzed ${Math.min(500, rawData.length)} rows from ${currentFile?.name}` : 
           "AI agent responded to your query",
       });
+
+      // ✅ Save messages to database and generate title
+      if (currentSession) {
+        try {
+          console.log('💾 Saving messages to session:', currentSession.id);
+          
+          // Add user message
+          await addMessage(
+            currentSession.id,
+            'user',
+            currentInput,
+            false,
+            null,
+            { dataContext }
+          );
+        
+          // Add assistant message
+          await addMessage(
+            currentSession.id,
+            'assistant',
+            responseContent,
+            result.vector_context_used || false,
+            result.analysis_type || null,
+            { context_summary: result.context_summary }
+          );
+        
+          // ✅ Generate title if it's the first message
+          if (messages.length === 0 || messages.length === 1) {
+            console.log('🏷️ Generating title for session:', currentSession.id);
+            await generateTitle(
+              currentSession.id,
+              currentInput,
+              responseContent,
+              hasData,
+              currentFile?.name || null
+            );
+          }
+        } catch (error) {
+          console.error('Error saving messages to database:', error);
+          // Don't throw - continue with local messages
+        }
+      } else {
+        console.warn('⚠️ No current session found, messages not saved to database');
+      }
 
     } catch (error) {
       console.error('❌ AI Chat error:', error);
@@ -459,7 +528,6 @@ What would you like to explore first?`,
     }
   };
 
-  // Helper function to detect request type
   const detectRequestType = (input: string): string => {
     const lowerInput = input.toLowerCase();
     if (lowerInput.includes('market') || lowerInput.includes('stock') || lowerInput.includes('invest')) {
@@ -501,7 +569,6 @@ What would you like to explore first?`,
       }
     }
     
-    // Remove any remaining agent artifacts
     responseContent = responseContent
       .replace(/^Thought:.*$/gm, '')
       .replace(/^Action:.*$/gm, '')
@@ -510,7 +577,6 @@ What would you like to explore first?`,
       .replace(/```$/, '')
       .trim();
     
-    // Fallback if content is empty
     if (!responseContent) {
       responseContent = 'I received your message, but there was an issue with the response format. Could you please rephrase your question?';
     }
@@ -518,11 +584,9 @@ What would you like to explore first?`,
     return responseContent;
   };
 
-  // Enhanced error message generator
   const generateErrorMessage = (error: any, hasData: boolean, dataContext: any, userInput: string): string => {
     const errorStr = error instanceof Error ? error.message : String(error);
     
-    // Handle parsing errors specifically
     if (errorStr.includes('parsing error') || errorStr.includes('Could not parse LLM output')) {
       return `I understand your question "${userInput.slice(0, 100)}${userInput.length > 100 ? '...' : ''}", but there was a formatting issue with my response.
 
@@ -530,48 +594,16 @@ What would you like to explore first?`,
 
 **Issue:** The AI agent had trouble formatting the response properly, but I can still help you.
 
-**For investment analysis questions like yours:**
-• I can analyze uploaded stock data for investment insights
-• I can provide general investment guidance and market analysis frameworks  
-• I can help evaluate company fundamentals if you upload financial data
-• I can compare different investment options with your data
-
-**To get better analysis:**
-1. Upload relevant financial/stock data for the company/market you're interested in
-2. Ask specific questions about the data (e.g., "What are the key trends?", "Should I invest based on this data?")
-3. Request specific metrics or comparisons
-
 ${hasData ? `**Your current data:** I can see you have "${dataContext?.fileName}" loaded with ${dataContext?.rowCount?.toLocaleString()} rows. I can analyze this for investment insights.` : '**No data loaded:** Upload financial data to get specific investment analysis.'}
 
 Would you like to rephrase your question or upload some data for me to analyze?`;
     }
     
-    // Handle other errors
     return hasData 
       ? `I apologize, but I encountered an error while analyzing "${dataContext?.fileName}".
 
 **Error Details:**
 ${errorStr}
-
-**Your Question:** "${userInput}"
-
-**Data Context Available:**
-• File: ${dataContext?.fileName}
-• Rows: ${dataContext?.rowCount?.toLocaleString()}
-• Columns: ${dataContext?.columns?.length}
-• Sample Size Sent: ${Math.min(500, (dataContext as any)?.sampleData?.length || 0)} rows
-
-**What I can still help with:**
-• General questions about your data structure
-• Data analysis methodology
-• Interpretation guidance
-• Alternative analysis approaches
-
-**To resolve this issue:**
-1. Try rephrasing your question more simply
-2. Ask about specific columns or data points
-3. Request a different type of analysis
-4. Check if the data format is compatible
 
 Please try a simpler question about your dataset.`
       : `I can help you with data analysis, but I need data to work with first.
@@ -579,17 +611,9 @@ Please try a simpler question about your dataset.`
 **Your Question:** "${userInput}"
 
 **To get started:**
-1. Click "Upload Data" in the sidebar
-2. Upload a CSV or Excel file
+1. Click the upload button (📎) next to the message box
+2. Upload a CSV file with your data
 3. Ask me questions about your data
-
-**What I can help with once you upload data:**
-• Statistical analysis and insights
-• Market analysis (for stock data)
-• Investment recommendations (with financial data)
-• Pattern recognition
-• Business intelligence
-• Data quality assessment
 
 Would you like to upload some data to analyze?`;
   };
@@ -604,9 +628,10 @@ Would you like to upload some data to analyze?`;
   const clearChat = () => {
     setMessages([]);
     setShowWelcome(true);
+    setChatData(null);
     toast({
       title: "🔄 Chat Cleared",
-      description: "Conversation history has been reset"
+      description: "Conversation history and data have been reset"
     });
   };
 
@@ -644,7 +669,7 @@ Would you like to upload some data to analyze?`;
         {
           icon: <Database className="h-5 w-5" />,
           title: "Upload Data",
-          description: "Click 'Upload Data' in the sidebar to get started",
+          description: "Click the upload button to add CSV data",
           prompt: "How do I upload data to analyze?"
         },
         {
@@ -665,33 +690,6 @@ Would you like to upload some data to analyze?`;
     const dataContext = getDataContext();
     const basePrompts = [...EXAMPLE_PROMPTS];
 
-    // Add data-specific prompts
-    if (isStockData) {
-      basePrompts.push({
-        icon: <LineChart className="h-5 w-5" />,
-        title: "Stock Analysis",
-        description: "Analyze stock performance and trends",
-        prompt: "📈 Analyze the stock performance trends, volatility, and key price movements in my data"
-      });
-      
-      basePrompts.push({
-        icon: <TrendingUp className="h-5 w-5" />,
-        title: "Market Report",
-        description: "Generate a comprehensive market analysis report",
-        prompt: "📊 Generate a comprehensive market analysis report for this stock data including key insights, trends, and investment recommendations"
-      });
-      
-      if (availableYears.length > 1) {
-        basePrompts.push({
-          icon: <Calendar className="h-5 w-5" />,
-          title: "Year Comparison",
-          description: "Compare performance across different years",
-          prompt: `📅 Compare the performance across different years (${availableYears.join(', ')}) and identify the best and worst performing periods`
-        });
-      }
-    }
-
-    // Add column-specific prompts
     if (dataContext?.columns.length && dataContext.columns.length > 0) {
       const keyColumns = dataContext.columns.slice(0, 3).join(', ');
       basePrompts.push({
@@ -707,7 +705,6 @@ Would you like to upload some data to analyze?`;
 
   const contextualPrompts = getContextualPrompts();
 
-  // Data Status Component
   const DataStatusBadge = () => {
     if (!hasData) return null;
 
@@ -723,15 +720,9 @@ Would you like to upload some data to analyze?`;
           {dataContext?.totalColumns} columns
         </Badge>
         <Badge variant="secondary" className="bg-purple-500/20 text-purple-400 border-purple-500/30">
-          {isStockData ? <TrendingUp className="h-3 w-3 mr-1" /> : <PieChart className="h-3 w-3 mr-1" />}
+          <PieChart className="h-3 w-3 mr-1" />
           {dataContext?.dataType}
         </Badge>
-        {dataContext?.selectedYear && (
-          <Badge variant="secondary" className="bg-orange-500/20 text-orange-400 border-orange-500/30">
-            <Calendar className="h-3 w-3 mr-1" />
-            {dataContext.selectedYear}
-          </Badge>
-        )}
       </div>
     );
   };
@@ -749,7 +740,6 @@ Would you like to upload some data to analyze?`;
     );
   }
 
-  // Transition box component
   const TransitionBox = () => {
     if (!showTransitionBox) return null;
 
@@ -782,7 +772,6 @@ Would you like to upload some data to analyze?`;
     );
   };
 
-  // Welcome screen when no messages
   if ((messages.length === 0 && !fileLoading) || showWelcome) {
     return (
       <>
@@ -799,7 +788,6 @@ Would you like to upload some data to analyze?`;
             </button>
           )}
 
-          {/* Header */}
           <div className={`backdrop-blur-sm sticky top-0 z-10 transition-all duration-800 ${
             isTransitioning ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'
           }`}>
@@ -821,7 +809,7 @@ Would you like to upload some data to analyze?`;
                     <p className="text-gray-400 text-sm">
                       {hasData 
                         ? `Analyzing ${currentFile?.name} (${currentFile?.rowCount?.toLocaleString()} rows)`
-                        : 'Advanced Data Analysis Assistant with Vector Intelligence'
+                        : 'Advanced Data Analysis Assistant'
                       }
                     </p>
                   </div>
@@ -839,12 +827,10 @@ Would you like to upload some data to analyze?`;
             </div>
           </div>
 
-          {/* Main Content */}
           <div className="flex-1 flex flex-col justify-center items-center p-8 overflow-y-auto relative z-10">
             <div className={`w-full text-center space-y-12 transition-all duration-800 ${
               isSidebarCollapsed ? 'max-w-5xl' : 'max-w-4xl'
             } ${isTransitioning ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'}`}>
-              {/* Welcome Message */}
               <div className="space-y-6">
                 <div className="relative">
                   <h1 className="text-5xl font-bold text-white leading-tight">
@@ -853,13 +839,12 @@ Would you like to upload some data to analyze?`;
                 </div>
                 <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
                   {hasData 
-                    ? `I have complete access to "${currentFile?.name}" with ${currentFile?.rowCount?.toLocaleString()} rows of ${isStockData ? 'stock' : 'general'} data. Enhanced with vector intelligence, I can learn from your analysis patterns and provide contextual insights.`
-                    : "Upload your data first, then I can help you with comprehensive analysis powered by vector intelligence that learns from your patterns and provides contextual suggestions"
+                    ? `I've loaded "${currentFile?.name}" with ${currentFile?.rowCount?.toLocaleString()} rows. Ask me any question and I'll analyze it for you!`
+                    : "Upload your data using the attach button (📎) below, then ask me any questions about it"
                   }
                 </p>
               </div>
 
-              {/* Vector Context Preview */}
               {vectorContext && vectorContext.has_context && (
                 <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg max-w-2xl mx-auto">
                   <div className="flex items-center gap-2 mb-2">
@@ -867,12 +852,11 @@ Would you like to upload some data to analyze?`;
                     <span className="text-sm font-medium text-blue-400">AI Context Ready</span>
                   </div>
                   <p className="text-xs text-gray-300">
-                    I found {vectorContext.similar_analyses.length} similar analyses and {vectorContext.suggested_analysis_types.length} relevant approaches for your query
+                    I found {vectorContext.similar_analyses.length} similar analyses for your query
                   </p>
                 </div>
               )}
 
-              {/* Input Area */}
               <div className="relative max-w-3xl mx-auto">
                 <div className={`relative group transition-all duration-300 ${
                   showTransitionBox ? 'opacity-0' : 'opacity-100'
@@ -882,24 +866,33 @@ Would you like to upload some data to analyze?`;
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyPress}
-                    placeholder={hasData ? `Ask anything about ${currentFile?.name}...` : "Upload data first, then ask me questions..."}
-                    className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10"
+                    placeholder={hasData ? `Ask anything about ${currentFile?.name}...` : "Upload data using the 📎 button, then ask me questions..."}
+                    className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-32 py-6 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10"
                     disabled={isLoading || fileLoading}
                   />
                   
-                  {/* Context Loading Indicator */}
                   {isContextLoading && (
-                    <div className="absolute top-3 right-20 flex items-center gap-1 text-xs text-blue-400">
+                    <div className="absolute top-3 right-28 flex items-center gap-1 text-xs text-blue-400">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       <span>Finding context...</span>
                     </div>
                   )}
                   
-                  {/* Action Buttons */}
-                  <div className="absolute bottom-4 right-4 flex items-center gap-3">
-                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10">
-                      {/* <Mic className="h-5 w-5" /> */}
+                  <div className="absolute bottom-4 right-4 flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsUploadModalOpen(true)}
+                      className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all duration-200"
+                      title="Upload Data"
+                    >
+                      <Paperclip className="h-5 w-5" />
                     </Button>
+                    
+                    <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10">
+                      <Mic className="h-5 w-5" />
+                    </Button>
+                    
                     <Button 
                       onClick={() => handleSend(true)} 
                       disabled={!input.trim() || isLoading || fileLoading}
@@ -916,14 +909,19 @@ Would you like to upload some data to analyze?`;
                 </div>
               </div>
 
-              {/* Example Prompts Grid */}
               <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-12 transition-all duration-800 delay-200 ${
                 isTransitioning ? 'opacity-0 translate-y-8' : 'opacity-100 translate-y-0'
               }`}>
                 {contextualPrompts.map((example, index) => (
                   <button
                     key={index}
-                    onClick={() => useExamplePrompt(example.prompt)}
+                    onClick={() => {
+                      if (example.title === "Upload Data") {
+                        setIsUploadModalOpen(true);
+                      } else {
+                        useExamplePrompt(example.prompt);
+                      }
+                    }}
                     disabled={!hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"}
                     className={`group relative text-left p-6 rounded-2xl transition-all duration-300 border ${
                       !hasData && example.title !== "Upload Data" && example.title !== "Supported Formats" && example.title !== "Analysis Types"
@@ -958,7 +956,6 @@ Would you like to upload some data to analyze?`;
                       </div>
                     </div>
                     
-                    {/* Hover effect overlay */}
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                   </button>
                 ))}
@@ -967,8 +964,14 @@ Would you like to upload some data to analyze?`;
           </div>
         </div>
         
-        {/* Transition Box */}
         <TransitionBox />
+        
+        <ChatUploadModal 
+          isOpen={isUploadModalOpen}
+          onClose={() => setIsUploadModalOpen(false)}
+          onUploadComplete={handleUploadComplete}
+          sessionId={sessionId}
+        />
       </>
     );
   }
@@ -987,20 +990,30 @@ Would you like to upload some data to analyze?`;
         </button>
       )}
 
-      {/* Header */}
       <div className="backdrop-blur-sm max-h-20 sticky top-0 z-10 hidden md:block">
         <div className={`mx-auto py-2 px-4 transition-all duration-300 ${
           isSidebarCollapsed ? 'max-w-full' : 'max-w-7xl'
         }`}>
-          <div className="flex items-center justify-end">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <DataStatusBadge />
+            </div>
+            <div className="flex items-center gap-2">
+              {hasData && (
+                <Button
+                  onClick={clearChat}
+                  variant="ghost"
+                  size="sm"
+                  className="text-gray-400 hover:text-white"
+                >
+                  Clear Chat
+                </Button>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Vector Context Suggestions */}
       {vectorContext && vectorContext.has_context && (
         <div className="mx-auto px-4 py-2 max-w-4xl">
           <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
@@ -1009,7 +1022,6 @@ Would you like to upload some data to analyze?`;
               <span className="text-sm font-medium text-blue-400">AI Context Suggestions</span>
             </div>
             
-            {/* Similar Analyses */}
             {vectorContext.similar_analyses.length > 0 && (
               <div className="mb-3">
                 <h4 className="text-xs text-gray-400 mb-1">Similar Past Analyses:</h4>
@@ -1021,48 +1033,7 @@ Would you like to upload some data to analyze?`;
                         <span className="text-green-400">{analysis.analysis_type}</span>
                         <span className="text-gray-500">({Math.round(analysis.score * 100)}% similar)</span>
                       </div>
-                      {analysis.key_insights.length > 0 && (
-                        <p className="text-gray-300 ml-5">
-                          {analysis.key_insights[0].substring(0, 100)}...
-                        </p>
-                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Suggested Data Sources */}
-            {vectorContext.suggested_data_sources.length > 0 && (
-              <div className="mb-2">
-                <h4 className="text-xs text-gray-400 mb-1">Recommended Data Sources:</h4>
-                <div className="flex flex-wrap gap-1">
-                  {vectorContext.suggested_data_sources.map((source, index) => (
-                    <span 
-                      key={index}
-                      className="inline-flex items-center gap-1 text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded"
-                    >
-                      <Database className="h-3 w-3" />
-                      {source}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Suggested Analysis Types */}
-            {vectorContext.suggested_analysis_types.length > 0 && (
-              <div>
-                <h4 className="text-xs text-gray-400 mb-1">Suggested Analysis Approaches:</h4>
-                <div className="flex flex-wrap gap-1">
-                  {vectorContext.suggested_analysis_types.map((type, index) => (
-                    <span 
-                      key={index}
-                      className="inline-flex items-center gap-1 text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded"
-                    >
-                      <TrendingUp className="h-3 w-3" />
-                      {type.replace('_', ' ')}
-                    </span>
                   ))}
                 </div>
               </div>
@@ -1071,7 +1042,6 @@ Would you like to upload some data to analyze?`;
         </div>
       )}
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 relative z-10">
         <div className={`mx-auto space-y-8 transition-all duration-300 ${
           isSidebarCollapsed ? 'max-w-4xl' : 'max-w-3xl'
@@ -1079,13 +1049,7 @@ Would you like to upload some data to analyze?`;
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'} ${
-                index === 0 ? 'animate-fade-in-up' : ''
-              }`}
-              style={{ 
-                animationDelay: index === 0 ? '400ms' : '0ms',
-                animationFillMode: 'both'
-              }}
+              className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div className={`max-w-[85%] ${message.role === 'user' ? 'order-first' : ''}`}>
                 <div className={`relative rounded-2xl ${
@@ -1093,11 +1057,10 @@ Would you like to upload some data to analyze?`;
                     ? 'bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-4' 
                     : 'bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-6'
                 }`}>
-                  <div className="prose prose-sm max-w-none text-current prose-headings:text-current prose-strong:text-current prose-code:text-current">
+                  <div className="prose prose-sm max-w-none text-current">
                     <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
                   </div>
                   
-                  {/* Vector Context Used Indicator */}
                   {message.vector_context_used && message.context_summary && (
                     <div className="mt-3 text-xs text-blue-300 bg-blue-500/20 rounded p-2">
                       <span className="flex items-center gap-1">
@@ -1106,23 +1069,13 @@ Would you like to upload some data to analyze?`;
                       </span>
                     </div>
                   )}
-                  
-                  {/* Analysis Results */}
-                  {message.role === 'assistant' && message.analysis_results && (
-                    <div className="mt-4 pt-4">
-                      <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
-                        <BarChart3 className="h-3 w-3 mr-1" />
-                        Analysis Complete
-                      </Badge>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>
           ))}
           
           {isLoading && (
-            <div className="flex gap-4 justify-start animate-fade-in-up">
+            <div className="flex gap-4 justify-start">
               <Avatar className="w-10 h-10 mt-1">
                 <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
                   <Bot className="h-5 w-5" />
@@ -1133,15 +1086,10 @@ Would you like to upload some data to analyze?`;
                   <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
                   <span className="text-sm">
                     {hasData 
-                      ? `Analyzing ${currentFile?.name} with ${currentFile?.rowCount?.toLocaleString()} rows...`
+                      ? `Analyzing ${currentFile?.name}...`
                       : 'Processing your request...'
                     }
                   </span>
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-pink-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1151,8 +1099,7 @@ Would you like to upload some data to analyze?`;
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="backdrop-blur-sm p-6 animate-slide-up">
+      <div className="backdrop-blur-sm p-6">
         <div className={`mx-auto relative transition-all duration-300 ${
           isSidebarCollapsed ? 'max-w-4xl' : 'max-w-3xl'
         }`}>
@@ -1162,26 +1109,35 @@ Would you like to upload some data to analyze?`;
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder={hasData ? `Ask anything about ${currentFile?.name}...` : "Upload data first using the sidebar button..."}
-              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[60px] rounded-2xl pl-6 pr-20 py-4 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
-              disabled={isLoading || !hasData || fileLoading}
+              placeholder={hasData ? `Ask anything about ${currentFile?.name}...` : "Upload data first using the attach button..."}
+              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[60px] rounded-2xl pl-6 pr-32 py-4 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
+              disabled={isLoading || fileLoading}
             />
             
-            {/* Context Loading Indicator */}
             {isContextLoading && (
-              <div className="absolute top-3 right-20 flex items-center gap-1 text-xs text-blue-400">
+              <div className="absolute top-3 right-28 flex items-center gap-1 text-xs text-blue-400">
                 <Loader2 className="h-3 w-3 animate-spin" />
                 <span>Context...</span>
               </div>
             )}
             
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsUploadModalOpen(true)}
+                className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all duration-200"
+                title="Upload Data"
+              >
+                <Paperclip className="h-4 w-4" />
+              </Button>
+              
               <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10">
                 <Mic className="h-4 w-4" />
               </Button>
               <Button 
                 onClick={() => handleSend(false)} 
-                disabled={!input.trim() || isLoading || !hasData || fileLoading}
+                disabled={!input.trim() || isLoading || fileLoading}
                 size="sm"
                 className="bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl h-9 w-9 p-0 transition-all duration-300 shadow-lg hover:shadow-blue-500/25"
               >
@@ -1196,39 +1152,69 @@ Would you like to upload some data to analyze?`;
         </div>
       </div>
 
-      {/* Add custom CSS for animations */}
-      <style jsx>{`
-        @keyframes fade-in-up {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        @keyframes slide-up {
-          from {
-            opacity: 0;
-            transform: translateY(30px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
-        .animate-fade-in-up {
-          animation: fade-in-up 0.6s ease-out;
-        }
-
-        .animate-slide-up {
-          animation: slide-up 0.8s ease-out 600ms both;
-        }
-      `}</style>
+      <ChatUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        onUploadComplete={handleUploadComplete}
+        sessionId={sessionId}
+      />
     </div>
+  );
+}
+
+const EXAMPLE_PROMPTS = [
+  {
+    icon: <BarChart3 className="h-5 w-5" />,
+    title: "Statistical Analysis",
+    description: "Analyze my data and provide statistical insights",
+    prompt: "📊 Analyze my data and provide comprehensive statistical insights"
+  },
+  {
+    icon: <Database className="h-5 w-5" />,
+    title: "Data Structure",
+    description: "Help me understand my dataset structure",
+    prompt: "🔍 Help me understand my dataset structure and data quality"
+  },
+  {
+    icon: <TrendingUp className="h-5 w-5" />,
+    title: "Pattern Recognition",
+    description: "What are the key patterns in my data?",
+    prompt: "📈 What are the key patterns and trends in my data?"
+  },
+  {
+    icon: <Brain className="h-5 w-5" />,
+    title: "Business Intelligence",
+    description: "Generate business insights from my data",
+    prompt: "💼 Generate actionable business insights from my data"
+  },
+  {
+    icon: <Sparkles className="h-5 w-5" />,
+    title: "Data Questions",
+    description: "What questions should I ask about my data?",
+    prompt: "🤔 What are the most important questions about my data?"
+  },
+  {
+    icon: <FileText className="h-5 w-5" />,
+    title: "Data Quality",
+    description: "Help me identify data quality issues",
+    prompt: "✅ Help me identify data quality issues"
+  }
+];
+
+export default function AgentPage() {
+  return (
+    <Suspense fallback={
+      <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-4" />
+            <p className="text-gray-400">Loading AI Agent...</p>
+          </div>
+        </div>
+      </div>
+    }>
+      <AgentPageContent />
+    </Suspense>
   );
 }
 
@@ -1238,10 +1224,10 @@ const formatUserPrompt = (input: string, hasData: boolean, dataContext: any): st
   if (hasData && dataContext) {
     prompt += `\n\nCONTEXT: I have uploaded a dataset "${dataContext.fileName}" with ${dataContext.rowCount} rows and these columns: ${dataContext.columns.join(', ')}. Please analyze this data in your response.`;
   } else {
-    prompt += `\n\nCONTEXT: I don't have any data uploaded yet. Please provide general guidance and suggest what data I should upload for better analysis.`;
+    prompt += `\n\nCONTEXT: I don't have any data uploaded yet. Please provide general guidance.`;
   }
   
-  prompt += `\n\nINSTRUCTION: Please provide a clear, direct response without using agent thinking patterns or structured formats. Just give me the analysis and insights directly.`;
+  prompt += `\n\nINSTRUCTION: Please provide a clear, direct response without agent thinking patterns.`;
   
   return prompt;
 };
