@@ -1,124 +1,53 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { usePathname, useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { 
   Brain,
-  Upload,
   User,
   Menu,
   X,
-  CheckCircle,
   Trash2,
   PanelRightClose,
   History,
   MessageSquare,
+  FileText,
+  Calendar,
+  MoreVertical,
+  Plus,
 } from 'lucide-react';
-import { useFileStore } from '@/store/file-store';
-import UploadModal from './upload-modal';
+import { useChatSessions } from '@/hooks/useChatSessions';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from '@/components/ui/button';
 
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
 }
 
-interface ChatHistoryItem {
-  id: string;
-  title: string;
-  timestamp: string;
-  messageCount: number;
-  lastMessage: string;
-}
-
-//   {
-//     id: '1',
-//     title: 'Stock Analysis Q3 2024',
-//     timestamp: '2024-10-02T10:30:00Z',
-//     messageCount: 12,
-//     lastMessage: 'Generated quarterly performance report with key insights...'
-//   },
-//   {
-//     id: '2',
-//     title: 'Sales Data Deep Dive',
-//     timestamp: '2024-10-01T15:45:00Z',
-//     messageCount: 8,
-//     lastMessage: 'Identified correlation between marketing spend and sales...'
-//   },
-//   {
-//     id: '3',
-//     title: 'Customer Segmentation',
-//     timestamp: '2024-09-30T09:15:00Z',
-//     messageCount: 15,
-//     lastMessage: 'Created customer personas based on purchasing behavior...'
-//   },
-//   {
-//     id: '4',
-//     title: 'Revenue Forecasting',
-//     timestamp: '2024-09-29T14:20:00Z',
-//     messageCount: 6,
-//     lastMessage: 'Projected 23% growth for next quarter based on trends...'
-//   },
-//   {
-//     id: '5',
-//     title: 'Market Trend Analysis',
-//     timestamp: '2024-09-28T11:00:00Z',
-//     messageCount: 10,
-//     lastMessage: 'Analyzed market volatility and risk factors...'
-//   }
-// ];
-
 function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status, update } = useSession();
+  const { data: session, status } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [sessionFetched, setSessionFetched] = useState(false);
   
-
-  const { currentFile, hasData, setUploadModalOpen, clearData } = useFileStore();
-
-  useEffect(() => {
-    const handleOAuthCallback = async () => {
-      const isOAuthCallback = searchParams.get('code') || searchParams.get('state');
-      
-      console.log('📊 Sidebar - OAuth Callback Check:', {
-        isOAuthCallback,
-        status,
-        hasSession: !!session,
-        sessionFetched
-      });
-
-      if (status === 'authenticated' && !sessionFetched) {
-        await update();
-        setSessionFetched(true);
-
-      }
-    };
-
-    handleOAuthCallback();
-  }, [status, session, searchParams, update, sessionFetched]);
-
-  // Monitor session data changes
-  useEffect(() => {
-
-    
-    if (status === 'authenticated' && session?.user) {
-     
-      
-      const hasCompleteData = session.user.name && session.user.email && session.user.image;
-      
-      if (!hasCompleteData && !sessionFetched) {
-        console.log('⚠️ User data incomplete, forcing session update...');
-        update().then(() => {
-          setSessionFetched(true);
-          console.log('Session update completed');
-        });
-      }
-    }
-  }, [status, session, sessionFetched, update]);
+  const {
+    sessions,
+    currentSession,
+    createSession,
+    loadSession,
+    deleteSession,
+    isLoading,
+  } = useChatSessions();
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -138,24 +67,24 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     }
   };
 
-  const handleUploadClick = () => {
-    setUploadModalOpen(true);
-    if (isMobile) {
-      setIsMobileMenuOpen(false);
+  const handleNewChat = async () => {
+    const newSession = await createSession();
+    if (newSession) {
+      router.push(`/dashboard/agent?session=${newSession.id}`);
     }
+    handleItemClick();
   };
 
-  const handleRemoveData = (e: React.MouseEvent) => {
+  const handleChatClick = async (sessionId: string) => {
+    await loadSession(sessionId);
+    router.push(`/dashboard/agent?session=${sessionId}`);
+    handleItemClick();
+  };
+
+  const handleDeleteChat = async (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to remove the uploaded data?')) {
-      clearData();
-    }
-  };
-
-  const handleChatHistoryClick = (chatId: string) => {
-    console.log('Loading chat:', chatId);
-    if (isMobile) {
-      setIsMobileMenuOpen(false);
+    if (confirm('Are you sure you want to delete this chat?')) {
+      await deleteSession(sessionId);
     }
   };
 
@@ -164,28 +93,32 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     return text.substring(0, maxLength) + '...';
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  };
 
   const getUserData = () => {
     if (status === 'loading') {
-      return {
-        name: 'Loading...',
-        email: 'Loading...',
-        image: null
-      };
+      return { name: 'Loading...', email: 'Loading...', image: null };
     }
 
     if (status === 'unauthenticated' || !session?.user) {
-      return {
-        name: 'Guest',
-        email: 'Not signed in',
-        image: null
-      };
+      return { name: 'Guest', email: 'Not signed in', image: null };
     }
 
     return {
       name: session.user.name || session.user.email?.split('@')[0] || 'User',
       email: session.user.email || 'No email',
-      image: session.user.image || null
+      image: session.user.image || null,
     };
   };
 
@@ -216,9 +149,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
       <aside 
         className={`${
           isMobile 
-            ? isMobileMenuOpen
-              ? 'translate-x-0'
-              : '-translate-x-full' 
+            ? isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full' 
             : 'translate-x-0'
         } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white shadow-2xl overflow-hidden ${
           isCollapsed && !isMobile ? 'w-16 bg-black backdrop-blur-md' : 'w-[260px] bg-black/80 backdrop-blur-xl'
@@ -227,19 +158,12 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {/* Collapsed View - Icon Only */}
         {isCollapsed && !isMobile && (
           <div className="flex flex-col items-center h-full py-4 space-y-4">
-            
-
-          
             <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <Brain className="w-6 h-6 text-white" />
             </div>
 
-            {/* Spacer */}
             <div className="flex-1"></div>
 
-           
-
-            {/* User Avatar */}
             <div className="w-10 h-10 rounded-full overflow-hidden shadow-lg shadow-blue-500/20 cursor-pointer hover:scale-110 transition-transform duration-300">
               {userData.image ? (
                 <Image
@@ -294,40 +218,113 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               </span>
             </div>
             
+            {/* New Chat Button */}
+            <div className="px-4 py-3 border-b border-white/10">
+              <Button
+                onClick={handleNewChat}
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="font-medium">New Chat</span>
+              </Button>
+            </div>
+
             {/* Chat History Section */}
             <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
               {/* History Header */}
               <div className="px-4 py-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
                   <History className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-300">Chat History</span>
+                  <span className="text-sm font-medium text-gray-300">Recent Chats</span>
+                  <span className="ml-auto text-xs text-gray-500">{sessions.length}</span>
                 </div>
               </div>
               
               {/* History List */}
               <div className="flex-1 overflow-y-auto px-2 py-2">
                 <div className="space-y-1">
-                
-                  
-                  <button
-                    onClick={() => {
-                      console.log('Starting new chat');
-                      handleItemClick();
-                    }}
-                    className="w-full p-3 rounded-lg border-2 border-dashed border-white/20 hover:border-white/30 transition-all duration-200 group mt-2"
-                  >
-                    <div className="flex items-center justify-center gap-2 text-gray-400 group-hover:text-gray-300">
-                      <MessageSquare className="w-4 h-4" />
-                      <span className="text-sm font-medium">New Chat</span>
+                  {sessions.length === 0 ? (
+                    <div className="text-center py-8 px-4">
+                      <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No chats yet</p>
+                      <p className="text-xs text-gray-600 mt-1">Start a new conversation</p>
                     </div>
-                  </button>
+                  ) : (
+                    sessions.map((chatSession) => (
+                      <div
+                        key={chatSession.id}
+                        onClick={() => handleChatClick(chatSession.id)}
+                        className={`group relative p-3 rounded-lg transition-all duration-200 cursor-pointer ${
+                          currentSession?.id === chatSession.id
+                            ? 'bg-white/10 border border-white/20'
+                            : 'hover:bg-white/5 border border-transparent hover:border-white/10'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 mt-0.5">
+                            {chatSession.hasData ? (
+                              <FileText className="w-4 h-4 text-green-400" />
+                            ) : (
+                              <MessageSquare className="w-4 h-4 text-gray-400" />
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="text-sm font-medium text-white truncate">
+                                {truncateText(chatSession.title, 25)}
+                              </h4>
+                              
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                                  >
+                                    <MoreVertical className="w-3 h-3 text-gray-400" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-gray-900 border-white/10">
+                                  <DropdownMenuItem
+                                    onClick={(e: React.MouseEvent<Element, MouseEvent>) => handleDeleteChat(e, chatSession.id)}
+                                    className="text-red-400 focus:text-red-300 focus:bg-red-500/10"
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            
+                            {chatSession.lastMessage && (
+                              <p className="text-xs text-gray-500 truncate mt-1">
+                                {truncateText(chatSession.lastMessage, 35)}
+                              </p>
+                            )}
+                            
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-gray-600">
+                                {formatDate(chatSession.updatedAt)}
+                              </span>
+                              {chatSession.hasData && chatSession.dataFileName && (
+                                <span className="text-xs text-green-500/70 flex items-center gap-1">
+                                  <FileText className="w-3 h-3" />
+                                  {truncateText(chatSession.dataFileName, 15)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
             
             {/* Bottom section */}
             <div className="px-4 pb-4 space-y-3 relative z-10 border-t border-white/10 pt-4">
-              
               {/* User Profile */}
               <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden cursor-pointer">
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -362,9 +359,6 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           </>
         )}
       </aside>
-
-      {/* Upload Modal */}
-      <UploadModal />
     </>
   );
 }
