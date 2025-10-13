@@ -13,11 +13,13 @@ import {
   Activity, PieChart, LineChart, AlertCircle,
   ArrowUp,
   PanelLeftOpen,
-  PanelLeftClose
+  PanelLeftClose,
+  Lightbulb  // Add this for vector context
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useFileData } from '@/hooks/use-file-data';
 import { useSidebar } from '@/app/dashboard/layout';
+import { useSearchParams } from 'next/navigation';
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
@@ -26,12 +28,80 @@ interface Message {
   content: string;
   timestamp: string;
   analysis_results?: any;
+  vector_context_used?: boolean;  // Add this
+  context_summary?: {            // Add this
+    similar_analyses_count: number;
+    suggested_sources: string[];
+    suggested_analysis_types: string[];
+  };
   dataContext?: {
     fileName: string;
     rowCount: number;
     dataType: string;
     columns: string[];
   };
+}
+
+// Add vector context interface
+interface VectorContext {
+  similar_analyses: Array<{
+    id: string;
+    score: number;
+    analysis_type: string;
+    key_insights: string[];
+    session_id: string;
+  }>;
+  suggested_data_sources: string[];
+  suggested_analysis_types: string[];
+  has_context: boolean;
+}
+
+// Add vector context hook
+function useVectorContext(query: string, sessionId: string | null) {
+  const [context, setContext] = useState<VectorContext | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (!query || query.length < 20 || !sessionId) {
+      setContext(null);
+      return;
+    }
+
+    const getContext = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/vector/context', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            session_id: sessionId,
+            user_id: 'user_123' // You can get this from session context
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.context && data.context.has_context) {
+            setContext(data.context);
+          } else {
+            setContext(null);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching vector context:', error);
+        setContext(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    // Debounce the context fetch
+    const timer = setTimeout(getContext, 1000);
+    return () => clearTimeout(timer);
+  }, [query, sessionId]);
+
+  return { context, isLoading };
 }
 
 interface AgentPageProps {
@@ -73,12 +143,14 @@ const EXAMPLE_PROMPTS = [
     icon: <FileText className="h-5 w-5" />,
     title: "Data Quality",
     description: "Help me identify data quality issues",
-    prompt: " Help me identify and fix data quality issues including outliers, missing values, and inconsistencies"
+    prompt: "✅ Help me identify and fix data quality issues including outliers, missing values, and inconsistencies"
   }
 ];
 
 export default function AgentPage() {
   const { isSidebarCollapsed, toggleSidebar } = useSidebar();
+  const searchParams = useSearchParams();
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -95,6 +167,9 @@ export default function AgentPage() {
   const transitionRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
+  // Add vector context hook
+  const { context: vectorContext, isLoading: isContextLoading } = useVectorContext(input, sessionId);
+
   const { 
     currentFile, 
     hasData, 
@@ -108,10 +183,15 @@ export default function AgentPage() {
     isLoading: fileLoading
   } = useFileData();
 
+  // Add session ID effect
+  useEffect(() => {
+    const sessionParam = searchParams.get('session');
+    setSessionId(sessionParam || `session_${Date.now()}`);
+  }, [searchParams]);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
-
 
   useEffect(() => {
     if (!isMounted) return;
@@ -166,7 +246,6 @@ export default function AgentPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
- 
   useEffect(() => {
     if (hasData && messages.length === 0 && isMounted && !fileLoading && rawData.length > 0) {
       const dataContext = getDataContext();
@@ -174,8 +253,8 @@ export default function AgentPage() {
         role: 'assistant',
         content: `Hello! I can see you've uploaded "${dataContext?.fileName}" with ${dataContext?.rowCount?.toLocaleString()} rows of ${dataContext?.dataType}.
 
-** Data Status:** Loaded and ready for analysis
-** Data Overview:**
+**📊 Data Status:** Loaded and ready for analysis
+**📈 Data Overview:**
 • File: ${dataContext?.fileName}
 • Rows: ${dataContext?.rowCount?.toLocaleString()}
 • Columns: ${dataContext?.totalColumns} (${dataContext?.columns.slice(0, 5).join(', ')}${(dataContext?.totalColumns || 0) > 5 ? '...' : ''})
@@ -187,6 +266,13 @@ ${dataContext?.selectedYear ? `• Currently Viewing: ${dataContext.selectedYear
 ${dataContext?.sampleData.slice(0, 2).map((row, i) => 
   `Row ${i + 1}: ${Object.entries(row).slice(0, 3).map(([k, v]) => `${k}: ${v}`).join(', ')}`
 ).join('\n')}
+
+**🧠 Enhanced with AI Intelligence:**
+I now have vector-powered context awareness, which means I can:
+• Learn from your analysis patterns
+• Provide contextual suggestions based on similar queries
+• Remember insights from previous analyses
+• Suggest relevant data analysis approaches
 
 I have full access to your data and can perform comprehensive analysis. Ask me anything about:
 • Statistical analysis and market insights
@@ -220,12 +306,10 @@ What would you like to explore first?`,
       setIsTransitioning(true);
       setShowTransitionBox(true);
       
-
       setTimeout(() => {
         setShowWelcome(false);
       }, 200);
       
-   
       setTimeout(() => {
         setIsTransitioning(false);
         setShowTransitionBox(false);
@@ -270,17 +354,18 @@ What would you like to explore first?`,
           has_uploaded_data: hasData,
           user_request_type: detectRequestType(currentInput),
           previous_analysis: aiAnalysis || null,
-          handle_parsing_errors: true 
+          handle_parsing_errors: true,
+          user_id: 'user_123', // Get this from session context
+          session_id: sessionId,
+          original_query: currentInput  // Store original query
         }
       };
 
-      console.log('🚀 Sending comprehensive request to FastAPI:', {
+      console.log('🚀 Sending enhanced request with vector context:', {
         url: `${FASTAPI_URL}/ai-chat`,
         hasData,
-        dataRowCount: rawData.length,
-        sampleSize: hasData ? Math.min(500, rawData.length) : 0,
-        messageLength: currentInput.length,
-        requestType: requestPayload.context.user_request_type
+        hasVectorContext: !!vectorContext?.has_context,
+        vectorSuggestions: vectorContext?.suggested_analysis_types?.length || 0
       });
 
       const response = await fetch(`${FASTAPI_URL}/ai-chat`, {
@@ -298,7 +383,7 @@ What would you like to explore first?`,
         let errorMessage = `Server returned ${response.status}`;
         try {
           const errorData = await response.json();
-          console.error(' FastAPI error response:', errorData);
+          console.error('❌ FastAPI error response:', errorData);
           errorMessage = errorData.detail || errorData.message || errorMessage;
           
           if (response.status === 422 && errorData.detail) {
@@ -317,7 +402,7 @@ What would you like to explore first?`,
       }
 
       const result = await response.json();
-      console.log(' FastAPI response received successfully');
+      console.log('✅ FastAPI response received successfully');
       
       let responseContent = extractCleanResponse(result);
       
@@ -326,6 +411,8 @@ What would you like to explore first?`,
         content: responseContent,
         timestamp: result.timestamp || new Date().toISOString(),
         analysis_results: result.analysis_results,
+        vector_context_used: result.vector_context_used || false,
+        context_summary: result.context_summary || undefined,
         dataContext: dataContext ? {
           fileName: dataContext.fileName,
           rowCount: dataContext.rowCount,
@@ -387,28 +474,22 @@ What would you like to explore first?`,
     return 'general_analysis';
   };
 
-
   const extractCleanResponse = (result: any): string => {
-
     let responseContent = result.response || result.message || result.output || result.answer || '';
     
-   
     if (result.status === 'fallback' && result.error) {
       console.info('Using fallback response due to agent error'); 
     }
     
-
     if (result.status === 'error') {
       return result.response || 'I encountered an error processing your request. Please try again.';
     }
     
-
     if (responseContent.includes('Thought:') || responseContent.includes('Action:')) {
       const patterns = [
         /AI:\s*(.*?)(?:\n```|$)/,
         /Final Answer:\s*(.*?)(?:\n```|$)/,
-        /Answer:\s*(.*?)(?:\n```|$)/,
-        /Response:\s*(.*?)(?:\n```|$)/
+        /Answer:\s*(.*?)(?:\n```|$)/
       ];
       
       for (const pattern of patterns) {
@@ -655,7 +736,6 @@ Would you like to upload some data to analyze?`;
     );
   };
 
-
   if (!isMounted) {
     return (
       <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
@@ -741,7 +821,7 @@ Would you like to upload some data to analyze?`;
                     <p className="text-gray-400 text-sm">
                       {hasData 
                         ? `Analyzing ${currentFile?.name} (${currentFile?.rowCount?.toLocaleString()} rows)`
-                        : 'Advanced Data Analysis Assistant'
+                        : 'Advanced Data Analysis Assistant with Vector Intelligence'
                       }
                     </p>
                   </div>
@@ -768,16 +848,29 @@ Would you like to upload some data to analyze?`;
               <div className="space-y-6">
                 <div className="relative">
                   <h1 className="text-5xl font-bold text-white leading-tight">
-                    {hasData ? "Let's analyze your data!" : "Ready for data analysis?"}
+                    {hasData ? "Let's analyze your data!" : "Ready for smart data analysis?"}
                   </h1>
                 </div>
                 <p className="text-xl text-gray-300 max-w-2xl mx-auto leading-relaxed">
                   {hasData 
-                    ? `I have complete access to "${currentFile?.name}" with ${currentFile?.rowCount?.toLocaleString()} rows of ${isStockData ? 'stock' : 'general'} data. Ask me anything about patterns, trends, insights, or specific analysis you need.`
-                    : "Upload your data first, then I can help you with comprehensive analysis, market insights, statistical analysis, and business intelligence"
+                    ? `I have complete access to "${currentFile?.name}" with ${currentFile?.rowCount?.toLocaleString()} rows of ${isStockData ? 'stock' : 'general'} data. Enhanced with vector intelligence, I can learn from your analysis patterns and provide contextual insights.`
+                    : "Upload your data first, then I can help you with comprehensive analysis powered by vector intelligence that learns from your patterns and provides contextual suggestions"
                   }
                 </p>
               </div>
+
+              {/* Vector Context Preview */}
+              {vectorContext && vectorContext.has_context && (
+                <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg max-w-2xl mx-auto">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Lightbulb className="h-4 w-4 text-yellow-400" />
+                    <span className="text-sm font-medium text-blue-400">AI Context Ready</span>
+                  </div>
+                  <p className="text-xs text-gray-300">
+                    I found {vectorContext.similar_analyses.length} similar analyses and {vectorContext.suggested_analysis_types.length} relevant approaches for your query
+                  </p>
+                </div>
+              )}
 
               {/* Input Area */}
               <div className="relative max-w-3xl mx-auto">
@@ -793,6 +886,14 @@ Would you like to upload some data to analyze?`;
                     className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10"
                     disabled={isLoading || fileLoading}
                   />
+                  
+                  {/* Context Loading Indicator */}
+                  {isContextLoading && (
+                    <div className="absolute top-3 right-20 flex items-center gap-1 text-xs text-blue-400">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Finding context...</span>
+                    </div>
+                  )}
                   
                   {/* Action Buttons */}
                   <div className="absolute bottom-4 right-4 flex items-center gap-3">
@@ -899,6 +1000,77 @@ Would you like to upload some data to analyze?`;
         </div>
       </div>
 
+      {/* Vector Context Suggestions */}
+      {vectorContext && vectorContext.has_context && (
+        <div className="mx-auto px-4 py-2 max-w-4xl">
+          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+            <div className="flex items-center gap-2 mb-2">
+              <Lightbulb className="h-4 w-4 text-yellow-400" />
+              <span className="text-sm font-medium text-blue-400">AI Context Suggestions</span>
+            </div>
+            
+            {/* Similar Analyses */}
+            {vectorContext.similar_analyses.length > 0 && (
+              <div className="mb-3">
+                <h4 className="text-xs text-gray-400 mb-1">Similar Past Analyses:</h4>
+                <div className="space-y-1">
+                  {vectorContext.similar_analyses.slice(0, 2).map((analysis, index) => (
+                    <div key={index} className="text-xs bg-white/5 rounded p-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <BarChart3 className="h-3 w-3 text-green-400" />
+                        <span className="text-green-400">{analysis.analysis_type}</span>
+                        <span className="text-gray-500">({Math.round(analysis.score * 100)}% similar)</span>
+                      </div>
+                      {analysis.key_insights.length > 0 && (
+                        <p className="text-gray-300 ml-5">
+                          {analysis.key_insights[0].substring(0, 100)}...
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Suggested Data Sources */}
+            {vectorContext.suggested_data_sources.length > 0 && (
+              <div className="mb-2">
+                <h4 className="text-xs text-gray-400 mb-1">Recommended Data Sources:</h4>
+                <div className="flex flex-wrap gap-1">
+                  {vectorContext.suggested_data_sources.map((source, index) => (
+                    <span 
+                      key={index}
+                      className="inline-flex items-center gap-1 text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded"
+                    >
+                      <Database className="h-3 w-3" />
+                      {source}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Suggested Analysis Types */}
+            {vectorContext.suggested_analysis_types.length > 0 && (
+              <div>
+                <h4 className="text-xs text-gray-400 mb-1">Suggested Analysis Approaches:</h4>
+                <div className="flex flex-wrap gap-1">
+                  {vectorContext.suggested_analysis_types.map((type, index) => (
+                    <span 
+                      key={index}
+                      className="inline-flex items-center gap-1 text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded"
+                    >
+                      <TrendingUp className="h-3 w-3" />
+                      {type.replace('_', ' ')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-6 relative z-10">
         <div className={`mx-auto space-y-8 transition-all duration-300 ${
@@ -925,7 +1097,17 @@ Would you like to upload some data to analyze?`;
                     <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
                   </div>
                   
-                  {/* Only show analysis results for assistant messages - removed data context section */}
+                  {/* Vector Context Used Indicator */}
+                  {message.vector_context_used && message.context_summary && (
+                    <div className="mt-3 text-xs text-blue-300 bg-blue-500/20 rounded p-2">
+                      <span className="flex items-center gap-1">
+                        <Brain className="h-3 w-3" />
+                        Enhanced with context from {message.context_summary.similar_analyses_count} similar analyses
+                      </span>
+                    </div>
+                  )}
+                  
+                  {/* Analysis Results */}
                   {message.role === 'assistant' && message.analysis_results && (
                     <div className="mt-4 pt-4">
                       <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
@@ -984,6 +1166,14 @@ Would you like to upload some data to analyze?`;
               className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[60px] rounded-2xl pl-6 pr-20 py-4 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
               disabled={isLoading || !hasData || fileLoading}
             />
+            
+            {/* Context Loading Indicator */}
+            {isContextLoading && (
+              <div className="absolute top-3 right-20 flex items-center gap-1 text-xs text-blue-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                <span>Context...</span>
+              </div>
+            )}
             
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
               <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10">
