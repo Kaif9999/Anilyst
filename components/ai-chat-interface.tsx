@@ -15,13 +15,41 @@ import {
   PanelLeftOpen,
   PanelLeftClose,
   Lightbulb,
-  Paperclip
+  Paperclip,
+  Copy,
+  Check
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useSidebar } from '@/app/dashboard/layout';
 import { useSearchParams } from 'next/navigation';
 import ChatUploadModal from './chat-upload-modal';
 import { useChatSessions } from '@/hooks/useChatSessions';
+
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Bar, Line, Pie, Doughnut, Scatter } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
@@ -65,6 +93,22 @@ interface ChatData {
     columns: string[];
     fileSize: number;
     uploadedAt: string;
+  };
+}
+
+interface ChartData {
+  type: 'line' | 'bar' | 'pie' | 'doughnut' | 'scatter' | 'area';
+  title: string;
+  data: {
+    labels: string[];
+    datasets: Array<{
+      label?: string;
+      data: any[];
+      backgroundColor?: string | string[];
+      borderColor?: string | string[];
+      borderWidth?: number;
+      fill?: boolean;
+    }>;
   };
 }
 
@@ -130,7 +174,6 @@ function AgentPageContent() {
   const [transitionInput, setTransitionInput] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   
-  // ✅ Store data per session - scoped to this chat only (NOT in localStorage)
   const [chatData, setChatData] = useState<ChatData | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -162,7 +205,9 @@ function AgentPageContent() {
   const selectedYear = 'all';
   const fileLoading = false;
 
-  // ✅ Initialize or get session on mount and when search params change
+  
+
+
   useEffect(() => {
     const initializeSession = async () => {
       const sessionParam = searchParams.get('session');
@@ -234,7 +279,235 @@ function AgentPageContent() {
     };
   }, [isMounted]);
 
-  // ✅ Modified: Only store data locally, don't send to AI yet
+  const detectAndRenderCharts = (content: string): { content: string; charts: ChartData[] } => {
+    const charts: ChartData[] = [];
+    let processedContent = content;
+  
+    // Look for chart blocks in the AI response
+    const chartPattern = /```chart\s*\n([\s\S]*?)\n```/g;
+    let match;
+  
+    while ((match = chartPattern.exec(content)) !== null) {
+      try {
+        const chartConfig = JSON.parse(match[1]);
+        charts.push(chartConfig);
+        // Replace the chart block with a placeholder
+        processedContent = processedContent.replace(match[0], '[CHART_PLACEHOLDER]');
+      } catch (error) {
+        console.error('Error parsing chart config:', error);
+      }
+    }
+  
+    return { content: processedContent, charts };
+  };
+
+  const renderMarkdown = (content: string) => {
+    const { content: textContent, charts } = detectAndRenderCharts(content);
+    
+    // Convert markdown to HTML-like JSX elements
+    const lines = textContent.split('\n');
+    const elements: JSX.Element[] = [];
+    let currentList: string[] = [];
+    let inCodeBlock = false;
+    let codeBlockContent: string[] = [];
+    let codeBlockLanguage = '';
+    let chartIndex = 0;
+  
+    const flushList = () => {
+      if (currentList.length > 0) {
+        elements.push(
+          <ul key={elements.length} className="list-disc list-inside space-y-1 my-3 ml-4">
+            {currentList.map((item, index) => (
+              <li key={index} className="text-gray-200">{formatInlineMarkdown(item)}</li>
+            ))}
+          </ul>
+        );
+        currentList = [];
+      }
+    };
+  
+    const flushCodeBlock = () => {
+      if (codeBlockContent.length > 0) {
+        elements.push(
+          <pre key={elements.length} className="bg-gray-800/50 border border-gray-600 rounded-lg p-4 my-3 overflow-x-auto">
+            <code className="text-sm text-gray-300 font-mono">
+              {codeBlockContent.join('\n')}
+            </code>
+          </pre>
+        );
+        codeBlockContent = [];
+      }
+    };
+  
+    lines.forEach((line, index) => {
+      // Handle chart placeholders
+      if (line.includes('[CHART_PLACEHOLDER]')) {
+        flushList();
+        if (chartIndex < charts.length) {
+          elements.push(
+            <AIGeneratedChart key={`chart-${chartIndex}`} chartData={charts[chartIndex]} />
+          );
+          chartIndex++;
+        }
+        return;
+      }
+  
+      // Handle code blocks
+      if (line.startsWith('```')) {
+        if (inCodeBlock) {
+          flushCodeBlock();
+          inCodeBlock = false;
+        } else {
+          flushList();
+          inCodeBlock = true;
+          codeBlockLanguage = line.slice(3).trim();
+        }
+        return;
+      }
+  
+      if (inCodeBlock) {
+        codeBlockContent.push(line);
+        return;
+      }
+  
+      // Handle headers
+      if (line.startsWith('#')) {
+        flushList();
+        const headerText = line.replace(/^#+\s*/, '');
+        const level = line.match(/^#+/)?.[0].length || 2;
+        
+        if (level === 1) {
+          elements.push(<h1 key={index} className="text-2xl font-bold text-white mt-6 mb-3">{headerText}</h1>);
+        } else if (level === 2) {
+          elements.push(<h2 key={index} className="text-xl font-bold text-white mt-5 mb-2">{headerText}</h2>);
+        } else if (level === 3) {
+          elements.push(<h3 key={index} className="text-lg font-semibold text-white mt-4 mb-2">{headerText}</h3>);
+        } else {
+          elements.push(<h4 key={index} className="text-base font-semibold text-white mt-3 mb-2">{headerText}</h4>);
+        }
+        return;
+      }
+  
+      // Handle bullet points
+      if (line.match(/^[•\-\*]\s/)) {
+        const listItem = line.replace(/^[•\-\*]\s*/, '');
+        currentList.push(listItem);
+        return;
+      }
+  
+      // Handle numbered lists
+      if (line.match(/^\d+\.\s/)) {
+        flushList();
+        const listItem = line.replace(/^\d+\.\s*/, '');
+        elements.push(
+          <ol key={index} className="list-decimal list-inside my-2 ml-4">
+            <li className="text-gray-200">{formatInlineMarkdown(listItem)}</li>
+          </ol>
+        );
+        return;
+      }
+  
+      // Handle empty lines
+      if (line.trim() === '') {
+        flushList();
+        elements.push(<br key={index} />);
+        return;
+      }
+  
+      // Handle horizontal rules
+      if (line.trim() === '---') {
+        flushList();
+        elements.push(<hr key={index} className="border-gray-600 my-4" />);
+        return;
+      }
+  
+      // Handle regular paragraphs
+      flushList();
+      if (line.trim()) {
+        elements.push(
+          <p key={index} className="text-gray-200 leading-relaxed my-2">
+            {formatInlineMarkdown(line)}
+          </p>
+        );
+      }
+    });
+  
+    // Flush any remaining content
+    flushList();
+    flushCodeBlock();
+  
+    // Add any remaining charts
+    while (chartIndex < charts.length) {
+      elements.push(
+        <AIGeneratedChart key={`chart-${chartIndex}`} chartData={charts[chartIndex]} />
+      );
+      chartIndex++;
+    }
+  
+    return <div className="space-y-1">{elements}</div>;
+  };
+
+  const formatInlineMarkdown = (text: string): React.ReactNode => {
+    // Handle bold text
+    let formatted = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    
+    // Handle italic text
+    formatted = formatted.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    
+    // Handle inline code
+    formatted = formatted.replace(/`([^`]+)`/g, '<code class="bg-gray-700/50 px-1 py-0.5 rounded text-xs font-mono text-blue-300">$1</code>');
+    
+    // Handle links (basic)
+    formatted = formatted.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">$1</a>');
+  
+    // Split by HTML tags and render accordingly
+    const parts = formatted.split(/(<[^>]+>)/);
+    const elements: React.ReactNode[] = [];
+    
+    let i = 0;
+    while (i < parts.length) {
+      const part = parts[i];
+      
+      if (part.startsWith('<strong>')) {
+        const content = part.replace(/<\/?strong>/g, '');
+        elements.push(<strong key={i} className="font-semibold text-white">{content}</strong>);
+      } else if (part.startsWith('<em>')) {
+        const content = part.replace(/<\/?em>/g, '');
+        elements.push(<em key={i} className="italic text-gray-300">{content}</em>);
+      } else if (part.startsWith('<code')) {
+        const content = part.replace(/<code[^>]*>|<\/code>/g, '');
+        elements.push(
+          <code key={i} className="bg-gray-700/50 px-1 py-0.5 rounded text-xs font-mono text-blue-300">
+            {content}
+          </code>
+        );
+      } else if (part.startsWith('<a')) {
+        const hrefMatch = part.match(/href="([^"]+)"/);
+        const textMatch = part.match(/>([^<]+)</);
+        if (hrefMatch && textMatch) {
+          elements.push(
+            <a 
+              key={i} 
+              href={hrefMatch[1]} 
+              className="text-blue-400 hover:text-blue-300 underline" 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              {textMatch[1]}
+            </a>
+          );
+        }
+      } else if (!part.match(/^<[^>]+>$/)) {
+        // Regular text
+        elements.push(part);
+      }
+      
+      i++;
+    }
+    
+    return elements.length > 1 ? <>{elements}</> : elements[0] || text;
+  };
+  
   const handleUploadComplete = async (data: any[], metadata: any) => {
     console.log('📁 Data uploaded to chat session:', {
       filename: metadata.filename,
@@ -637,7 +910,15 @@ Would you like to upload some data to analyze?`;
 
   const copyMessage = async (content: string, messageIndex: number) => {
     try {
-      await navigator.clipboard.writeText(content);
+      // Strip markdown for clipboard
+      const plainText = content
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1')
+        .replace(/#{1,6}\s*([^\n]+)/g, '$1')
+        .replace(/[•\-\*]\s*/g, '• ');
+      
+      await navigator.clipboard.writeText(plainText);
       setCopiedMessageId(messageIndex.toString());
       setTimeout(() => setCopiedMessageId(null), 2000);
       
@@ -663,6 +944,42 @@ Would you like to upload some data to analyze?`;
     }
   };
 
+  const getVisualizationPrompts = () => {
+    if (!hasData) return [];
+    
+    const dataContext = getDataContext();
+    const numericColumns = dataContext?.columns?.filter(col => 
+      rawData.some(row => typeof row[col] === 'number')
+    ) || [];
+    
+    return [
+      {
+        icon: <Activity className="h-5 w-5" />,
+        title: "Interactive Dashboard",
+        description: "Multiple charts showing different data perspectives",
+        prompt: `🎯 Create an interactive dashboard with multiple visualizations for ${dataContext?.fileName}. Include trend analysis, distribution charts, and comparative analysis.`
+      },
+      {
+        icon: <LineChart className="h-5 w-5" />,
+        title: "Advanced Trend Analysis",
+        description: "Professional time-series visualizations",
+        prompt: `📈 Create professional line charts with interactive features showing trends in ${numericColumns.slice(0, 2).join(' and ')} over time.`
+      },
+      {
+        icon: <BarChart3 className="h-5 w-5" />,
+        title: "Comparative Dashboard", 
+        description: "Interactive comparison charts",
+        prompt: `📊 Create interactive bar charts and comparison visualizations for analyzing different categories and metrics in my data.`
+      },
+      {
+        icon: <PieChart className="h-5 w-5" />,
+        title: "Distribution Analysis",
+        description: "Interactive pie and doughnut charts", 
+        prompt: `🥧 Create interactive distribution charts (pie/doughnut) showing the composition and proportions in my dataset.`
+      }
+    ];
+  };
+
   const getContextualPrompts = () => {
     if (!hasData) {
       return [
@@ -686,21 +1003,13 @@ Would you like to upload some data to analyze?`;
         }
       ];
     }
-
+  
     const dataContext = getDataContext();
     const basePrompts = [...EXAMPLE_PROMPTS];
-
-    if (dataContext?.columns.length && dataContext.columns.length > 0) {
-      const keyColumns = dataContext.columns.slice(0, 3).join(', ');
-      basePrompts.push({
-        icon: <Activity className="h-5 w-5" />,
-        title: "Column Analysis",
-        description: `Focus on key columns: ${keyColumns}`,
-        prompt: `🔍 Focus your analysis on these key columns: ${keyColumns}. What insights can you provide about their relationships and patterns?`
-      });
-    }
-
-    return basePrompts.slice(0, 6);
+    const vizPrompts = getVisualizationPrompts();
+    
+    // Combine analysis and visualization prompts
+    return [...basePrompts.slice(0, 3), ...vizPrompts, ...basePrompts.slice(3)].slice(0, 6);
   };
 
   const contextualPrompts = getContextualPrompts();
@@ -1051,26 +1360,63 @@ Would you like to upload some data to analyze?`;
               key={index}
               className={`flex gap-4 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
+              {message.role === 'assistant' && (
+                <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
+                  <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                    <Bot className="h-5 w-5" />
+                  </AvatarFallback>
+                </Avatar>
+              )}
+              
               <div className={`max-w-[85%] ${message.role === 'user' ? 'order-first' : ''}`}>
-                <div className={`relative rounded-2xl ${
+                <div className={`relative group rounded-2xl ${
                   message.role === 'user' 
                     ? 'bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-4' 
                     : 'bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-6'
                 }`}>
+                  {/* Copy button */}
+                  <button
+                    onClick={() => copyMessage(message.content, index)}
+                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-white/10 rounded"
+                    title="Copy message"
+                  >
+                    {copiedMessageId === index.toString() ? (
+                      <Check className="h-4 w-4 text-green-400" />
+                    ) : (
+                      <Copy className="h-4 w-4 text-gray-400" />
+                    )}
+                  </button>
+
+                  {/* Updated content rendering with proper markdown support */}
                   <div className="prose prose-sm max-w-none text-current">
-                    <div className="whitespace-pre-wrap leading-relaxed">{message.content}</div>
+                    {message.role === 'user' ? (
+                      <div className="whitespace-pre-wrap leading-relaxed text-gray-200">{message.content}</div>
+                    ) : (
+                      renderMarkdown(message.content)
+                    )}
                   </div>
                   
                   {message.vector_context_used && message.context_summary && (
-                    <div className="mt-3 text-xs text-blue-300 bg-blue-500/20 rounded p-2">
-                      <span className="flex items-center gap-1">
+                    <div className="mt-4 text-xs text-blue-300 bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+                      <div className="flex items-center gap-2 mb-1">
                         <Brain className="h-3 w-3" />
-                        Enhanced with context from {message.context_summary.similar_analyses_count} similar analyses
-                      </span>
+                        <span className="font-medium">Enhanced with AI Context</span>
+                      </div>
+                      <p className="text-blue-200">
+                        Analyzed {message.context_summary.similar_analyses_count} similar past analyses for personalized insights
+                      </p>
                     </div>
                   )}
                 </div>
               </div>
+              
+              {message.role === 'user' && (
+                <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
+                  <AvatarFallback className="bg-white/10 text-white">
+                    U
+                  </AvatarFallback>
+                </Avatar>
+              )}
             </div>
           ))}
           
@@ -1162,44 +1508,111 @@ Would you like to upload some data to analyze?`;
   );
 }
 
+// Update the EXAMPLE_PROMPTS with more comprehensive visualization options
+
 const EXAMPLE_PROMPTS = [
   {
     icon: <BarChart3 className="h-5 w-5" />,
-    title: "Statistical Analysis",
-    description: "Analyze my data and provide statistical insights",
-    prompt: "📊 Analyze my data and provide comprehensive statistical insights"
+    title: "Interactive Dashboard",
+    description: "Create a comprehensive dashboard with multiple charts",
+    prompt: "🎯 Create an interactive dashboard with multiple visualizations showing different perspectives of my data"
   },
   {
-    icon: <Database className="h-5 w-5" />,
-    title: "Data Structure",
-    description: "Help me understand my dataset structure",
-    prompt: "🔍 Help me understand my dataset structure and data quality"
+    icon: <LineChart className="h-5 w-5" />,
+    title: "Trend Analysis",
+    description: "Display trends over time with interactive line charts",
+    prompt: "📈 Create interactive line charts showing trends and patterns over time in my dataset"
+  },
+  {
+    icon: <PieChart className="h-5 w-5" />,
+    title: "Distribution Charts",
+    description: "Show data distribution with pie and doughnut charts",
+    prompt: "🥧 Create interactive pie and doughnut charts showing the distribution and composition of my data"
+  },
+  {
+    icon: <Activity className="h-5 w-5" />,
+    title: "Correlation Analysis",
+    description: "Interactive scatter plots showing relationships",
+    prompt: "🔍 Create interactive scatter plots to analyze correlations and relationships between variables"
+  },
+  {
+    icon: <BarChart3 className="h-5 w-5" />,
+    title: "Comparative Analysis",
+    description: "Bar charts for comparing categories and values",
+    prompt: "📊 Create interactive bar charts for comparing different categories and their values"
   },
   {
     icon: <TrendingUp className="h-5 w-5" />,
-    title: "Pattern Recognition",
-    description: "What are the key patterns in my data?",
-    prompt: "📈 What are the key patterns and trends in my data?"
-  },
-  {
-    icon: <Brain className="h-5 w-5" />,
-    title: "Business Intelligence",
-    description: "Generate business insights from my data",
-    prompt: "💼 Generate actionable business insights from my data"
-  },
-  {
-    icon: <Sparkles className="h-5 w-5" />,
-    title: "Data Questions",
-    description: "What questions should I ask about my data?",
-    prompt: "🤔 What are the most important questions about my data?"
-  },
-  {
-    icon: <FileText className="h-5 w-5" />,
-    title: "Data Quality",
-    description: "Help me identify data quality issues",
-    prompt: "✅ Help me identify data quality issues"
+    title: "Professional Visualization",
+    description: "Tableau/Power BI style interactive charts",
+    prompt: "✨ Create professional, interactive visualizations like Tableau or Power BI for comprehensive data analysis"
   }
 ];
+
+const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: '#e5e7eb',
+          font: { size: 12 },
+        },
+      },
+      title: {
+        display: true,
+        text: chartData.title,
+        color: '#ffffff',
+        font: { size: 16, weight: 'bold' as const },
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: 'white',
+        bodyColor: 'white',
+        borderColor: 'rgba(255, 255, 255, 0.1)',
+        borderWidth: 1,
+      },
+    },
+    scales: chartData.type === 'pie' || chartData.type === 'doughnut' ? {} : {
+      x: {
+        ticks: { color: '#e5e7eb' },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+      },
+      y: {
+        ticks: { color: '#e5e7eb' },
+        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+      },
+    },
+  };
+
+  const renderChart = () => {
+    switch (chartData.type) {
+      case 'line':
+      case 'area':
+        return <Line data={chartData.data} options={chartOptions} />;
+      case 'bar':
+        return <Bar data={chartData.data} options={chartOptions} />;
+      case 'pie':
+        return <Pie data={chartData.data} options={chartOptions} />;
+      case 'doughnut':
+        return <Doughnut data={chartData.data} options={chartOptions} />;
+      case 'scatter':
+        return <Scatter data={chartData.data} options={chartOptions} />;
+      default:
+        return <Bar data={chartData.data} options={chartOptions} />;
+    }
+  };
+
+  return (
+    <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+      <div className="h-96 w-full">
+        {renderChart()}
+      </div>
+    </div>
+  );
+};
 
 export default function AgentPage() {
   return (
