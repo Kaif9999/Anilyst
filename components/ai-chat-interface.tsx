@@ -158,6 +158,439 @@ function useVectorContext(query: string, sessionId: string | null) {
   return { context, isLoading };
 }
 
+const normalizeChartData = (chartConfig: any): ChartData | null => {
+  try {
+    console.log('🔄 Normalizing chart data:', chartConfig);
+
+    if (!chartConfig || Object.keys(chartConfig).length === 0) {
+      console.error('❌ Chart config is empty or null');
+      return null;
+    }
+
+
+    if (!chartConfig.type) {
+      console.error('❌ Chart config missing type field:', chartConfig);
+      return null;
+    }
+
+
+    if (chartConfig.data && chartConfig.data.labels && chartConfig.data.datasets) {
+      console.log('✅ Chart already in correct format');
+      
+
+      const enhancedDatasets = chartConfig.data.datasets.map((dataset: any, idx: number) => {
+        const colors = [
+          "rgba(54, 162, 235, 0.8)",
+          "rgba(255, 99, 132, 0.8)",  
+          "rgba(75, 192, 192, 0.8)",   
+          "rgba(255, 206, 86, 0.8)",  
+          "rgba(153, 102, 255, 0.8)",
+          "rgba(255, 159, 64, 0.8)"    
+        ];
+        
+        return {
+          ...dataset,
+          backgroundColor: dataset.backgroundColor || colors[idx % colors.length],
+          borderColor: dataset.borderColor || colors[idx % colors.length].replace('0.8', '1'),
+          borderWidth: dataset.borderWidth || 2,
+          pointRadius: chartConfig.type === 'scatter' ? 6 : (dataset.pointRadius || 4),
+          pointHoverRadius: chartConfig.type === 'scatter' ? 8 : (dataset.pointHoverRadius || 6)
+        };
+      });
+
+      return {
+        ...chartConfig,
+        data: {
+          ...chartConfig.data,
+          datasets: enhancedDatasets
+        }
+      } as ChartData;
+    }
+
+    // Handle format: { type, title, x: [], series: [{name, data: []}] }
+    if (chartConfig.series && Array.isArray(chartConfig.series)) {
+      console.log('🔧 Converting series format to Chart.js format');
+      
+      // ✅ FIX: Bright, highly visible colors
+      const colors = [
+        "rgba(54, 162, 235, 0.8)",   // Bright Blue
+        "rgba(255, 99, 132, 0.8)",   // Bright Red  
+        "rgba(75, 192, 192, 0.8)",   // Bright Teal
+        "rgba(255, 206, 86, 0.8)",   // Bright Yellow
+        "rgba(153, 102, 255, 0.8)",  // Bright Purple
+        "rgba(255, 159, 64, 0.8)",   // Bright Orange
+        "rgba(255, 80, 80, 0.8)",    // Bright Coral
+        "rgba(100, 255, 100, 0.8)"   // Bright Green
+      ];
+
+      const normalizedChart: ChartData = {
+        type: chartConfig.type || 'line',
+        title: chartConfig.title || 'Chart',
+        data: {
+          labels: chartConfig.x || chartConfig.labels || [],
+          datasets: chartConfig.series.map((series: any, idx: number) => {
+            const baseColor = colors[idx % colors.length];
+            const borderColor = baseColor.replace('0.8', '1');
+            
+            return {
+              label: series.name || `Series ${idx + 1}`,
+              data: series.data || series.y || [],
+              backgroundColor: chartConfig.type === 'bar' 
+                ? baseColor
+                : baseColor.replace('0.8', '0.3'),
+              borderColor: borderColor,
+              borderWidth: 3, // ✅ Thicker borders for visibility
+              fill: chartConfig.type === 'area',
+              tension: 0.4, // ✅ Smooth lines
+              pointRadius: chartConfig.type === 'scatter' ? 6 : 4,
+              pointHoverRadius: chartConfig.type === 'scatter' ? 8 : 6,
+              pointBackgroundColor: borderColor,
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2
+            } as any;
+          })
+        }
+      };
+
+      console.log('✅ Converted to Chart.js format:', normalizedChart);
+      return normalizedChart;
+    }
+
+    // Handle other legacy formats
+    if (chartConfig.labels && chartConfig.datasets) {
+      console.log('🔧 Converting legacy labels/datasets format');
+      
+      const enhancedDatasets = chartConfig.datasets.map((dataset: any, idx: number) => {
+        const colors = [
+          "rgba(54, 162, 235, 0.8)",
+          "rgba(255, 99, 132, 0.8)",
+          "rgba(75, 192, 192, 0.8)",
+          "rgba(255, 206, 86, 0.8)",
+          "rgba(153, 102, 255, 0.8)",
+          "rgba(255, 159, 64, 0.8)"
+        ];
+        
+        return {
+          ...dataset,
+          backgroundColor: dataset.backgroundColor || colors[idx % colors.length],
+          borderColor: dataset.borderColor || colors[idx % colors.length].replace('0.8', '1'),
+          borderWidth: dataset.borderWidth || 3,
+          pointRadius: 6,
+          pointHoverRadius: 8
+        };
+      });
+      
+      return {
+        type: chartConfig.type || 'line',
+        title: chartConfig.title || 'Chart',
+        data: {
+          labels: chartConfig.labels,
+          datasets: enhancedDatasets
+        }
+      };
+    }
+
+    console.error('❌ Unknown chart format - missing required fields:', {
+      hasData: !!chartConfig.data,
+      hasSeries: !!chartConfig.series,
+      hasLabels: !!chartConfig.labels,
+      hasDatasets: !!chartConfig.datasets,
+      keys: Object.keys(chartConfig)
+    });
+    return null;
+  } catch (error) {
+    console.error('❌ Error normalizing chart data:', error);
+    return null;
+  }
+};
+
+// Update detectAndRenderCharts to use the normalizer with better error handling:
+const detectAndRenderCharts = (content: string): { content: string; charts: ChartData[] } => {
+  const charts: ChartData[] = [];
+  let processedContent = content;
+
+  const chartPattern = /```chart\s*\n([\s\S]*?)\n```/g;
+  let match;
+
+  while ((match = chartPattern.exec(content)) !== null) {
+    try {
+      const chartJsonStr = match[1].trim();
+      
+      // ✅ FIX: Validate JSON string before parsing
+      if (!chartJsonStr || chartJsonStr === '{}' || chartJsonStr === '') {
+        console.warn('⚠️ Empty chart JSON found, skipping');
+        processedContent = processedContent.replace(match[0], '');
+        continue;
+      }
+
+      const chartConfig = JSON.parse(chartJsonStr);
+      
+      // ✅ FIX: Additional validation after parsing
+      if (!chartConfig || typeof chartConfig !== 'object') {
+        console.warn('⚠️ Invalid chart config after parsing:', chartConfig);
+        processedContent = processedContent.replace(match[0], '');
+        continue;
+      }
+      
+      // ✅ FIX: Use normalizer to handle any format
+      const normalizedChart = normalizeChartData(chartConfig);
+      
+      if (normalizedChart) {
+        // Validate has some data
+        const hasLabels = normalizedChart.data.labels && normalizedChart.data.labels.length > 0;
+        const hasDatasets = normalizedChart.data.datasets && normalizedChart.data.datasets.length > 0;
+        const hasDataInDatasets = normalizedChart.data.datasets.some(ds => ds.data && ds.data.length > 0);
+        
+        if ((hasLabels || hasDatasets) && hasDataInDatasets) {
+          charts.push(normalizedChart);
+          processedContent = processedContent.replace(match[0], '[CHART_PLACEHOLDER]');
+          console.log('✅ Chart added successfully:', normalizedChart.type, {
+            labels: normalizedChart.data.labels.length,
+            datasets: normalizedChart.data.datasets.length
+          });
+        } else {
+          console.warn('⚠️ Chart has no data, skipping:', {
+            hasLabels,
+            hasDatasets,
+            hasDataInDatasets
+          });
+          processedContent = processedContent.replace(match[0], '');
+        }
+      } else {
+        console.warn('⚠️ Failed to normalize chart, removing block');
+        processedContent = processedContent.replace(match[0], '');
+      }
+    } catch (error) {
+      console.error('❌ Error parsing chart config:', error);
+      console.error('Chart JSON string:', match[1]);
+      processedContent = processedContent.replace(match[0], '');
+    }
+  }
+
+  return { content: processedContent, charts };
+};
+
+// ✅ FIX: Enhanced AIGeneratedChart component with better date handling and colors
+const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
+  // Existing validation code...
+  
+  if (!chartData || !chartData.data) {
+    console.error('Chart data is invalid');
+    return (
+      <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+        <div className="h-96 w-full flex items-center justify-center">
+          <p className="text-gray-400">Chart data is missing or invalid</p>
+        </div>
+      </div>
+    );
+  }
+
+  const validatedData = {
+    labels: chartData.data.labels || [],
+    datasets: chartData.data.datasets || []
+  };
+
+  if (validatedData.labels.length === 0 && validatedData.datasets.length === 0) {
+    return (
+      <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+        <div className="h-96 w-full flex items-center justify-center">
+          <p className="text-gray-400">No data available for chart</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ✅ FIX: Process and format date labels
+  const processedLabels = validatedData.labels.map(label => {
+    if (!label) return '';
+    const labelStr = String(label);
+    
+    // Try to parse as date
+    const dateMatch = labelStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+    if (dateMatch) {
+      const [_, year, month, day] = dateMatch;
+      return `${month}/${day}/${year.slice(2)}`;
+    }
+    
+    return labelStr;
+  });
+
+  const safeDatasets = validatedData.datasets.map((dataset, idx) => {
+    // ✅ FIX: Ensure bright, visible colors
+    const colors = [
+      { bg: "rgba(54, 162, 235, 0.8)", border: "rgba(54, 162, 235, 1)" },      // Blue
+      { bg: "rgba(255, 99, 132, 0.8)", border: "rgba(255, 99, 132, 1)" },      // Red
+      { bg: "rgba(75, 192, 192, 0.8)", border: "rgba(75, 192, 192, 1)" },      // Teal
+      { bg: "rgba(255, 206, 86, 0.8)", border: "rgba(255, 206, 86, 1)" },      // Yellow
+      { bg: "rgba(153, 102, 255, 0.8)", border: "rgba(153, 102, 255, 1)" },    // Purple
+      { bg: "rgba(255, 159, 64, 0.8)", border: "rgba(255, 159, 64, 1)" },      // Orange
+      { bg: "rgba(255, 80, 80, 0.8)", border: "rgba(255, 80, 80, 1)" },        // Coral
+      { bg: "rgba(100, 255, 100, 0.8)", border: "rgba(100, 255, 100, 1)" }     // Green
+    ];
+    
+    const color = colors[idx % colors.length];
+    
+    return {
+      ...dataset,
+      data: dataset.data || [],
+      backgroundColor: dataset.backgroundColor || (chartData.type === 'bar' ? color.bg : color.bg.replace('0.8', '0.3')),
+      borderColor: dataset.borderColor || color.border,
+      borderWidth: dataset.borderWidth || 3,
+      pointRadius: chartData.type === 'scatter' ? 6 : ((dataset as any).pointRadius || 4),
+      pointHoverRadius: chartData.type === 'scatter' ? 8 : ((dataset as any).pointHoverRadius || 6),
+      pointBackgroundColor: color.border,
+      pointBorderColor: '#ffffff',
+      pointBorderWidth: 2,
+      tension: 0.4, // Smooth curves
+      fill: chartData.type === 'area' || dataset.fill
+    } as any;
+  });
+
+  const safeChartData = {
+    labels: processedLabels,
+    datasets: safeDatasets
+  };
+
+  // ✅ FIX: Enhanced chart options with better visibility
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index' as const,
+      intersect: false,
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        labels: {
+          color: '#e5e7eb',
+          font: { size: 13, weight: 'bold' as const },
+          padding: 15,
+          usePointStyle: true,
+          pointStyle: 'circle'
+        },
+      },
+      title: {
+        display: true,
+        text: chartData.title || 'Chart',
+        color: '#ffffff',
+        font: { size: 18, weight: 'bold' as const },
+        padding: { top: 10, bottom: 20 }
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        titleColor: '#ffffff',
+        bodyColor: '#e5e7eb',
+        borderColor: 'rgba(255, 255, 255, 0.2)',
+        borderWidth: 1,
+        padding: 12,
+        displayColors: true,
+        callbacks: {
+          label: function(context: any) {
+            let label = context.dataset.label || '';
+            if (label) {
+              label += ': ';
+            }
+            if (context.parsed.y !== null) {
+              label += context.parsed.y.toLocaleString();
+            }
+            return label;
+          }
+        }
+      },
+    },
+    scales: chartData.type === 'pie' || chartData.type === 'doughnut' ? {} : {
+      x: {
+        type: chartData.type === 'scatter' ? 'linear' as const : 'category' as const,
+        ticks: { 
+          color: '#e5e7eb',
+          font: { size: 11 },
+          maxRotation: 45,
+          minRotation: 0
+        },
+        grid: { 
+          color: 'rgba(255, 255, 255, 0.1)',
+          drawBorder: true,
+          drawOnChartArea: true
+        },
+        title: {
+          display: true,
+          text: 'Date',
+          color: '#e5e7eb',
+          font: { size: 13, weight: 'bold' as const }
+        }
+      },
+      y: {
+        ticks: { 
+          color: '#e5e7eb',
+          font: { size: 11 },
+          callback: function(value: any) {
+            return value.toLocaleString();
+          }
+        },
+        grid: { 
+          color: 'rgba(255, 255, 255, 0.1)',
+          drawBorder: true
+        },
+        title: {
+          display: true,
+          text: 'Value',
+          color: '#e5e7eb',
+          font: { size: 13, weight: 'bold' as const }
+        }
+      },
+    },
+  };
+
+  const renderChart = () => {
+    try {
+      console.log('📊 Rendering chart:', {
+        type: chartData.type,
+        labels: processedLabels.slice(0, 5),
+        datasetsCount: safeDatasets.length,
+        firstDatasetLength: safeDatasets[0]?.data?.length
+      });
+
+      switch (chartData.type) {
+        case 'line':
+        case 'area':
+          return <Line data={safeChartData} options={chartOptions} />;
+        case 'bar':
+          return <Bar data={safeChartData} options={chartOptions} />;
+        case 'pie':
+          return <Pie data={safeChartData} options={chartOptions} />;
+        case 'doughnut':
+          return <Doughnut data={safeChartData} options={chartOptions} />;
+        case 'scatter':
+          return <Scatter data={safeChartData} options={chartOptions} />;
+        default:
+          return <Bar data={safeChartData} options={chartOptions} />;
+      }
+    } catch (error) {
+      console.error('Error rendering chart:', error);
+      return (
+        <div className="h-96 w-full flex items-center justify-center">
+          <div className="text-center">
+            <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+            <p className="text-gray-400">Failed to render chart</p>
+            <p className="text-xs text-gray-500 mt-1">
+              {error instanceof Error ? error.message : 'Check console for details'}
+            </p>
+          </div>
+        </div>
+      );
+    }
+  };
+
+  return (
+    <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+      <div className="h-96 w-full">
+        {renderChart()}
+      </div>
+    </div>
+  );
+};
+
 function AgentPageContent() {
   const { isSidebarCollapsed, toggleSidebar } = useSidebar();
   const searchParams = useSearchParams();
@@ -279,28 +712,6 @@ function AgentPageContent() {
     };
   }, [isMounted]);
 
-  const detectAndRenderCharts = (content: string): { content: string; charts: ChartData[] } => {
-    const charts: ChartData[] = [];
-    let processedContent = content;
-  
-    // Look for chart blocks in the AI response
-    const chartPattern = /```chart\s*\n([\s\S]*?)\n```/g;
-    let match;
-  
-    while ((match = chartPattern.exec(content)) !== null) {
-      try {
-        const chartConfig = JSON.parse(match[1]);
-        charts.push(chartConfig);
-        // Replace the chart block with a placeholder
-        processedContent = processedContent.replace(match[0], '[CHART_PLACEHOLDER]');
-      } catch (error) {
-        console.error('Error parsing chart config:', error);
-      }
-    }
-  
-    return { content: processedContent, charts };
-  };
-
   const renderMarkdown = (content: string) => {
     const { content: textContent, charts } = detectAndRenderCharts(content);
     
@@ -312,11 +723,14 @@ function AgentPageContent() {
     let codeBlockContent: string[] = [];
     let codeBlockLanguage = '';
     let chartIndex = 0;
-  
+    let elementKey = 0; 
+
+    const getNextKey = () => `element-${elementKey++}`;
+
     const flushList = () => {
       if (currentList.length > 0) {
         elements.push(
-          <ul key={elements.length} className="list-disc list-inside space-y-1 my-3 ml-4">
+          <ul key={getNextKey()} className="list-disc list-inside space-y-1 my-3 ml-4">
             {currentList.map((item, index) => (
               <li key={index} className="text-gray-200">{formatInlineMarkdown(item)}</li>
             ))}
@@ -329,7 +743,7 @@ function AgentPageContent() {
     const flushCodeBlock = () => {
       if (codeBlockContent.length > 0) {
         elements.push(
-          <pre key={elements.length} className="bg-gray-800/50 border border-gray-600 rounded-lg p-4 my-3 overflow-x-auto">
+          <pre key={getNextKey()} className="bg-gray-800/50 border border-gray-600 rounded-lg p-4 my-3 overflow-x-auto">
             <code className="text-sm text-gray-300 font-mono">
               {codeBlockContent.join('\n')}
             </code>
@@ -343,10 +757,23 @@ function AgentPageContent() {
       // Handle chart placeholders
       if (line.includes('[CHART_PLACEHOLDER]')) {
         flushList();
-        if (chartIndex < charts.length) {
-          elements.push(
-            <AIGeneratedChart key={`chart-${chartIndex}`} chartData={charts[chartIndex]} />
-          );
+        // ✅ FIX: Add bounds checking and validation
+        if (chartIndex < charts.length && charts[chartIndex]) {
+          try {
+            elements.push(
+              <AIGeneratedChart 
+                key={`chart-${chartIndex}-${getNextKey()}`} 
+                chartData={charts[chartIndex]} 
+              />
+            );
+            chartIndex++;
+          } catch (error) {
+            console.error('Error rendering chart at index', chartIndex, ':', error);
+            // Skip this chart and continue
+            chartIndex++;
+          }
+        } else {
+          console.warn('Chart placeholder found but no chart data available at index:', chartIndex);
           chartIndex++;
         }
         return;
@@ -377,13 +804,13 @@ function AgentPageContent() {
         const level = line.match(/^#+/)?.[0].length || 2;
         
         if (level === 1) {
-          elements.push(<h1 key={index} className="text-2xl font-bold text-white mt-6 mb-3">{headerText}</h1>);
+          elements.push(<h1 key={getNextKey()} className="text-2xl font-bold text-white mt-6 mb-3">{headerText}</h1>);
         } else if (level === 2) {
-          elements.push(<h2 key={index} className="text-xl font-bold text-white mt-5 mb-2">{headerText}</h2>);
+          elements.push(<h2 key={getNextKey()} className="text-xl font-bold text-white mt-5 mb-2">{headerText}</h2>);
         } else if (level === 3) {
-          elements.push(<h3 key={index} className="text-lg font-semibold text-white mt-4 mb-2">{headerText}</h3>);
+          elements.push(<h3 key={getNextKey()} className="text-lg font-semibold text-white mt-4 mb-2">{headerText}</h3>);
         } else {
-          elements.push(<h4 key={index} className="text-base font-semibold text-white mt-3 mb-2">{headerText}</h4>);
+          elements.push(<h4 key={getNextKey()} className="text-base font-semibold text-white mt-3 mb-2">{headerText}</h4>);
         }
         return;
       }
@@ -400,7 +827,7 @@ function AgentPageContent() {
         flushList();
         const listItem = line.replace(/^\d+\.\s*/, '');
         elements.push(
-          <ol key={index} className="list-decimal list-inside my-2 ml-4">
+          <ol key={getNextKey()} className="list-decimal list-inside my-2 ml-4">
             <li className="text-gray-200">{formatInlineMarkdown(listItem)}</li>
           </ol>
         );
@@ -410,14 +837,14 @@ function AgentPageContent() {
       // Handle empty lines
       if (line.trim() === '') {
         flushList();
-        elements.push(<br key={index} />);
+        elements.push(<br key={getNextKey()} />);
         return;
       }
   
       // Handle horizontal rules
       if (line.trim() === '---') {
         flushList();
-        elements.push(<hr key={index} className="border-gray-600 my-4" />);
+        elements.push(<hr key={getNextKey()} className="border-gray-600 my-4" />);
         return;
       }
   
@@ -425,7 +852,7 @@ function AgentPageContent() {
       flushList();
       if (line.trim()) {
         elements.push(
-          <p key={index} className="text-gray-200 leading-relaxed my-2">
+          <p key={getNextKey()} className="text-gray-200 leading-relaxed my-2">
             {formatInlineMarkdown(line)}
           </p>
         );
@@ -436,11 +863,20 @@ function AgentPageContent() {
     flushList();
     flushCodeBlock();
   
-    // Add any remaining charts
+    // ✅ FIX: Add remaining charts with proper error handling
     while (chartIndex < charts.length) {
-      elements.push(
-        <AIGeneratedChart key={`chart-${chartIndex}`} chartData={charts[chartIndex]} />
-      );
+      if (charts[chartIndex]) {
+        try {
+          elements.push(
+            <AIGeneratedChart 
+              key={`chart-remaining-${chartIndex}-${getNextKey()}`} 
+              chartData={charts[chartIndex]} 
+            />
+          );
+        } catch (error) {
+          console.error('Error rendering remaining chart at index', chartIndex, ':', error);
+        }
+      }
       chartIndex++;
     }
   
@@ -1294,7 +1730,7 @@ Would you like to upload some data to analyze?`;
           title="Expand Sidebar"
         >
           <div className="flex items-center gap-2">
-            <PanelLeftOpen className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" />
+            <PanelLeftOpen className="w-5 text-gray-300 group-hover:text-white transition-colors" />
           </div>
         </button>
       )}
@@ -1508,14 +1944,13 @@ Would you like to upload some data to analyze?`;
   );
 }
 
-// Update the EXAMPLE_PROMPTS with more comprehensive visualization options
 
 const EXAMPLE_PROMPTS = [
   {
     icon: <BarChart3 className="h-5 w-5" />,
     title: "Interactive Dashboard",
     description: "Create a comprehensive dashboard with multiple charts",
-    prompt: "🎯 Create an interactive dashboard with multiple visualizations showing different perspectives of my data"
+    prompt: " Create an interactive dashboard with multiple visualizations showing different perspectives of my data"
   },
   {
     icon: <LineChart className="h-5 w-5" />,
@@ -1548,71 +1983,6 @@ const EXAMPLE_PROMPTS = [
     prompt: "✨ Create professional, interactive visualizations like Tableau or Power BI for comprehensive data analysis"
   }
 ];
-
-const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        position: 'top' as const,
-        labels: {
-          color: '#e5e7eb',
-          font: { size: 12 },
-        },
-      },
-      title: {
-        display: true,
-        text: chartData.title,
-        color: '#ffffff',
-        font: { size: 16, weight: 'bold' as const },
-      },
-      tooltip: {
-        backgroundColor: 'rgba(0, 0, 0, 0.8)',
-        titleColor: 'white',
-        bodyColor: 'white',
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-        borderWidth: 1,
-      },
-    },
-    scales: chartData.type === 'pie' || chartData.type === 'doughnut' ? {} : {
-      x: {
-        ticks: { color: '#e5e7eb' },
-        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-      },
-      y: {
-        ticks: { color: '#e5e7eb' },
-        grid: { color: 'rgba(255, 255, 255, 0.1)' },
-      },
-    },
-  };
-
-  const renderChart = () => {
-    switch (chartData.type) {
-      case 'line':
-      case 'area':
-        return <Line data={chartData.data} options={chartOptions} />;
-      case 'bar':
-        return <Bar data={chartData.data} options={chartOptions} />;
-      case 'pie':
-        return <Pie data={chartData.data} options={chartOptions} />;
-      case 'doughnut':
-        return <Doughnut data={chartData.data} options={chartOptions} />;
-      case 'scatter':
-        return <Scatter data={chartData.data} options={chartOptions} />;
-      default:
-        return <Bar data={chartData.data} options={chartOptions} />;
-    }
-  };
-
-  return (
-    <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
-      <div className="h-96 w-full">
-        {renderChart()}
-      </div>
-    </div>
-  );
-};
 
 export default function AgentPage() {
   return (
