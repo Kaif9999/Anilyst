@@ -97,10 +97,10 @@ interface ChatData {
 }
 
 interface ChartData {
-  type: 'line' | 'bar' | 'pie' | 'doughnut' | 'scatter' | 'area';
+  type: 'line' | 'bar' | 'pie' | 'doughnut' | 'scatter' | 'area' | 'histogram' | 'radar' | 'polarArea' | 'bubble';
   title: string;
   data: {
-    labels: string[];
+    labels?: string[];
     datasets: Array<{
       label?: string;
       data: any[];
@@ -108,6 +108,12 @@ interface ChartData {
       borderColor?: string | string[];
       borderWidth?: number;
       fill?: boolean;
+      tension?: number;
+      pointRadius?: number;
+      pointHoverRadius?: number;
+      pointBackgroundColor?: string;
+      pointBorderColor?: string;
+      pointBorderWidth?: number;
     }>;
   };
 }
@@ -162,209 +168,226 @@ const normalizeChartData = (chartConfig: any): ChartData | null => {
   try {
     console.log('🔄 Normalizing chart data:', chartConfig);
 
-    if (!chartConfig || Object.keys(chartConfig).length === 0) {
-      console.error('❌ Chart config is empty or null');
+    // ✅ Validate basics
+    if (!chartConfig || typeof chartConfig !== 'object' || Object.keys(chartConfig).length === 0) {
+      console.error('❌ Invalid chart config');
       return null;
     }
-
 
     if (!chartConfig.type) {
-      console.error('❌ Chart config missing type field:', chartConfig);
+      console.error('❌ Chart missing type field');
       return null;
     }
 
+    const colors = [
+      { bg: "rgba(54, 162, 235, 0.8)", border: "rgba(54, 162, 235, 1)" },
+      { bg: "rgba(255, 99, 132, 0.8)", border: "rgba(255, 99, 132, 1)" },
+      { bg: "rgba(75, 192, 192, 0.8)", border: "rgba(75, 192, 192, 1)" },
+      { bg: "rgba(255, 206, 86, 0.8)", border: "rgba(255, 206, 86, 1)" },
+      { bg: "rgba(153, 102, 255, 0.8)", border: "rgba(153, 102, 255, 1)" },
+      { bg: "rgba(255, 159, 64, 0.8)", border: "rgba(255, 159, 64, 1)" }
+    ];
 
     if (chartConfig.data && chartConfig.data.labels && chartConfig.data.datasets) {
-      console.log('✅ Chart already in correct format');
-      
-
-      const enhancedDatasets = chartConfig.data.datasets.map((dataset: any, idx: number) => {
-        const colors = [
-          "rgba(54, 162, 235, 0.8)",
-          "rgba(255, 99, 132, 0.8)",  
-          "rgba(75, 192, 192, 0.8)",   
-          "rgba(255, 206, 86, 0.8)",  
-          "rgba(153, 102, 255, 0.8)",
-          "rgba(255, 159, 64, 0.8)"    
-        ];
-        
-        return {
-          ...dataset,
-          backgroundColor: dataset.backgroundColor || colors[idx % colors.length],
-          borderColor: dataset.borderColor || colors[idx % colors.length].replace('0.8', '1'),
-          borderWidth: dataset.borderWidth || 2,
-          pointRadius: chartConfig.type === 'scatter' ? 6 : (dataset.pointRadius || 4),
-          pointHoverRadius: chartConfig.type === 'scatter' ? 8 : (dataset.pointHoverRadius || 6)
-        };
-      });
-
+      console.log('✅ Chart in correct format');
       return {
-        ...chartConfig,
-        data: {
-          ...chartConfig.data,
-          datasets: enhancedDatasets
-        }
-      } as ChartData;
-    }
-
-    // Handle format: { type, title, x: [], series: [{name, data: []}] }
-    if (chartConfig.series && Array.isArray(chartConfig.series)) {
-      console.log('🔧 Converting series format to Chart.js format');
-      
-      // ✅ FIX: Bright, highly visible colors
-      const colors = [
-        "rgba(54, 162, 235, 0.8)",   // Bright Blue
-        "rgba(255, 99, 132, 0.8)",   // Bright Red  
-        "rgba(75, 192, 192, 0.8)",   // Bright Teal
-        "rgba(255, 206, 86, 0.8)",   // Bright Yellow
-        "rgba(153, 102, 255, 0.8)",  // Bright Purple
-        "rgba(255, 159, 64, 0.8)",   // Bright Orange
-        "rgba(255, 80, 80, 0.8)",    // Bright Coral
-        "rgba(100, 255, 100, 0.8)"   // Bright Green
-      ];
-
-      const normalizedChart: ChartData = {
-        type: chartConfig.type || 'line',
+        type: chartConfig.type,
         title: chartConfig.title || 'Chart',
         data: {
-          labels: chartConfig.x || chartConfig.labels || [],
-          datasets: chartConfig.series.map((series: any, idx: number) => {
-            const baseColor = colors[idx % colors.length];
-            const borderColor = baseColor.replace('0.8', '1');
-            
+          labels: chartConfig.data.labels,
+          datasets: chartConfig.data.datasets.map((ds: any, idx: number) => ({
+            ...ds,
+            backgroundColor: ds.backgroundColor || (chartConfig.type === 'bar' ? colors[idx % colors.length].bg : colors[idx % colors.length].bg.replace('0.8', '0.3')),
+            borderColor: ds.borderColor || colors[idx % colors.length].border,
+            borderWidth: ds.borderWidth || 3,
+            pointRadius: chartConfig.type === 'scatter' ? 6 : 4,
+            pointHoverRadius: chartConfig.type === 'scatter' ? 8 : 6,
+            pointBackgroundColor: colors[idx % colors.length].border,
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2,
+            tension: 0.4,
+            fill: chartConfig.type === 'area' || ds.fill
+          }))
+        }
+      };
+    }
+
+    // ✅ CASE 2: Wrong format with x and series { type, x: [...], series: [{name, data}] }
+    if ((chartConfig.x || chartConfig.labels) && chartConfig.series) {
+      console.log('🔧 Converting series format to correct format');
+      
+      const xLabels = chartConfig.x || chartConfig.labels || [];
+      const series = chartConfig.series || [];
+
+      if (!Array.isArray(xLabels) || !Array.isArray(series) || series.length === 0) {
+        console.error('❌ Invalid x labels or series');
+        return null;
+      }
+
+      return {
+        type: chartConfig.type,
+        title: chartConfig.title || 'Chart',
+        data: {
+          labels: xLabels,
+          datasets: series.map((s: any, idx: number) => {
+            const seriesData = s.data || s.y || [];
             return {
-              label: series.name || `Series ${idx + 1}`,
-              data: series.data || series.y || [],
+              label: s.name || `Series ${idx + 1}`,
+              data: seriesData,
               backgroundColor: chartConfig.type === 'bar' 
-                ? baseColor
-                : baseColor.replace('0.8', '0.3'),
-              borderColor: borderColor,
-              borderWidth: 3, // ✅ Thicker borders for visibility
-              fill: chartConfig.type === 'area',
-              tension: 0.4, // ✅ Smooth lines
+                ? colors[idx % colors.length].bg
+                : colors[idx % colors.length].bg.replace('0.8', '0.3'),
+              borderColor: colors[idx % colors.length].border,
+              borderWidth: 3,
               pointRadius: chartConfig.type === 'scatter' ? 6 : 4,
               pointHoverRadius: chartConfig.type === 'scatter' ? 8 : 6,
-              pointBackgroundColor: borderColor,
-              pointBorderColor: '#fff',
-              pointBorderWidth: 2
-            } as any;
+              pointBackgroundColor: colors[idx % colors.length].border,
+              pointBorderColor: '#ffffff',
+              pointBorderWidth: 2,
+              tension: 0.4,
+              fill: chartConfig.type === 'area'
+            };
           })
         }
       };
-
-      console.log('✅ Converted to Chart.js format:', normalizedChart);
-      return normalizedChart;
     }
 
-    // Handle other legacy formats
+    // ✅ CASE 3: Legacy format { type, labels, datasets }
     if (chartConfig.labels && chartConfig.datasets) {
-      console.log('🔧 Converting legacy labels/datasets format');
-      
-      const enhancedDatasets = chartConfig.datasets.map((dataset: any, idx: number) => {
-        const colors = [
-          "rgba(54, 162, 235, 0.8)",
-          "rgba(255, 99, 132, 0.8)",
-          "rgba(75, 192, 192, 0.8)",
-          "rgba(255, 206, 86, 0.8)",
-          "rgba(153, 102, 255, 0.8)",
-          "rgba(255, 159, 64, 0.8)"
-        ];
-        
-        return {
-          ...dataset,
-          backgroundColor: dataset.backgroundColor || colors[idx % colors.length],
-          borderColor: dataset.borderColor || colors[idx % colors.length].replace('0.8', '1'),
-          borderWidth: dataset.borderWidth || 3,
-          pointRadius: 6,
-          pointHoverRadius: 8
-        };
-      });
-      
+      console.log('🔧 Converting legacy format');
       return {
-        type: chartConfig.type || 'line',
+        type: chartConfig.type,
         title: chartConfig.title || 'Chart',
         data: {
           labels: chartConfig.labels,
-          datasets: enhancedDatasets
+          datasets: chartConfig.datasets.map((ds: any, idx: number) => ({
+            ...ds,
+            backgroundColor: ds.backgroundColor || colors[idx % colors.length].bg,
+            borderColor: ds.borderColor || colors[idx % colors.length].border,
+            borderWidth: 3,
+            pointRadius: 6,
+            pointHoverRadius: 8
+          }))
         }
       };
     }
 
-    console.error('❌ Unknown chart format - missing required fields:', {
+    console.error('❌ Unknown chart format:', {
       hasData: !!chartConfig.data,
       hasSeries: !!chartConfig.series,
+      hasX: !!chartConfig.x,
       hasLabels: !!chartConfig.labels,
-      hasDatasets: !!chartConfig.datasets,
-      keys: Object.keys(chartConfig)
+      hasDatasets: !!chartConfig.datasets
     });
     return null;
   } catch (error) {
-    console.error('❌ Error normalizing chart data:', error);
+    console.error('❌ Error normalizing chart:', error);
     return null;
   }
 };
 
-// Update detectAndRenderCharts to use the normalizer with better error handling:
 const detectAndRenderCharts = (content: string): { content: string; charts: ChartData[] } => {
   const charts: ChartData[] = [];
   let processedContent = content;
 
   const chartPattern = /```chart\s*\n([\s\S]*?)\n```/g;
   let match;
+  let matchIndex = 0;
 
   while ((match = chartPattern.exec(content)) !== null) {
+    matchIndex++;
     try {
       const chartJsonStr = match[1].trim();
       
-      // ✅ FIX: Validate JSON string before parsing
-      if (!chartJsonStr || chartJsonStr === '{}' || chartJsonStr === '') {
-        console.warn('⚠️ Empty chart JSON found, skipping');
+      // ✅ Validate before parsing - More strict validation
+      if (!chartJsonStr || chartJsonStr === '{}' || /^\s*\{\s*\}\s*$/.test(chartJsonStr)) {
+        console.warn(`⚠️ Empty chart #${matchIndex}, removing`);
         processedContent = processedContent.replace(match[0], '');
         continue;
       }
 
-      const chartConfig = JSON.parse(chartJsonStr);
-      
-      // ✅ FIX: Additional validation after parsing
-      if (!chartConfig || typeof chartConfig !== 'object') {
-        console.warn('⚠️ Invalid chart config after parsing:', chartConfig);
+      if (!chartJsonStr.startsWith('{') || !chartJsonStr.endsWith('}')) {
+        console.warn(`⚠️ Invalid JSON structure #${matchIndex}, removing`);
         processedContent = processedContent.replace(match[0], '');
         continue;
       }
-      
-      // ✅ FIX: Use normalizer to handle any format
+
+      let chartConfig;
+      try {
+        chartConfig = JSON.parse(chartJsonStr);
+      } catch (parseError) {
+        console.error(`❌ JSON parse failed #${matchIndex}:`, parseError);
+        console.error('JSON was:', chartJsonStr.slice(0, 200));
+        processedContent = processedContent.replace(match[0], '');
+        continue;
+      }
+
+      // ✅ Validate parsed object structure
+      if (!chartConfig || typeof chartConfig !== 'object' || Array.isArray(chartConfig)) {
+        console.warn(`⚠️ Invalid object type #${matchIndex}`);
+        processedContent = processedContent.replace(match[0], '');
+        continue;
+      }
+
+      if (Object.keys(chartConfig).length === 0) {
+        console.warn(`⚠️ Empty object #${matchIndex}`);
+        processedContent = processedContent.replace(match[0], '');
+        continue;
+      }
+
+      // ✅ Validate required fields
+      if (!chartConfig.type) {
+        console.warn(`⚠️ Chart missing type field #${matchIndex}`);
+        processedContent = processedContent.replace(match[0], '');
+        continue;
+      }
+
+      // ✅ Normalize to correct format
       const normalizedChart = normalizeChartData(chartConfig);
       
       if (normalizedChart) {
-        // Validate has some data
+        // ✅ Validate data exists and is meaningful
         const hasLabels = normalizedChart.data.labels && normalizedChart.data.labels.length > 0;
         const hasDatasets = normalizedChart.data.datasets && normalizedChart.data.datasets.length > 0;
-        const hasDataInDatasets = normalizedChart.data.datasets.some(ds => ds.data && ds.data.length > 0);
+        const hasData = normalizedChart.data.datasets.some(ds => 
+          ds.data && Array.isArray(ds.data) && ds.data.length > 0 && 
+          ds.data.some(val => val !== null && val !== undefined && !isNaN(Number(val)))
+        );
         
-        if ((hasLabels || hasDatasets) && hasDataInDatasets) {
+        if (hasDatasets && hasData && (hasLabels || normalizedChart.type === 'scatter')) {
           charts.push(normalizedChart);
           processedContent = processedContent.replace(match[0], '[CHART_PLACEHOLDER]');
-          console.log('✅ Chart added successfully:', normalizedChart.type, {
-            labels: normalizedChart.data.labels.length,
-            datasets: normalizedChart.data.datasets.length
+          console.log(`✅ Chart #${matchIndex} added:`, {
+            type: normalizedChart.type,
+            title: normalizedChart.title,
+            labels: normalizedChart.data.labels?.length || 0,
+            datasets: normalizedChart.data.datasets.length,
+            firstDatasetSize: normalizedChart.data.datasets[0]?.data?.length,
+            hasValidData: hasData
           });
         } else {
-          console.warn('⚠️ Chart has no data, skipping:', {
+          console.warn(`⚠️ Chart #${matchIndex} has no valid data:`, {
             hasLabels,
             hasDatasets,
-            hasDataInDatasets
+            hasData,
+            chartType: normalizedChart.type
           });
           processedContent = processedContent.replace(match[0], '');
         }
       } else {
-        console.warn('⚠️ Failed to normalize chart, removing block');
+        console.warn(`⚠️ Failed to normalize chart #${matchIndex}`);
         processedContent = processedContent.replace(match[0], '');
       }
     } catch (error) {
-      console.error('❌ Error parsing chart config:', error);
-      console.error('Chart JSON string:', match[1]);
+      console.error(`❌ Error processing chart #${matchIndex}:`, error);
       processedContent = processedContent.replace(match[0], '');
     }
+  }
+
+  if (charts.length > 0) {
+    console.log(`📊 Successfully processed ${charts.length} chart(s)`);
+  } else if (content.includes('```chart')) {
+    console.warn('⚠️ Found ```chart blocks but extracted 0 valid charts');
   }
 
   return { content: processedContent, charts };
@@ -451,7 +474,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
     datasets: safeDatasets
   };
 
-  // ✅ FIX: Enhanced chart options with better visibility
+  // ✅ Enhanced chart options with support for all chart types
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -491,17 +514,26 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
             if (label) {
               label += ': ';
             }
-            if (context.parsed.y !== null) {
+            
+            // Handle different chart types
+            if (chartData.type === 'scatter' || chartData.type === 'bubble') {
+              if (context.parsed.x !== null && context.parsed.y !== null) {
+                label += `(${context.parsed.x}, ${context.parsed.y})`;
+              }
+            } else if (context.parsed.y !== null) {
               label += context.parsed.y.toLocaleString();
+            } else if (context.parsed !== null) {
+              label += context.parsed.toLocaleString();
             }
+            
             return label;
           }
         }
       },
     },
-    scales: chartData.type === 'pie' || chartData.type === 'doughnut' ? {} : {
+    scales: chartData.type === 'pie' || chartData.type === 'doughnut' || chartData.type === 'radar' || chartData.type === 'polarArea' ? {} : {
       x: {
-        type: chartData.type === 'scatter' ? 'linear' as const : 'category' as const,
+        type: (chartData.type === 'scatter' || chartData.type === 'bubble') ? 'linear' as const : 'category' as const,
         ticks: { 
           color: '#e5e7eb',
           font: { size: 11 },
@@ -515,7 +547,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
         },
         title: {
           display: true,
-          text: 'Date',
+          text: chartData.type === 'scatter' || chartData.type === 'bubble' ? 'X Values' : 'Categories',
           color: '#e5e7eb',
           font: { size: 13, weight: 'bold' as const }
         }
@@ -525,7 +557,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
           color: '#e5e7eb',
           font: { size: 11 },
           callback: function(value: any) {
-            return value.toLocaleString();
+            return typeof value === 'number' ? value.toLocaleString() : value;
           }
         },
         grid: { 
@@ -534,7 +566,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
         },
         title: {
           display: true,
-          text: 'Value',
+          text: 'Values',
           color: '#e5e7eb',
           font: { size: 13, weight: 'bold' as const }
         }
@@ -542,6 +574,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
     },
   };
 
+  // ✅ Enhanced chart rendering with support for all chart types
   const renderChart = () => {
     try {
       console.log('📊 Rendering chart:', {
@@ -556,14 +589,17 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
         case 'area':
           return <Line data={safeChartData} options={chartOptions} />;
         case 'bar':
+        case 'histogram':
           return <Bar data={safeChartData} options={chartOptions} />;
         case 'pie':
           return <Pie data={safeChartData} options={chartOptions} />;
         case 'doughnut':
           return <Doughnut data={safeChartData} options={chartOptions} />;
         case 'scatter':
+        case 'bubble':
           return <Scatter data={safeChartData} options={chartOptions} />;
         default:
+          console.warn(`Unknown chart type: ${chartData.type}, falling back to bar chart`);
           return <Bar data={safeChartData} options={chartOptions} />;
       }
     } catch (error) {
@@ -574,7 +610,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
             <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
             <p className="text-gray-400">Failed to render chart</p>
             <p className="text-xs text-gray-500 mt-1">
-              {error instanceof Error ? error.message : 'Check console for details'}
+              Chart type: {chartData.type} | Error: {error instanceof Error ? error.message : 'Unknown error'}
             </p>
           </div>
         </div>
@@ -939,7 +975,7 @@ function AgentPageContent() {
       }
       
       i++;
-    }
+    };
     
     return elements.length > 1 ? <>{elements}</> : elements[0] || text;
   };
