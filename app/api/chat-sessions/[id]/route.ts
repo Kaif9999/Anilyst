@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // ✅ FIX: Await params before accessing id
+
     const { id } = await params;
 
     const chatSession = await prisma.chatSession.findFirst({

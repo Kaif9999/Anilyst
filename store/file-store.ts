@@ -34,12 +34,9 @@ export interface FileMetadata {
 }
 
 interface FileStore {
-  // File data
   currentFile: FileMetadata | null;
   rawData: (StockData | SimpleData)[];
   chartData: ChartData | null;
-  
-  // Analysis data
   aiAnalysis: string;
   availableYears: string[];
   selectedYear: string;
