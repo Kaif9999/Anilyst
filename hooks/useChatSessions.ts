@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/use-toast';
 
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
+
 interface ChatSession {
   id: string;
   title: string;
@@ -216,7 +218,7 @@ export function useChatSessions() {
   }, []);
 
   // Generate title
-  const generateTitle = useCallback(async (
+  const generateTitle = async (
     sessionId: string,
     firstMessage: string,
     response: string,
@@ -224,36 +226,43 @@ export function useChatSessions() {
     filename: string | null = null
   ) => {
     try {
-      const apiResponse = await fetch(`/api/chat-sessions/${sessionId}/generate-title`, {
+      console.log('🎯 Generating title for session:', sessionId);
+      
+      const titleResponse = await fetch(`${FASTAPI_URL}/generate-title`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          firstMessage,
-          response,
-          hasData,
-          filename,
-        }),
+          first_message: firstMessage,
+          response: response,
+          has_data: hasData,
+          filename: filename
+        })
       });
 
-      if (apiResponse.ok) {
-        const data = await apiResponse.json();
+      if (!titleResponse.ok) {
+        console.error('Failed to generate title');
+        return;
+      }
+
+      const { title } = await titleResponse.json();
+      
+      // ✅ Update session title in database
+      const updateResponse = await fetch(`/api/chat-sessions/${sessionId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+
+      if (updateResponse.ok) {
+        console.log('✅ Title updated:', title);
         
-        setCurrentSession((prev) =>
-          prev ? { ...prev, title: data.title, autoTitleGenerated: true } : null
-        );
-        
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === sessionId
-              ? { ...s, title: data.title, autoTitleGenerated: true }
-              : s
-          )
-        );
+        // ✅ Refresh sessions list to show new title
+        await fetchSessions();
       }
     } catch (error) {
       console.error('Error generating title:', error);
     }
-  }, []);
+  };
 
   // Load sessions on mount
   useEffect(() => {

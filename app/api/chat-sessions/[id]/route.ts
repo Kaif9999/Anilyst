@@ -97,7 +97,7 @@ export async function DELETE(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -114,27 +114,31 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // ✅ FIX: Await params before accessing id
-    const { id } = await params;
-
     const body = await req.json();
+    const { title } = body;
 
-    const updatedSession = await prisma.chatSession.update({
+    // Verify session belongs to user and update
+    const chatSession = await prisma.chatSession.updateMany({
       where: {
-        id: id,
+        id: params.id,
         userId: user.id,
       },
       data: {
-        ...body,
+        title,
+        autoTitleGenerated: true,
         updatedAt: new Date(),
       },
     });
 
-    return NextResponse.json({ session: updatedSession });
+    if (chatSession.count === 0) {
+      return NextResponse.json({ error: 'Session not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating chat session:', error);
+    console.error('Error updating session:', error);
     return NextResponse.json(
-      { error: 'Failed to update chat session' },
+      { error: 'Failed to update session' },
       { status: 500 }
     );
   }

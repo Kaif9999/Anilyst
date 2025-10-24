@@ -642,6 +642,7 @@ function AgentPageContent() {
   const [showTransitionBox, setShowTransitionBox] = useState(false);
   const [transitionInput, setTransitionInput] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
+  const [isNewSession, setIsNewSession] = useState(true);
   
   const [chatData, setChatData] = useState<ChatData | null>(null);
   
@@ -682,16 +683,42 @@ function AgentPageContent() {
       const sessionParam = searchParams.get('session');
       
       if (sessionParam) {
-        // Use existing session
-        console.log('📌 Using existing session:', sessionParam);
+        // ✅ Load existing session
+        console.log('📌 Loading existing session:', sessionParam);
         setSessionId(sessionParam);
+        setIsNewSession(false);
+        
+        // ✅ Load existing messages from the session
+        try {
+          const response = await fetch(`/api/chat-sessions/${sessionParam}/messages`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.messages && data.messages.length > 0) {
+              // Convert database messages to UI format
+              const formattedMessages = data.messages.map((msg: any) => ({
+                role: msg.role,
+                content: msg.content,
+                timestamp: msg.createdAt,
+                analysis_results: msg.metadata?.analysis_results,
+                vector_context_used: msg.vectorContextUsed,
+                context_summary: msg.metadata?.context_summary,
+                dataContext: msg.metadata?.dataContext
+              }));
+              setMessages(formattedMessages);
+              setShowWelcome(false);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading messages:', error);
+        }
       } else {
-        // Create new session
+        // ✅ Create new session
         try {
           const newSession = await createSession();
           if (newSession) {
             console.log('🆕 Created new session:', newSession.id);
             setSessionId(newSession.id);
+            setIsNewSession(true);
             
             // Update URL with new session ID
             const url = new URL(window.location.href);
@@ -700,9 +727,9 @@ function AgentPageContent() {
           }
         } catch (error) {
           console.error('Error creating session:', error);
-          // Fallback to temporary session
           const tempSessionId = `session_${Date.now()}`;
           setSessionId(tempSessionId);
+          setIsNewSession(true);
         }
       }
     };
@@ -712,12 +739,13 @@ function AgentPageContent() {
     }
   }, [searchParams, isMounted, sessionsLoading, createSession]);
 
-  // ✅ Clear data when session changes
+  // ✅ Clear data and messages when session changes
   useEffect(() => {
     console.log('🔄 Session changed, clearing chat data');
     setChatData(null);
     setMessages([]);
     setShowWelcome(true);
+    setIsNewSession(true);
   }, [sessionId]);
 
   useEffect(() => {
@@ -1075,6 +1103,7 @@ Ask me anything about your data and I'll analyze it for you. For example:
     const currentInput = input;
     setTransitionInput(currentInput);
 
+    // ✅ Handle welcome screen transition
     if (isFromWelcomeScreen && showWelcome) {
       setIsTransitioning(true);
       setShowTransitionBox(true);
@@ -1200,7 +1229,7 @@ Ask me anything about your data and I'll analyze it for you. For example:
           "AI agent responded to your query",
       });
 
-      // ✅ Save messages to database and generate title
+      // ✅ Save messages to database
       if (currentSession) {
         try {
           console.log('💾 Saving messages to session:', currentSession.id);
@@ -1225,9 +1254,9 @@ Ask me anything about your data and I'll analyze it for you. For example:
             { context_summary: result.context_summary }
           );
         
-          // ✅ Generate title if it's the first message
-          if (messages.length === 0 || messages.length === 1) {
-            console.log('🏷️ Generating title for session:', currentSession.id);
+          // ✅ Generate title ONLY for new sessions on first message
+          if (isNewSession) {
+            console.log('🏷️ Generating title for new session:', currentSession.id);
             await generateTitle(
               currentSession.id,
               currentInput,
@@ -1235,10 +1264,10 @@ Ask me anything about your data and I'll analyze it for you. For example:
               hasData,
               currentFile?.name || null
             );
+            setIsNewSession(false); // Mark as no longer new
           }
         } catch (error) {
           console.error('Error saving messages to database:', error);
-          // Don't throw - continue with local messages
         }
       } else {
         console.warn('⚠️ No current session found, messages not saved to database');
