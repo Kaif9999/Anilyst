@@ -110,6 +110,7 @@ model ChatSession {
   dataFileName        String?
   dataRowCount        Int?
   dataColumns         Json?
+  uploadedFileData    Json?         
   isArchived          Boolean       @default(false)
   autoTitleGenerated  Boolean       @default(false)
   
@@ -118,7 +119,7 @@ model ChatSession {
   
   @@index([userId])
   @@index([userId, isArchived])
-  @@index([updatedAt])
+  @@index([updatedAt(sort: Desc)])
 }
 
 model ChatMessage {
@@ -134,5 +135,5 @@ model ChatMessage {
   session             ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   
   @@index([sessionId])
-  @@index([timestamp])
+  @@index([timestamp(sort: Asc)])
 }

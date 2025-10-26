@@ -70,14 +70,23 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const handleNewChat = async () => {
     const newSession = await createSession();
     if (newSession) {
+      // ✅ Navigate to new session with clean state
       router.push(`/dashboard/agent?session=${newSession.id}`);
+      
+      // ✅ Force refresh to ensure clean state
+      router.refresh();
     }
     handleItemClick();
   };
 
   const handleChatClick = async (sessionId: string) => {
+    // ✅ Load the session and navigate
     await loadSession(sessionId);
     router.push(`/dashboard/agent?session=${sessionId}`);
+    
+    // ✅ Force refresh to load messages
+    router.refresh();
+    
     handleItemClick();
   };
 
