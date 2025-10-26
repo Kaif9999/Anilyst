@@ -48,6 +48,7 @@ export async function GET(
       },
     });
 
+    console.log(`✅ Loaded ${messages.length} messages for session ${id}`);
     return NextResponse.json({ messages });
   } catch (error) {
     console.error('Error loading messages:', error);
@@ -83,6 +84,15 @@ export async function POST(
     // ✅ Await params before accessing properties
     const { id } = await params;
 
+    console.log('💾 POST /messages called:', {
+      sessionId: id,
+      role,
+      contentLength: content?.length,
+      vectorContextUsed,
+      analysisType,
+      hasMetadata: !!metadata
+    });
+
     // Verify session belongs to user
     const chatSession = await prisma.chatSession.findFirst({
       where: {
@@ -104,8 +114,11 @@ export async function POST(
         vectorContextUsed: vectorContextUsed || false,
         analysisType,
         metadata,
+        timestamp: new Date(),
       },
     });
+
+    console.log('✅ Message created:', message.id);
 
     // Update session
     await prisma.chatSession.update({
@@ -117,11 +130,16 @@ export async function POST(
       },
     });
 
-    return NextResponse.json({ message });
+    console.log('✅ Session updated with new message count');
+
+    return NextResponse.json({ 
+      message,
+      success: true 
+    });
   } catch (error) {
-    console.error('Error adding message:', error);
+    console.error('❌ Error adding message:', error);
     return NextResponse.json(
-      { error: 'Failed to add message' },
+      { error: 'Failed to add message', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

@@ -88,27 +88,28 @@ export function useChatSessions() {
     return null;
   }, [session, toast]);
 
-  // Load session
+  // ✅ Ensure loadSession properly sets currentSession
   const loadSession = useCallback(async (sessionId: string) => {
-    setIsLoading(true);
     try {
+      console.log('📂 Loading session:', sessionId);
+      
       const response = await fetch(`/api/chat-sessions/${sessionId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setCurrentSession(data.session);
-        setMessages(data.session.messages || []);
+      if (!response.ok) {
+        throw new Error('Failed to load session');
       }
+
+      const data = await response.json();
+      console.log('✅ Session data loaded:', data.session);
+      
+      // ✅ CRITICAL: Set the current session
+      setCurrentSession(data.session);
+      
+      return data.session;
     } catch (error) {
       console.error('Error loading session:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chat",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+      throw error;
     }
-  }, [toast]);
+  }, []);
 
   // Delete session
   const deleteSession = useCallback(async (sessionId: string) => {
@@ -150,6 +151,15 @@ export function useChatSessions() {
     metadata: any = null
   ) => {
     try {
+      console.log('💾 addMessage called:', {
+        sessionId,
+        role,
+        contentLength: content.length,
+        vectorContextUsed,
+        analysisType,
+        hasMetadata: !!metadata
+      });
+
       const response = await fetch(`/api/chat-sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -158,30 +168,26 @@ export function useChatSessions() {
           content,
           vectorContextUsed,
           analysisType,
-          metadata,
-        }),
+          metadata
+        })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        setMessages((prev) => [...prev, data.message]);
-        
-        // Update session in list
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.id === sessionId
-              ? {
-                  ...s,
-                  messageCount: s.messageCount + 1,
-                  lastMessage: content.substring(0, 200),
-                  updatedAt: new Date().toISOString(),
-                }
-              : s
-          )
-        );
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Failed to add message:', errorData);
+        throw new Error(`Failed to add message: ${response.status}`);
       }
+
+      const data = await response.json();
+      console.log('✅ Message saved successfully:', data);
+
+      // ✅ Update session's last message and message count
+      await fetchSessions();
+
+      return data.message;
     } catch (error) {
-      console.error('Error adding message:', error);
+      console.error('❌ Error in addMessage:', error);
+      throw error;
     }
   }, []);
 
@@ -218,7 +224,7 @@ export function useChatSessions() {
   }, []);
 
   // Generate title
-  const generateTitle = async (
+  const generateTitle = useCallback(async (
     sessionId: string,
     firstMessage: string,
     response: string,
@@ -226,43 +232,54 @@ export function useChatSessions() {
     filename: string | null = null
   ) => {
     try {
-      console.log('🎯 Generating title for session:', sessionId);
-      
-      const titleResponse = await fetch(`${FASTAPI_URL}/generate-title`, {
+      console.log('🏷️ generateTitle called:', {
+        sessionId,
+        firstMessage: firstMessage.substring(0, 50),
+        hasData,
+        filename
+      });
+
+      const titleResponse = await fetch(`/api/chat-sessions/${sessionId}/generate-title`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          first_message: firstMessage,
-          response: response,
-          has_data: hasData,
-          filename: filename
+          firstMessage,
+          response,
+          hasData,
+          filename
         })
       });
 
       if (!titleResponse.ok) {
-        console.error('Failed to generate title');
+        const errorData = await titleResponse.json();
+        console.error('❌ Failed to generate title:', errorData);
         return;
       }
 
       const { title } = await titleResponse.json();
-      
-      // ✅ Update session title in database
-      const updateResponse = await fetch(`/api/chat-sessions/${sessionId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title })
-      });
+      console.log('✅ Title generated:', title);
 
-      if (updateResponse.ok) {
-        console.log('✅ Title updated:', title);
-        
-        // ✅ Refresh sessions list to show new title
-        await fetchSessions();
+      // ✅ Immediately update local state
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, title, autoTitleGenerated: true, updatedAt: new Date().toISOString() }
+            : s
+        )
+      );
+
+      if (currentSession?.id === sessionId) {
+        setCurrentSession((prev) =>
+          prev ? { ...prev, title, autoTitleGenerated: true } : prev
+        );
       }
+
+      // Refresh from server
+      await fetchSessions();
     } catch (error) {
-      console.error('Error generating title:', error);
+      console.error('❌ Error generating title:', error);
     }
-  };
+  }, [currentSession, fetchSessions]);
 
   // Load sessions on mount
   useEffect(() => {
@@ -277,7 +294,7 @@ export function useChatSessions() {
     messages,
     isLoading,
     createSession,
-    loadSession,
+    loadSession, // ✅ Make sure this is exported
     deleteSession,
     addMessage,
     updateSessionData,

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { prisma } from '@/lib/prisma';
-import { authOptions } from '../../auth/[...nextauth]/route';
+import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
+// ✅ GET endpoint to load a single session
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -22,20 +23,13 @@ export async function GET(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-
     const { id } = await params;
 
+    // Load session with full details
     const chatSession = await prisma.chatSession.findFirst({
       where: {
         id: id,
         userId: user.id,
-      },
-      include: {
-        messages: {
-          orderBy: {
-            timestamp: 'asc',
-          },
-        },
       },
     });
 
@@ -43,11 +37,12 @@ export async function GET(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
+    console.log(`✅ Loaded session ${id}`);
     return NextResponse.json({ session: chatSession });
   } catch (error) {
-    console.error('Error fetching chat session:', error);
+    console.error('Error loading session:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch chat session' },
+      { error: 'Failed to load session' },
       { status: 500 }
     );
   }
@@ -97,7 +92,7 @@ export async function DELETE(
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -114,18 +109,17 @@ export async function PATCH(
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    const { id } = await params;
     const body = await req.json();
-    const { title } = body;
 
     // Verify session belongs to user and update
     const chatSession = await prisma.chatSession.updateMany({
       where: {
-        id: params.id,
+        id: id,
         userId: user.id,
       },
       data: {
-        title,
-        autoTitleGenerated: true,
+        ...body,
         updatedAt: new Date(),
       },
     });
@@ -134,7 +128,12 @@ export async function PATCH(
       return NextResponse.json({ error: 'Session not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ success: true });
+    // Fetch updated session
+    const updatedSession = await prisma.chatSession.findUnique({
+      where: { id: id },
+    });
+
+    return NextResponse.json({ success: true, session: updatedSession });
   } catch (error) {
     console.error('Error updating session:', error);
     return NextResponse.json(
