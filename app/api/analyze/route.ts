@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { join } from "path";
+import { join, resolve } from "path";
 import { readFile } from "fs/promises";
 import * as XLSX from 'xlsx';
 import { getServerSession } from "next-auth";
@@ -211,8 +211,18 @@ export async function POST(req: Request) {
         );
       }
 
-      // Validate file path
+      // Validate file path - prevent directory traversal
       const cleanPath = filePath.replace(/^\//, '');
+
+      // Check for traversal sequences BEFORE normalizing
+      if (cleanPath.includes('..') || cleanPath.includes('//')) {
+        return NextResponse.json(
+          { error: "Invalid file path - directory traversal detected", ...defaultAnalysis },
+          { status: 400 }
+        );
+      }
+
+      // Ensure path starts with uploads/
       if (!cleanPath.startsWith('uploads/')) {
         return NextResponse.json(
           { error: "Invalid file path", ...defaultAnalysis },
@@ -220,11 +230,23 @@ export async function POST(req: Request) {
         );
       }
 
-      // Read file
-      const absolutePath = join(process.cwd(), cleanPath);
+      // Normalize and resolve path to prevent traversal
+      const normalizedPath = join(process.cwd(), cleanPath);
+      const resolvedPath = resolve(normalizedPath);
+      const uploadsDir = resolve(process.cwd(), 'uploads');
+
+      // Verify resolved path is within uploads directory
+      if (!resolvedPath.startsWith(uploadsDir + '/') && resolvedPath !== uploadsDir) {
+        return NextResponse.json(
+          { error: "Invalid file path - directory traversal detected", ...defaultAnalysis },
+          { status: 400 }
+        );
+      }
+
+      // Read file using the resolved path
       let fileContent;
       try {
-        fileContent = await readFile(absolutePath);
+        fileContent = await readFile(resolvedPath);
       } catch (error) {
         console.error("Error reading file:", error);
         return NextResponse.json(

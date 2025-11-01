@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check authentication
@@ -19,10 +19,13 @@ export async function GET(
       );
     }
 
+    // ✅ Await params before accessing id
+    const { id } = await params;
+
     // Fetch the visualization session
     const analysis = await prisma.analysis.findUnique({
       where: {
-        id: params.id,
+        id: id,
         userId: session.user.id // Ensure user can only access their own data
       }
     });

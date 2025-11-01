@@ -1,17 +1,18 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, lazy, Suspense } from "react";
 import { motion } from "framer-motion";
-import {
-  Bar,
-  Line,
-  Pie,
-  Doughnut,
-  Radar,
-  PolarArea,
-  Scatter,
-  Bubble,
-} from "react-chartjs-2";
+
+// Dynamically import chart components
+const Bar = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.Bar })));
+const Line = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.Line })));
+const Pie = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.Pie })));
+const Doughnut = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.Doughnut })));
+const Radar = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.Radar })));
+const PolarArea = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.PolarArea })));
+const Scatter = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.Scatter })));
+const Bubble = lazy(() => import("react-chartjs-2").then(mod => ({ default: mod.Bubble })));
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -63,20 +64,25 @@ import * as ss from "simple-statistics";
 import { AnalyticsResult, DataInsight } from "@/types";
 import { TimeSeriesAnalysis } from "@/types";
 
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  BarElement,
-  ArcElement,
-  RadialLinearScale,
-  BubbleController,
-  ScatterController,
-  Title,
-  Tooltip,
-  Legend
-);
+// Register Chart.js only when component mounts
+useEffect(() => {
+  import("chart.js").then((ChartJS) => {
+    ChartJS.Chart.register(
+      ChartJS.CategoryScale,
+      ChartJS.LinearScale,
+      ChartJS.PointElement,
+      ChartJS.LineElement,
+      ChartJS.BarElement,
+      ChartJS.ArcElement,
+      ChartJS.RadialLinearScale,
+      ChartJS.BubbleController,
+      ChartJS.ScatterController,
+      ChartJS.Title,
+      ChartJS.Tooltip,
+      ChartJS.Legend
+    );
+  });
+}, []);
 
 type BasicChartType = 'bar' | 'line' | 'pie' | 'doughnut' | 'radar' | 'polarArea' | 'bubble' | 'scatter';
 type ExtendedChartType = BasicChartType | 'horizontalBar' | 'stackedBar' | 'area' | 'stackedArea' | 'multiAxis' | 'combo';
