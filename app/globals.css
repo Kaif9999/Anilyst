@@ -190,3 +190,5 @@
 html {
   scroll-behavior: smooth;
 }
+
+@import './animations.css';
