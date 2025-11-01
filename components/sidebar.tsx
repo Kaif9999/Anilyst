@@ -47,7 +47,22 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     loadSession,
     deleteSession,
     isLoading,
+    refreshSessions,
   } = useChatSessions();
+
+  // ✅ Listen for title update events from chat interface
+  useEffect(() => {
+    const handleTitleUpdate = (event: CustomEvent) => {
+      console.log('🔔 Received title update event:', event.detail);
+      // Refresh sessions to get the updated title
+      refreshSessions();
+    };
+
+    window.addEventListener('chatTitleUpdated', handleTitleUpdate as EventListener);
+    return () => {
+      window.removeEventListener('chatTitleUpdated', handleTitleUpdate as EventListener);
+    };
+  }, [refreshSessions]);
 
   useEffect(() => {
     const checkIfMobile = () => {

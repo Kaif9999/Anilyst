@@ -189,7 +189,7 @@ export function useChatSessions() {
       console.error('❌ Error in addMessage:', error);
       throw error;
     }
-  }, []);
+  }, [fetchSessions]); // ✅ Fix: Add fetchSessions to dependencies
 
   // Update session data
   const updateSessionData = useCallback(async (
@@ -259,25 +259,52 @@ export function useChatSessions() {
       const { title } = await titleResponse.json();
       console.log('✅ Title generated:', title);
 
-      // ✅ Immediately update local state
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId
-            ? { ...s, title, autoTitleGenerated: true, updatedAt: new Date().toISOString() }
-            : s
-        )
-      );
-
-      if (currentSession?.id === sessionId) {
-        setCurrentSession((prev) =>
-          prev ? { ...prev, title, autoTitleGenerated: true } : prev
-        );
+      if (!title || title.trim() === '') {
+        console.warn('⚠️ Empty title received, skipping update');
+        return;
       }
 
-      // Refresh from server
+      // ✅ Immediately update local state for instant UI feedback
+      const trimmedTitle = title.trim();
+      
+      setSessions((prev) => {
+        const updated = prev.map((s) =>
+          s.id === sessionId
+            ? { ...s, title: trimmedTitle, autoTitleGenerated: true, updatedAt: new Date().toISOString() }
+            : s
+        );
+        console.log('✅ Updated sessions state with new title:', trimmedTitle);
+        return updated;
+      });
+
+      if (currentSession?.id === sessionId) {
+        setCurrentSession((prev) => {
+          const updated = prev ? { ...prev, title: trimmedTitle, autoTitleGenerated: true } : prev;
+          console.log('✅ Updated currentSession with new title:', trimmedTitle);
+          return updated;
+        });
+      }
+
+      // ✅ Dispatch custom event to notify other components (like sidebar)
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('chatTitleUpdated', {
+          detail: { sessionId, title: trimmedTitle }
+        }));
+      }
+
+      // ✅ Refresh from server after a short delay to ensure DB update is complete
+      // Use a small delay to avoid race conditions with database writes
+      await new Promise(resolve => setTimeout(resolve, 300));
       await fetchSessions();
+      console.log('✅ Refreshed sessions from server after title update');
     } catch (error) {
       console.error('❌ Error generating title:', error);
+      // Still try to refresh sessions in case title was saved despite error
+      try {
+        await fetchSessions();
+      } catch (refreshError) {
+        console.error('❌ Error refreshing sessions after title generation:', refreshError);
+      }
     }
   }, [currentSession, fetchSessions]);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import OutputDisplay from "@/components/output-display";
+import dynamic from "next/dynamic";
 import { ChartData } from "@/types";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -20,17 +20,56 @@ import {
   X
 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { useFileStore } from '@/store/file-store';
 
-export default function VisualizationPage() {
+// ✅ Dynamically import OutputDisplay to prevent SSR issues
+const OutputDisplay = dynamic(() => import("@/components/output-display"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center min-h-[600px]">
+      <div className="text-white">Loading visualization...</div>
+    </div>
+  ),
+});
+
+function VisualizationPageContent() {
   const { data: session } = useSession();
   const [popup, setPopup] = useState<{ show: boolean; message: string }>({
     show: false,
     message: "",
   });
 
-  // Get data from file store
-  const { currentFile, chartData: storedChartData, hasData } = useFileStore();
+  // ✅ Client-side only state for file store
+  const [mounted, setMounted] = useState(false);
+  const [currentFile, setCurrentFile] = useState<any>(null);
+  const [storedChartData, setStoredChartData] = useState<ChartData | null>(null);
+  const [hasData, setHasData] = useState(false);
+
+  // ✅ Only access Zustand store on client side
+  useEffect(() => {
+    setMounted(true);
+    
+    if (typeof window !== 'undefined') {
+      // Dynamically import store only on client
+      import('@/store/file-store').then((module) => {
+        const store = module.useFileStore;
+        
+        // Get initial state
+        const state = store.getState();
+        setCurrentFile(state.currentFile);
+        setStoredChartData(state.chartData);
+        setHasData(state.hasData());
+        
+        // Subscribe to updates
+        const unsubscribe = store.subscribe((state) => {
+          setCurrentFile(state.currentFile);
+          setStoredChartData(state.chartData);
+          setHasData(state.hasData());
+        });
+        
+        return () => unsubscribe();
+      });
+    }
+  }, []);
 
   const [chartData, setChartData] = useState<ChartData | null>(null);
   const [isFullScreen, setIsFullScreen] = useState(false);
@@ -392,3 +431,8 @@ export default function VisualizationPage() {
     </div>
   );
 }
+
+// ✅ Export default - dynamic import prevents SSR issues with Zustand persist
+export default dynamic(() => Promise.resolve(VisualizationPageContent), {
+  ssr: false,
+});

@@ -10,7 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Check authentication
+
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
@@ -19,14 +19,13 @@ export async function GET(
       );
     }
 
-    // ✅ Await params before accessing id
+
     const { id } = await params;
 
-    // Fetch the visualization session
     const analysis = await prisma.analysis.findUnique({
       where: {
         id: id,
-        userId: session.user.id // Ensure user can only access their own data
+        userId: session.user.id 
       }
     });
 
@@ -37,11 +36,9 @@ export async function GET(
       );
     }
 
-    // Parse the content
     try {
       const content = JSON.parse(analysis.content);
       
-      // Return structured data
       return NextResponse.json({
         chartData: content.chartData || null,
         analysisResult: {
@@ -68,7 +65,7 @@ export async function GET(
       });
     } catch (error) {
       console.error('Error parsing visualization content:', error);
-      // Return empty state if parsing fails
+      
       return NextResponse.json({
         chartData: null,
         analysisResult: {

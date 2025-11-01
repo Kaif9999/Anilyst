@@ -32,6 +32,7 @@ import {
 import { useToast } from "@/components/ui/use-toast";
 import { useSidebar } from "@/app/dashboard/layout";
 import { useSearchParams } from "next/navigation";
+import { useSession } from "next-auth/react";
 import ChatUploadModal from "./chat-upload-modal";
 import { useChatSessions } from "@/hooks/useChatSessions";
 
