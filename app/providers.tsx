@@ -1,24 +1,23 @@
 // app/providers.tsx
 'use client'
 
-import dynamic from 'next/dynamic';
-import { useEffect, useState } from 'react';
+import posthog from 'posthog-js'
+import { PostHogProvider as PHProvider } from 'posthog-js/react'
+import { useEffect } from 'react'
 
-// Lazy load PostHog
-const PostHogProvider = dynamic(() => import('./PostHogProvider'), {
-  ssr: false,
-});
+export function PostHogProvider({ children }: { children: React.ReactNode }) {
+    useEffect(() => {
+      if (process.env.NEXT_PUBLIC_POSTHOG_KEY && process.env.NEXT_PUBLIC_POSTHOG_HOST) {
+        posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+          api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
+          capture_pageview: false  // We capture manually in PostHogPageView
+        })
+      }
+  }, [])
 
-export function PostHogProviderWrapper({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-  
-  if (!mounted) {
-    return <>{children}</>;
-  }
-  
-  return <PostHogProvider>{children}</PostHogProvider>;
+  return (
+    <PHProvider client={posthog}>
+      {children}
+    </PHProvider>
+  )
 }

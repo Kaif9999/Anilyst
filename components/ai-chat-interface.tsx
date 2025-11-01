@@ -809,6 +809,9 @@ function AgentPageContent() {
   const selectedYear = "all";
   const fileLoading = false;
 
+  // Add this hook at the top of the component
+  const { data: session } = useSession();
+
   // Update the session initialization effect
   useEffect(() => {
     const initializeSession = async () => {
@@ -1401,7 +1404,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           user_request_type: detectRequestType(currentInput),
           previous_analysis: null,
           handle_parsing_errors: true,
-          user_id: 'user_123',
+          user_id: session?.user?.id || 'anonymous',  // ✅ Use real user ID
           session_id: sessionId,
           original_query: currentInput
         }
