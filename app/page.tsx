@@ -7,8 +7,6 @@ import { useState, useEffect } from "react";
 import {
   ChevronRight,
   BarChart2,
-  PieChart,
-  LineChart,
   Brain,
   Sparkles,
   ArrowRight,
