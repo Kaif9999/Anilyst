@@ -22,17 +22,19 @@ import {
   LineChart,
   AlertCircle,
   ArrowUp,
-  PanelLeftOpen,
-  PanelLeftClose,
   Lightbulb,
   Paperclip,
   Copy,
   Check,
+  PanelRightClose,
+  PanelLeftOpen,
+  User,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useSidebar } from "@/app/dashboard/layout";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
+import Image from "next/image";
 import ChatUploadModal from "./chat-upload-modal";
 import { useChatSessions } from "@/hooks/useChatSessions";
 
@@ -812,6 +814,21 @@ function AgentPageContent() {
 
   // Add this hook at the top of the component
   const { data: session } = useSession();
+
+  // Add this helper function
+  const getUserData = () => {
+    if (!session?.user) {
+      return { name: 'Guest', email: 'Not signed in', image: null };
+    }
+
+    return {
+      name: session.user.name || session.user.email?.split('@')[0] || 'User',
+      email: session.user.email || 'No email',
+      image: session.user.image || null,
+    };
+  };
+
+  const userData = getUserData();
 
   // Update the session initialization effect
   useEffect(() => {
@@ -1844,7 +1861,7 @@ Would you like to upload some data to analyze?`;
 
   if (!isMounted) {
     return (
-      <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
+      <div className="h-screen bg-black/80 text-white flex flex-col overflow-hidden relative">
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-4" />
@@ -1892,52 +1909,28 @@ Would you like to upload some data to analyze?`;
   if ((messages.length === 0 && !fileLoading) || showWelcome) {
     return (
       <>
-        <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
+        <div className="h-screen bg-[#0f1112] text-white flex flex-col overflow-hidden relative">
+       
           {isSidebarCollapsed && (
             <button
               onClick={toggleSidebar}
-              className="fixed bottom-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-full px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl"
-              title="Expand Sidebar"
+              className="fixed top-8 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg p-2 transition-all duration-300 group shadow-lg hover:shadow-xl"
+              title="Open Sidebar"
             >
-              <div className="flex items-center gap-2">
-                <PanelLeftClose className="w-4 h-4 text-gray-300 group-hover:text-white transition-colors" />
-              </div>
+              <PanelLeftOpen className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" />
             </button>
           )}
 
-          <div
-            className={`backdrop-blur-sm sticky top-0 z-10 transition-all duration-800 ${
-              isTransitioning
-                ? "opacity-0 -translate-y-4"
-                : "opacity-100 translate-y-0"
-            }`}
-          >
+          <div className={`backdrop-blur-sm sticky top-0 z-10 transition-all duration-800 ${
+            isTransitioning ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'
+          }`}>
             <div
               className={`mx-auto p-6 transition-all duration-300 ${
                 isSidebarCollapsed ? "max-w-full" : "max-w-7xl"
               }`}
             >
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                      <Bot className="h-7 w-7 text-white" />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-black animate-pulse"></div>
-                  </div>
-                  <div>
-                    <h1 className="text-2xl font-bold bg-white bg-clip-text text-transparent">
-                      Anilyst AI Agent
-                    </h1>
-                    <p className="text-gray-400 text-sm">
-                      {hasData
-                        ? `Analyzing ${
-                            currentFile?.name
-                          } (${currentFile?.rowCount?.toLocaleString()} rows)`
-                        : "Advanced Data Analysis Assistant"}
-                    </p>
-                  </div>
-                </div>
+                <div className="flex items-center gap-4"></div>
                 <div className="flex items-center gap-3">
                   <DataStatusBadge />
                   {!hasData && (
@@ -1977,7 +1970,7 @@ Would you like to upload some data to analyze?`;
                     ? `I've loaded "${
                         currentFile?.name
                       }" with ${currentFile?.rowCount?.toLocaleString()} rows. Ask me any question and I'll analyze it for you!`
-                    : "Upload your data using the attach button (📎) below, then ask me any questions about it"}
+                    : "Upload your data using the attach button below, then ask me any questions about it"}
                 </p>
               </div>
 
@@ -2153,16 +2146,15 @@ Would you like to upload some data to analyze?`;
   }
 
   return (
-    <div className="h-screen text-white flex flex-col overflow-hidden relative">
+    <div className="h-screen bg-[#0f1112] text-white flex flex-col overflow-hidden relative">
+      {/* ✅ Sidebar Toggle Button */}
       {isSidebarCollapsed && (
         <button
           onClick={toggleSidebar}
-          className="fixed top-4 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 hover:border-white/30 rounded-xl px-4 py-2 transition-all duration-300 group shadow-lg hover:shadow-xl hidden md:flex"
-          title="Expand Sidebar"
+          className="fixed top-8 left-20 z-50  hover:bg-white/20 backdrop-blur-sm rounded-lg p-2 transition-all duration-300"
+          title="Open Sidebar"
         >
-          <div className="flex items-center gap-2">
-            <PanelLeftOpen className="w-5 text-gray-300 group-hover:text-white transition-colors" />
-          </div>
+          <PanelRightClose className="w-6 h-6 text-gray-300 group-hover:text-white transition-colors" />
         </button>
       )}
 
@@ -2249,7 +2241,14 @@ Would you like to upload some data to analyze?`;
               {message.role === "assistant" && (
                 <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
                   <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                    <Bot className="h-5 w-5" />
+                    <Image
+                      src="/anilyst_logo.svg"
+                      alt="AI Agent"
+                      width={24}
+                      height={34}
+                      className="w-6 h-7 object-cover"
+                      unoptimized
+                    />
                   </AvatarFallback>
                 </Avatar>
               )}
@@ -2262,8 +2261,8 @@ Would you like to upload some data to analyze?`;
                 <div
                   className={`relative group rounded-2xl ${
                     message.role === "user"
-                      ? "bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-4"
-                      : "bg-white/5 backdrop-blur-sm border border-white/10 text-gray-100 p-6"
+                      ? "bg-white/5 backdrop-blur-sm text-gray-100 p-4"
+                      : "bg-white/5 backdrop-blur-sm text-gray-100 p-6"
                   }`}
                 >
                   {/* Copy button */}
@@ -2310,8 +2309,21 @@ Would you like to upload some data to analyze?`;
 
               {message.role === "user" && (
                 <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
-                  <AvatarFallback className="bg-white/10 text-white">
-                    U
+                  <AvatarFallback className="bg-white/10 text-white p-0 overflow-hidden">
+                    {userData.image ? (
+                      <Image
+                        src={userData.image}
+                        alt={userData.name}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                        unoptimized
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                        <User className="w-5 h-5 text-white" />
+                      </div>
+                    )}
                   </AvatarFallback>
                 </Avatar>
               )}
@@ -2464,7 +2476,7 @@ export default function AgentPage() {
   return (
     <Suspense
       fallback={
-        <div className="h-screen bg-black/20 text-white flex flex-col overflow-hidden relative">
+        <div className="h-screen bg-black/80 text-white flex flex-col overflow-hidden relative">
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
               <Loader2 className="h-8 w-8 animate-spin text-blue-400 mx-auto mb-4" />

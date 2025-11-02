@@ -17,6 +17,8 @@ import {
   Calendar,
   MoreVertical,
   Plus,
+  PanelRightOpen,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import {
@@ -150,7 +152,6 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   
   return (
     <>
-      {/* Mobile Toggle Button */}
       {isMobile && (
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -175,15 +176,18 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           isMobile 
             ? isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full' 
             : 'translate-x-0'
-        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white shadow-2xl overflow-hidden ${
-          isCollapsed && !isMobile ? 'w-16 bg-black backdrop-blur-md' : 'w-[260px] bg-black/80 backdrop-blur-xl'
+        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden ${
+          isCollapsed && !isMobile ? 'w-16 bg-[#111314] ' : 'w-[260px] bg-[#111314] '
         }`}
       >
-        {/* Collapsed View - Icon Only */}
+        {/* Collapsed View */}
         {isCollapsed && !isMobile && (
-          <div className="flex flex-col items-center h-full py-4 space-y-4">
-            <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <Brain className="w-6 h-6 text-white" />
+          <div className="flex flex-col items-center h-full py-4 space-y-4 relative">
+     
+           
+
+            <div className="w-10 h-10 flex items-center absolute justify-center top-7">
+              <Image src="/anilyst_logo.svg" alt="Anilyst Logo" width={25} height={25}/>
             </div>
 
             <div className="flex-1"></div>
@@ -217,7 +221,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                 className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-lg transition-colors z-50 group"
                 title="Collapse Sidebar"
               >
-                <PanelRightClose className="w-4 h-4 text-gray-400 group-hover:text-white" />
+                <PanelRightOpen className="w-5 h-5 text-gray-400 group-hover:text-white" />
               </button>
             )}
 
@@ -233,11 +237,12 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             )}
             
             {/* Top section - Logo */}
-            <div className="flex items-center px-6 py-5 border-b border-white/10 relative z-10">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mr-3 shadow-lg shadow-blue-500/20">
-                <Brain className="w-5 h-5 text-white" />
+            <div className="flex items-center px-4 py-4 border-b border-white/10 relative z-10">
+              <div className="w-8 h-8 flex items-center justify-center mr-3 ">
+                <Image src="/anilyst_logo.svg" alt="Anilyst Logo" width={25} height={25} />
               </div>
-              <span className="text-lg font-semibold text-white bg-gradient-to-r from-white via-blue-100 to-white text-transparent bg-clip-text">
+              
+              <span className="text-xl font-semibold text-white bg-gradient-to-r from-white via-blue-100 to-white text-transparent bg-clip-text">
                 Anilyst
               </span>
             </div>
@@ -247,7 +252,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               <Button
                 onClick={handleNewChat}
                 disabled={isLoading}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg hover:shadow-blue-500/25"
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg "
               >
                 <Plus className="w-4 h-4" />
                 <span className="font-medium">New Chat</span>
@@ -256,14 +261,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
             {/* Chat History Section */}
             <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
-              {/* History Header */}
-              <div className="px-4 py-3 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <History className="w-4 h-4 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-300">Recent Chats</span>
-                  <span className="ml-auto text-xs text-gray-500">{sessions.length}</span>
-                </div>
-              </div>
+              
               
               {/* History List */}
               <div className="flex-1 overflow-y-auto px-2 py-2">
@@ -279,10 +277,10 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       <div
                         key={chatSession.id}
                         onClick={() => handleChatClick(chatSession.id)}
-                        className={`group relative p-3 rounded-lg transition-all duration-200 cursor-pointer ${
+                        className={`group relative p-2 rounded-lg transition-all duration-200 cursor-pointer ${
                           currentSession?.id === chatSession.id
-                            ? 'bg-white/10 border border-white/20'
-                            : 'hover:bg-white/5 border border-transparent hover:border-white/10'
+                            ? 'bg-white/10'
+                            : 'hover:bg-white/5 hover:rounded-xl bg-black/10'
                         }`}
                       >
                         <div className="flex items-start gap-2">
@@ -304,7 +302,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                                 <DropdownMenuTrigger asChild>
                                   <button
                                     onClick={(e) => e.stopPropagation()}
-                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all"
+                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded-2xl transition-all"
                                   >
                                     <MoreVertical className="w-3 h-3 text-gray-400" />
                                   </button>
@@ -390,9 +388,9 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 function SidebarWithSuspense(props: SidebarProps) {
   return (
     <Suspense fallback={
-      <aside className="fixed inset-y-0 left-0 z-40 w-16 bg-black/90 backdrop-blur-md flex items-center justify-center">
-        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center animate-pulse">
-          <Brain className="w-6 h-6 text-white" />
+      <aside className="fixed inset-y-0 left-0 z-40 w-16 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-brflex items-center justify-center ">
+
         </div>
       </aside>
     }>

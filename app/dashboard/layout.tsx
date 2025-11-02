@@ -2,12 +2,11 @@
 
 import Sidebar from "@/components/sidebar";
 import { Inter } from "next/font/google";
-import { usePathname } from 'next/navigation';
+
 import { useState, createContext, useContext } from 'react';
 
 const inter = Inter({ subsets: ["latin"] });
 
-// Create context for sidebar state
 const SidebarContext = createContext<{
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
@@ -38,10 +37,10 @@ export default function DashboardLayout({
             onToggle={toggleSidebar}
           />
           
-          <main className={`flex-1 min-h-screen transition-all duration-300 ${
+          <main className={`flex-1 min-h-screen transition-all duration-300  ${
             isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[260px]'
           }`}>
-            <div className="w-full h-full bg-black">
+            <div className="w-full h-full ">
               {children}
             </div>
           </main>
