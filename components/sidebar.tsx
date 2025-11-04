@@ -5,20 +5,15 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { 
-  Brain,
   User,
   Menu,
   X,
   Trash2,
-  PanelRightClose,
-  History,
   MessageSquare,
   FileText,
-  Calendar,
   MoreVertical,
   Plus,
   PanelRightOpen,
-  PanelLeftOpen,
 } from 'lucide-react';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import {
@@ -28,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from '@/components/ui/button';
+import UserProfileModal from './user-profile-modal';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -41,6 +37,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const { data: session, status } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
   const {
     sessions,
@@ -114,6 +111,10 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     }
   };
 
+  const handleProfileClick = () => {
+    setIsProfileModalOpen(true);
+  };
+
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
@@ -183,16 +184,17 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {/* Collapsed View */}
         {isCollapsed && !isMobile && (
           <div className="flex flex-col items-center h-full py-4 space-y-4 relative">
-     
-           
-
             <div className="w-10 h-10 flex items-center absolute justify-center top-7">
               <Image src="/anilyst_logo.svg" alt="Anilyst Logo" width={25} height={25}/>
             </div>
 
             <div className="flex-1"></div>
 
-            <div className="w-10 h-10 rounded-full overflow-hidden shadow-lg shadow-blue-500/20 cursor-pointer hover:scale-110 transition-transform duration-300">
+            <button
+              onClick={handleProfileClick}
+              className="w-10 h-10 rounded-full overflow-hidden shadow-lg shadow-blue-500/20 cursor-pointer hover:scale-110 transition-transform duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              title="View Profile"
+            >
               {userData.image ? (
                 <Image
                   src={userData.image}
@@ -207,7 +209,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   <User className="w-5 h-5 text-white" />
                 </div>
               )}
-            </div>
+            </button>
           </div>
         )}
 
@@ -261,8 +263,6 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
             {/* Chat History Section */}
             <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
-              
-              
               {/* History List */}
               <div className="flex-1 overflow-y-auto px-2 py-2">
                 <div className="space-y-1">
@@ -345,10 +345,13 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               </div>
             </div>
             
-            {/* Bottom section */}
+         
             <div className="px-4 pb-4 space-y-3 relative z-10 border-t border-white/10 pt-4">
-              {/* User Profile */}
-              <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden cursor-pointer">
+         
+              <button
+                onClick={handleProfileClick}
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 flex items-center backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 
                 <div className="w-8 h-8 rounded-full overflow-hidden mr-3 shadow-lg shadow-blue-500/20 relative z-10 group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
@@ -368,7 +371,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   )}
                 </div>
                 
-                <div className="flex-1 relative z-10 min-w-0">
+                <div className="flex-1 relative z-10 min-w-0 text-left">
                   <div className="text-sm font-medium text-white truncate">
                     {truncateText(userData.name, 16)}
                   </div>
@@ -376,11 +379,19 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     {truncateText(userData.email, 20)}
                   </div>
                 </div>
-              </div>
+                
+                <MoreVertical className="w-4 h-4 text-gray-400 relative z-10" />
+              </button>
             </div>
           </>
         )}
       </aside>
+
+      {/* Profile Modal */}
+      <UserProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
     </>
   );
 }
@@ -390,7 +401,6 @@ function SidebarWithSuspense(props: SidebarProps) {
     <Suspense fallback={
       <aside className="fixed inset-y-0 left-0 z-40 w-16 flex items-center justify-center">
         <div className="w-10 h-10 rounded-lg bg-gradient-to-brflex items-center justify-center ">
-
         </div>
       </aside>
     }>

@@ -13,10 +13,8 @@ import {
   TrendingUp,
   Loader2,
   Mic,
-  Sparkles,
   Database,
   FileText,
-  Calendar,
   Activity,
   PieChart,
   LineChart,
@@ -248,7 +246,7 @@ const normalizeChartData = (chartConfig: any): ChartData | null => {
       };
     }
 
-    // ✅ CASE 2: Wrong format with x and series { type, x: [...], series: [{name, data}] }
+
     if ((chartConfig.x || chartConfig.labels) && chartConfig.series) {
       console.log("🔧 Converting series format to correct format");
 
@@ -343,20 +341,18 @@ const detectAndRenderCharts = (
     try {
       let chartJsonStr = match[1].trim();
 
-      // ✅ FIX: Remove JavaScript comments before parsing
-      // Remove single-line comments
+
       chartJsonStr = chartJsonStr.replace(/\/\/.*$/gm, '');
       
-      // Remove multi-line comments
+
       chartJsonStr = chartJsonStr.replace(/\/\*[\s\S]*?\*\//g, '');
-      
-      // Remove trailing commas (also invalid in JSON)
+     
       chartJsonStr = chartJsonStr.replace(/,(\s*[}\]])/g, '$1');
       
-      // Clean up any extra whitespace
+
       chartJsonStr = chartJsonStr.trim();
 
-      // ✅ Validate before parsing - More strict validation
+
       if (
         !chartJsonStr ||
         chartJsonStr === "{}" ||
@@ -384,7 +380,7 @@ const detectAndRenderCharts = (
         continue;
       }
 
-      // ✅ Validate parsed object structure
+
       if (
         !chartConfig ||
         typeof chartConfig !== "object" ||
@@ -507,7 +503,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
     );
   }
 
-  // ✅ FIX: Process and format date labels
+
   const processedLabels = validatedData.labels.map((label) => {
     if (!label) return "";
     const labelStr = String(label);
@@ -523,7 +519,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
   });
 
   const safeDatasets = validatedData.datasets.map((dataset, idx) => {
-    // ✅ FIX: Ensure bright, visible colors
+
     const colors = [
       { bg: "rgba(54, 162, 235, 0.8)", border: "rgba(54, 162, 235, 1)" }, // Blue
       { bg: "rgba(255, 99, 132, 0.8)", border: "rgba(255, 99, 132, 1)" }, // Red
@@ -564,7 +560,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
     datasets: safeDatasets,
   };
 
-  // ✅ Enhanced chart options with support for all chart types
+
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
@@ -605,9 +601,9 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
               label += ": ";
             }
 
-            // ✅ FIX: Better type checking for all cases
+
             try {
-              // Handle scatter/bubble charts with x,y coordinates
+ 
               if (chartData.type === "scatter" || chartData.type === "bubble") {
                 const parsed = context.parsed;
                 if (parsed && typeof parsed === "object") {
@@ -629,7 +625,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
                   label += "0";
                 }
               } 
-              // Handle pie/doughnut charts with direct values
+
               else if (context.parsed !== null && context.parsed !== undefined) {
                 const value = context.parsed;
                 label += typeof value === "number" ? value.toLocaleString() : String(value);
@@ -686,7 +682,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
                 color: "#e5e7eb",
                 font: { size: 11 },
                 callback: function (value: any) {
-                  // ✅ FIX: Safe value formatting
+
                   if (value === null || value === undefined) return "0";
                   return typeof value === "number" ? value.toLocaleString() : String(value);
                 },
@@ -812,10 +808,10 @@ function AgentPageContent() {
   const selectedYear = "all";
   const fileLoading = false;
 
-  // Add this hook at the top of the component
+
   const { data: session } = useSession();
 
-  // Add this helper function
+
   const getUserData = () => {
     if (!session?.user) {
       return { name: 'Guest', email: 'Not signed in', image: null };
@@ -830,7 +826,7 @@ function AgentPageContent() {
 
   const userData = getUserData();
 
-  // Update the session initialization effect
+
   useEffect(() => {
     const initializeSession = async () => {
       const sessionParam = searchParams.get("session");
@@ -899,7 +895,7 @@ function AgentPageContent() {
             setIsNewSession(true);
             setIsFirstMessage(true);
 
-            // Update URL with new session ID
+
             const url = new URL(window.location.href);
             url.searchParams.set("session", newSession.id);
             window.history.pushState({}, "", url.toString());
@@ -1275,7 +1271,7 @@ function AgentPageContent() {
       description: `${data.length} rows ready for analysis in this chat`,
     });
 
-    // ✅ Update session metadata in database (for history/display purposes only)
+
     if (currentSession && data.length > 0) {
       try {
         await updateSessionData(
@@ -1397,7 +1393,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
         messageText: currentInput.substring(0, 50)
       });
   
-      // ✅ CRITICAL: Verify we have a session before proceeding
+  
       if (!sessionId || !currentSession) {
         throw new Error('No active session - cannot save messages');
       }
@@ -1422,7 +1418,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           user_request_type: detectRequestType(currentInput),
           previous_analysis: null,
           handle_parsing_errors: true,
-          user_id: session?.user?.id || 'anonymous',  // ✅ Use real user ID
+          user_id: session?.user?.id || 'anonymous', 
           session_id: sessionId,
           original_query: currentInput
         }
@@ -1463,7 +1459,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
   
       setMessages(prev => [...prev, assistantMessage]);
   
-      // ✅ CRITICAL: Save messages to database immediately
+  
       console.log('💾 Starting message save process...');
       console.log('   Session ID:', sessionId);
       console.log('   Current Session:', currentSession?.id);
@@ -1482,7 +1478,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
         );
         console.log('✅ User message saved:', userMessageResult);
   
-        // ✅ Save assistant message SECOND
+
         console.log('💾 Saving assistant message...');
         const assistantMessageResult = await addMessage(
           sessionId,
@@ -1496,8 +1492,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           }
         );
         console.log('✅ Assistant message saved:', assistantMessageResult);
-  
-        // ✅ Generate title ONLY for first message
+
         if (isFirstMessage) {
           console.log('🏷️ This is the first message - generating title...');
           try {
@@ -2147,7 +2142,7 @@ Would you like to upload some data to analyze?`;
 
   return (
     <div className="h-screen bg-[#0f1112] text-white flex flex-col overflow-hidden relative">
-      {/* ✅ Sidebar Toggle Button */}
+
       {isSidebarCollapsed && (
         <button
           onClick={toggleSidebar}
@@ -2278,7 +2273,7 @@ Would you like to upload some data to analyze?`;
                     )}
                   </button>
 
-                  {/* Updated content rendering with proper markdown support */}
+
                   <div className="prose prose-sm max-w-none text-current">
                     {message.role === "user" ? (
                       <div className="whitespace-pre-wrap leading-relaxed text-gray-200">
