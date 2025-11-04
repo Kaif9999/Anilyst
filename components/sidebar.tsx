@@ -379,8 +379,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     {truncateText(userData.email, 20)}
                   </div>
                 </div>
-                
-                <MoreVertical className="w-4 h-4 text-gray-400 relative z-10" />
+          
               </button>
             </div>
           </>

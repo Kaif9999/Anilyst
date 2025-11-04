@@ -526,7 +526,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
       { bg: "rgba(75, 192, 192, 0.8)", border: "rgba(75, 192, 192, 1)" }, // Teal
       { bg: "rgba(255, 206, 86, 0.8)", border: "rgba(255, 206, 86, 1)" }, // Yellow
       { bg: "rgba(153, 102, 255, 0.8)", border: "rgba(153, 102, 255, 1)" }, // Purple
-      { bg: "rgba(255, 159, 64, 0.8)", border: "rgba(255, 159, 64, 1)" }, // Orange
+      { bg: "rgba(255, 159, 64, 8)", border: "rgba(255, 159, 64, 1)" }, // Orange
       { bg: "rgba(255, 80, 80, 0.8)", border: "rgba(255, 80, 80, 1)" }, // Coral
       { bg: "rgba(100, 255, 100, 0.8)", border: "rgba(100, 255, 100, 1)" }, // Green
     ];
@@ -952,6 +952,41 @@ function AgentPageContent() {
       }
     };
   }, [isMounted]);
+
+  useEffect(() => {
+    const adjustTextareaHeight = (textarea: HTMLTextAreaElement | null) => {
+      if (!textarea) return;
+      
+      textarea.style.height = 'auto';
+      const isWelcomeTextarea = textarea === welcomeTextareaRef.current;
+      const maxHeight = isWelcomeTextarea ? 200 : 160;
+      const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+      textarea.style.height = `${newHeight}px`;
+      
+      // Adjust bottom padding based on content height
+      if (isWelcomeTextarea) {
+        if (newHeight < 120) {
+          textarea.style.paddingBottom = '80px';
+        } else {
+          textarea.style.paddingBottom = '85px';
+        }
+      } else {
+        if (newHeight < 100) {
+          textarea.style.paddingBottom = '64px';
+        } else {
+          textarea.style.paddingBottom = '68px';
+        }
+      }
+    };
+  
+    // Adjust height when input changes
+    if (textareaRef.current) {
+      adjustTextareaHeight(textareaRef.current);
+    }
+    if (welcomeTextareaRef.current) {
+      adjustTextareaHeight(welcomeTextareaRef.current);
+    }
+  }, [input]);
 
   const renderMarkdown = (content: string) => {
     const { content: textContent, charts } = detectAndRenderCharts(content);
@@ -2000,8 +2035,27 @@ Would you like to upload some data to analyze?`;
                         ? `Ask anything about ${currentFile?.name}...`
                         : "Upload data using the 📎 button, then ask me questions..."
                     }
-                    className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-32 py-6 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10"
+                    className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] max-h-[200px] text-lg rounded-3xl pl-8 pr-32 py-6 pb-20 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10 overflow-y-auto"
                     disabled={isLoading || fileLoading}
+                    style={{
+                      height: 'auto',
+                      minHeight: '70px',
+                      maxHeight: '200px',
+                      paddingBottom: '80px', // Extra space for buttons
+                    }}
+                    onInput={(e) => {
+                      const target = e.target as HTMLTextAreaElement;
+                      target.style.height = 'auto';
+                      const newHeight = Math.min(target.scrollHeight, 200);
+                      target.style.height = `${newHeight}px`;
+                      
+                      // Ensure minimum bottom padding even when content is short
+                      if (newHeight < 120) {
+                        target.style.paddingBottom = '80px';
+                      } else {
+                        target.style.paddingBottom = '85px';
+                      }
+                    }}
                   />
 
                   {isContextLoading && (
@@ -2012,16 +2066,6 @@ Would you like to upload some data to analyze?`;
                   )}
 
                   <div className="absolute bottom-4 right-4 flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setIsUploadModalOpen(true)}
-                      className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all duration-200"
-                      title="Upload Data"
-                    >
-                      <Paperclip className="h-5 w-5" />
-                    </Button>
-
                     <Button
                       variant="ghost"
                       size="sm"
@@ -2041,6 +2085,20 @@ Would you like to upload some data to analyze?`;
                       ) : (
                         <ArrowUp />
                       )}
+                    </Button>
+                  </div>
+
+                  {/* Add Sources Button - Left Side */}
+                  <div className="absolute bottom-4 left-4">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setIsUploadModalOpen(true)}
+                      className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                      title="Upload Data"
+                    >
+                      <Paperclip className="h-4 w-4" />
+                      <span className="text-sm font-medium">Add Sources</span>
                     </Button>
                   </div>
                 </div>
@@ -2366,8 +2424,27 @@ Would you like to upload some data to analyze?`;
                   ? `Ask anything about ${currentFile?.name}...`
                   : "Upload data first using the attach button..."
               }
-              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[60px] rounded-2xl pl-6 pr-32 py-4 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300"
+              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[60px] max-h-[160px] rounded-2xl pl-6 pr-32 py-4 pb-16 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 overflow-y-auto"
               disabled={isLoading || fileLoading}
+              style={{
+                height: 'auto',
+                minHeight: '60px',
+                maxHeight: '160px',
+                paddingBottom: '64px', // Extra space for buttons
+              }}
+              onInput={(e) => {
+                const target = e.target as HTMLTextAreaElement;
+                target.style.height = 'auto';
+                const newHeight = Math.min(target.scrollHeight, 160);
+                target.style.height = `${newHeight}px`;
+                
+                // Ensure minimum bottom padding even when content is short
+                if (newHeight < 100) {
+                  target.style.paddingBottom = '64px';
+                } else {
+                  target.style.paddingBottom = '68px';
+                }
+              }}
             />
 
             {isContextLoading && (
@@ -2378,16 +2455,6 @@ Would you like to upload some data to analyze?`;
             )}
 
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsUploadModalOpen(true)}
-                className="text-gray-400 hover:text-white p-2 rounded-xl hover:bg-white/10 transition-all duration-200"
-                title="Upload Data"
-              >
-                <Paperclip className="h-4 w-4" />
-              </Button>
-
               <Button
                 variant="ghost"
                 size="sm"
@@ -2406,6 +2473,20 @@ Would you like to upload some data to analyze?`;
                 ) : (
                   <Send className="h-4 w-4" />
                 )}
+              </Button>
+            </div>
+
+            {/* Add Sources Button - Left Side */}
+            <div className="absolute bottom-3 left-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsUploadModalOpen(true)}
+                className="text-gray-400 hover:text-white bg-white/10 hover:bg-white/10  hover:border-white/20 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                title="Upload Data"
+              >
+                <Paperclip className="h-4 w-4" />
+                <span className="text-sm font-medium">Add Sources</span>
               </Button>
             </div>
           </div>
