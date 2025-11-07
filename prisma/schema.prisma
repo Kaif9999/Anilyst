@@ -1,9 +1,10 @@
 generator client {
   provider = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider = "postgresql" // Or your preferred database
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -17,11 +18,12 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   subscriptionType SubscriptionType @default(FREE)
-  subscriptionId String?   // Dodo subscription ID
+  subscriptionId String?   
   usageLimit     UsageLimit?
   accounts       Account[]
   sessions       Session[]
   analyses       Analysis[]
+  chatSessions   ChatSession[]
 }
 
 enum SubscriptionType {
@@ -95,4 +97,44 @@ model Analysis {
   user      User     @relation(fields: [userId], references: [id])
 
   @@index([userId])
+}
+
+model ChatSession {
+  id                  String        @id @default(cuid())
+  userId              String
+  title               String        @default("New Chat")
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  messageCount        Int           @default(0)
+  lastMessage         String?       @db.Text
+  hasData             Boolean       @default(false)
+  dataFileName        String?
+  dataRowCount        Int?
+  dataColumns         Json?
+  uploadedFileData    Json?         
+  isArchived          Boolean       @default(false)
+  autoTitleGenerated  Boolean       @default(false)
+  
+  user                User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages            ChatMessage[]
+  
+  @@index([userId])
+  @@index([userId, isArchived])
+  @@index([updatedAt(sort: Desc)])
+}
+
+model ChatMessage {
+  id                  String      @id @default(cuid())
+  sessionId           String
+  role                String      // 'user' or 'assistant'
+  content             String      @db.Text
+  timestamp           DateTime    @default(now())
+  vectorContextUsed   Boolean     @default(false)
+  analysisType        String?
+  metadata            Json?
+  
+  session             ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  @@index([sessionId])
+  @@index([timestamp(sort: Asc)])
 }

@@ -34,12 +34,9 @@ export interface FileMetadata {
 }
 
 interface FileStore {
-  // File data
   currentFile: FileMetadata | null;
   rawData: (StockData | SimpleData)[];
   chartData: ChartData | null;
-  
-  // Analysis data
   aiAnalysis: string;
   availableYears: string[];
   selectedYear: string;
@@ -122,14 +119,14 @@ export const useFileStore = create<FileStore>()(
     }),
     {
       name: 'file-store',
-      // Only persist essential data, not UI state
+      // ✅ DON'T persist CSV data - only UI preferences
       partialize: (state) => ({
-        currentFile: state.currentFile,
-        rawData: state.rawData,
-        chartData: state.chartData,
-        aiAnalysis: state.aiAnalysis,
-        availableYears: state.availableYears,
+        // ❌ Removed: currentFile, rawData, chartData, aiAnalysis
+        // These should be per-session in component state
+        
+        // ✅ Only persist user preferences
         selectedYear: state.selectedYear,
+        availableYears: state.availableYears,
       }),
     }
   )

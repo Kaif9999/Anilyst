@@ -7,13 +7,11 @@ const prisma = new PrismaClient();
 
 export async function GET() {
   try {
-    // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch user's visualization history
     const visualizations = await prisma.analysis.findMany({
       where: {
         userId: session.user.id,
@@ -30,7 +28,6 @@ export async function GET() {
       },
     });
 
-    // Transform the data to include visualization details
     const sessions = visualizations.map((viz) => {
       const content = JSON.parse(viz.content);
       return {
@@ -54,7 +51,6 @@ export async function GET() {
   }
 }
 
-// Add POST endpoint for creating new sessions
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -65,12 +61,10 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get request body
     const body = await req.json();
     
     console.log("History endpoint received request with keys:", Object.keys(body));
     
-    // Validate required fields
     if (!body.chartData) {
       console.error("Missing chartData in request");
       return NextResponse.json(

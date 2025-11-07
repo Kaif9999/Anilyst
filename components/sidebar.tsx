@@ -1,36 +1,67 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import React, { useState, useEffect, Suspense } from 'react';
+import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { 
-  Brain,
-  Upload,
-  Crown,
   User,
-  ChevronRight,
   Menu,
   X,
-  CheckCircle,
-  BarChart3,
-  TrendingUp,
+  Trash2,
+  MessageSquare,
   FileText,
-  Bot,
-  Trash2
+  MoreVertical,
+  Plus,
+  PanelRightOpen,
 } from 'lucide-react';
-import { useFileStore } from '@/store/file-store';
-import UploadModal from './upload-modal';
+import { useChatSessions } from '@/hooks/useChatSessions';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from '@/components/ui/button';
+import UserProfileModal from './user-profile-modal';
 
-export default function Sidebar() {
+interface SidebarProps {
+  isCollapsed: boolean;
+  onToggle: () => void;
+}
+
+function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { data: session, status } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   
-  // Get file store state
-  const { currentFile, hasData, setUploadModalOpen, clearData } = useFileStore();
+  const {
+    sessions,
+    currentSession,
+    createSession,
+    loadSession,
+    deleteSession,
+    isLoading,
+    refreshSessions,
+  } = useChatSessions();
+
+  // ✅ Listen for title update events from chat interface
+  useEffect(() => {
+    const handleTitleUpdate = (event: CustomEvent) => {
+      console.log('🔔 Received title update event:', event.detail);
+      // Refresh sessions to get the updated title
+      refreshSessions();
+    };
+
+    window.addEventListener('chatTitleUpdated', handleTitleUpdate as EventListener);
+    return () => {
+      window.removeEventListener('chatTitleUpdated', handleTitleUpdate as EventListener);
+    };
+  }, [refreshSessions]);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -43,24 +74,6 @@ export default function Sidebar() {
       window.removeEventListener('resize', checkIfMobile);
     };
   }, []);
-  
-  // Define navigation items for consistent reference
-  const navItems = [
-    { name: 'Dashboard', path: '/dashboard', icon: BarChart3 },
-    { name: 'Visualizations', path: '/dashboard/visualization', icon: TrendingUp },
-    { name: 'Analysis', path: '/dashboard/analysis', icon: Brain },
-    { name: 'Anilyst Agent', path: '/dashboard/agent', icon: Bot, special: true }
-  ];
-  
- 
-  const isActive = (path: string) => {
-    if (path === '/dashboard') {
-
-      return pathname === '/dashboard' || pathname === '/dashboard/';
-    }
-
-    return pathname === path || pathname.startsWith(path + '/');
-  };
 
   const handleItemClick = () => {
     if (isMobile) {
@@ -68,31 +81,78 @@ export default function Sidebar() {
     }
   };
 
-  // Handle upload button click
-  const handleUploadClick = () => {
-    setUploadModalOpen(true);
-    if (isMobile) {
-      setIsMobileMenuOpen(false);
+  const handleNewChat = async () => {
+    const newSession = await createSession();
+    if (newSession) {
+      // ✅ Navigate to new session with clean state
+      router.push(`/dashboard/agent?session=${newSession.id}`);
+      
+      // ✅ Force refresh to ensure clean state
+      router.refresh();
+    }
+    handleItemClick();
+  };
+
+  const handleChatClick = async (sessionId: string) => {
+    // ✅ Load the session and navigate
+    await loadSession(sessionId);
+    router.push(`/dashboard/agent?session=${sessionId}`);
+    
+    // ✅ Force refresh to load messages
+    router.refresh();
+    
+    handleItemClick();
+  };
+
+  const handleDeleteChat = async (e: React.MouseEvent, sessionId: string) => {
+    e.stopPropagation();
+    if (confirm('Are you sure you want to delete this chat?')) {
+      await deleteSession(sessionId);
     }
   };
 
-  // Handle remove data
-  const handleRemoveData = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent triggering the upload modal
-    if (confirm('Are you sure you want to remove the uploaded data?')) {
-      clearData();
-    }
+  const handleProfileClick = () => {
+    setIsProfileModalOpen(true);
   };
 
-  // Function to truncate text with ellipsis
   const truncateText = (text: string, maxLength: number) => {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + '...';
   };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffTime = Math.abs(now.getTime() - date.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+    return `${Math.floor(diffDays / 30)} months ago`;
+  };
+
+  const getUserData = () => {
+    if (status === 'loading') {
+      return { name: 'Loading...', email: 'Loading...', image: null };
+    }
+
+    if (status === 'unauthenticated' || !session?.user) {
+      return { name: 'Guest', email: 'Not signed in', image: null };
+    }
+
+    return {
+      name: session.user.name || session.user.email?.split('@')[0] || 'User',
+      email: session.user.email || 'No email',
+      image: session.user.image || null,
+    };
+  };
+
+  const userData = getUserData();
   
   return (
     <>
-      {/* Mobile Toggle Button */}
       {isMobile && (
         <button 
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -115,177 +175,237 @@ export default function Sidebar() {
       <aside 
         className={`${
           isMobile 
-            ? isMobileMenuOpen
-              ? 'translate-x-0'
-              : '-translate-x-full' 
+            ? isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full' 
             : 'translate-x-0'
-        } fixed inset-y-0 left-0 z-40 w-65 transition-transform duration-300 ease-in-out min-h-screen flex flex-col bg-black/80 backdrop-blur-xl text-white shadow-2xl overflow-hidden`}
+        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden ${
+          isCollapsed && !isMobile ? 'w-16 bg-[#111314] ' : 'w-[260px] bg-[#111314] '
+        }`}
       >
-      
-
-        {/* Mobile close button */}
-        {isMobile && (
-          <button 
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="absolute top-4 right-4 p-1 hover:bg-white/10 rounded-lg transition-colors z-50"
-            aria-label="Close Menu"
-          >
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
-        )}
-        
-        {/* Top section - Logo */}
-        <div className="flex items-center px-6 py-5 border-b border-white/10 relative z-10">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center mr-3 shadow-lg shadow-blue-500/20">
-            <Brain className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-lg font-semibold text-white bg-gradient-to-r from-white via-blue-100 to-white text-transparent bg-clip-text">
-            Anilyst
-          </span>
-        </div>
-        
-        {/* Main navigation */}
-        <nav className="flex-1 px-4 py-4 relative z-10">
-          <div className="space-y-1">
-            {navItems.map((item) => {
-              const IconComponent = item.icon;
-              return (
-                <Link key={item.name} href={item.path}>
-                  <div 
-                    className={`flex items-center px-3 py-2.5 rounded-lg transition-all duration-300 group cursor-pointer text-sm relative overflow-hidden ${
-                      isActive(item.path)
-                        ? 'bg-gradient-to-r from-blue-600/80 to-purple-600/80 text-white shadow-lg shadow-blue-500/20 border border-white/10'
-                        : 'text-gray-300 hover:bg-white/5 hover:text-white hover:border-white/10 border border-transparent'
-                    }`}
-                    onClick={handleItemClick}
-                  >
-                    {/* Hover glow effect */}
-                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-lg"></div>
-                    
-                    {item.special ? (
-                      <div className="w-5 h-5 bg-gradient-to-br from-green-500 to-green-600 rounded flex items-center justify-center mr-3 shadow-md shadow-green-500/20 relative z-10">
-                        <IconComponent className="w-3 h-3 text-white" />
-                      </div>
-                    ) : (
-                      <IconComponent className={`w-5 h-5 mr-3 relative z-10 ${
-                        isActive(item.path) ? 'text-white' : 'text-gray-400 group-hover:text-gray-300'
-                      }`} />
-                    )}
-                    <span className="font-medium relative z-10">{item.name}</span>
-                    
-                    {/* Active indicator */}
-                    {isActive(item.path) && (
-                      <div className="absolute right-2 w-1 h-6 bg-gradient-to-b from-blue-400 to-purple-400 rounded-full"></div>
-                    )}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
-        </nav>
-        
-        {/* Bottom section */}
-        <div className="px-4 pb-4 space-y-3 relative z-10">
-          {/* Upload Data button */}
-          <button
-            onClick={handleUploadClick}
-            className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg p-3 text-center transition-all duration-300 group backdrop-blur-sm relative overflow-hidden"
-          >
-            {/* Animated background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            
-            <div className="flex items-center justify-between relative z-10">
-              <div className="flex items-center">
-                {hasData() ? (
-                  <CheckCircle className="w-5 h-5 text-green-400 mr-2 group-hover:scale-110 transition-transform duration-300" />
-                ) : (
-                  <Upload className="w-5 h-5 text-gray-400 group-hover:text-gray-300 mr-2 transition-all duration-300 group-hover:scale-110" />
-                )}
-                <div className="text-left">
-                  <div className="text-sm font-medium text-white">
-                    {hasData() ? 'Data Loaded' : 'Upload Data'}
-                  </div>
-                  {hasData() && currentFile && (
-                    <div className="text-xs text-green-400 truncate max-w-[120px]">
-                      {currentFile.name}
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Remove button - only show when data is loaded */}
-              {hasData() && (
-                <button
-                  onClick={handleRemoveData}
-                  className="p-1 rounded-md bg-red-500/20 hover:bg-red-500/30 border border-red-500/30 hover:border-red-500/50 transition-all duration-200 group/remove"
-                  title="Remove uploaded data"
-                >
-                  <Trash2 className="w-3 h-3 text-red-400 group-hover/remove:text-red-300" />
-                </button>
-              )}
+        {/* Collapsed View */}
+        {isCollapsed && !isMobile && (
+          <div className="flex flex-col items-center h-full py-4 space-y-4 relative">
+            <div className="w-10 h-10 flex items-center absolute justify-center top-7">
+              <Image src="/anilyst_logo.svg" alt="Anilyst Logo" width={25} height={25}/>
             </div>
-          </button>
-          
-          {/* Upgrade box */}
-          <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-lg p-3 backdrop-blur-sm relative overflow-hidden group hover:border-yellow-500/30 transition-all duration-300">
-            {/* Animated background glow */}
-            <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/5 to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            
-            <Link href="/pricing" className="block relative z-10">
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center">
-                  <Crown className="w-4 h-4 text-yellow-400 mr-2 group-hover:scale-110 transition-transform duration-300" />
-                  <span className="text-sm font-medium text-white">Upgrade</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-gray-300 transition-colors" />
-              </div>
-              <p className="text-xs text-gray-300 mb-2">
-                Get unlimited access and advanced features
-              </p>
-              <div className="text-xs text-gray-400 mb-1">0/3 Analysis Free</div>
-              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                <div className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 w-0 rounded-full transition-all duration-500 group-hover:w-2"></div>
-              </div>
-            </Link>
-          </div>
-          
-          {/* User Profile */}
-          <div className="bg-white/5 border border-white/10 rounded-lg p-3 flex items-center backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden">
-            {/* Subtle animated background */}
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            
-            {/* User Avatar */}
-            <div className="w-8 h-8 rounded-full overflow-hidden mr-3 shadow-lg shadow-blue-500/20 relative z-10 group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
-              {session?.user?.image ? (
+
+            <div className="flex-1"></div>
+
+            <button
+              onClick={handleProfileClick}
+              className="w-10 h-10 rounded-full overflow-hidden shadow-lg shadow-blue-500/20 cursor-pointer hover:scale-110 transition-transform duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              title="View Profile"
+            >
+              {userData.image ? (
                 <Image
-                  src={session.user.image}
-                  alt={session.user.name || 'User'}
-                  width={32}
-                  height={32}
+                  src={userData.image}
+                  alt={userData.name}
+                  width={40}
+                  height={40}
                   className="w-full h-full object-cover"
+                  unoptimized
                 />
               ) : (
                 <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
+                  <User className="w-5 h-5 text-white" />
                 </div>
               )}
+            </button>
+          </div>
+        )}
+
+        {/* Expanded View - Full Content */}
+        {!isCollapsed && (
+          <>
+            {/* Desktop Collapse Button */}
+            {!isMobile && (
+              <button
+                onClick={onToggle}
+                className="absolute top-4 right-4 p-1.5 hover:bg-white/10 rounded-lg transition-colors z-50 group"
+                title="Collapse Sidebar"
+              >
+                <PanelRightOpen className="w-5 h-5 text-gray-400 group-hover:text-white" />
+              </button>
+            )}
+
+            {/* Mobile close button */}
+            {isMobile && (
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="absolute top-4 right-4 p-1 hover:bg-white/10 rounded-lg transition-colors z-50"
+                aria-label="Close Menu"
+              >
+                <X className="w-5 h-5 text-gray-400" />
+              </button>
+            )}
+            
+            {/* Top section - Logo */}
+            <div className="flex items-center px-4 py-4 border-b border-white/10 relative z-10">
+              <div className="w-8 h-8 flex items-center justify-center mr-3 ">
+                <Image src="/anilyst_logo.svg" alt="Anilyst Logo" width={25} height={25} />
+              </div>
+              
+              <span className="text-xl font-semibold text-white bg-gradient-to-r from-white via-blue-100 to-white text-transparent bg-clip-text">
+                Anilyst
+              </span>
             </div>
             
-            {/* User Info */}
-            <div className="flex-1 relative z-10 min-w-0">
-              <div className="text-sm font-medium text-white truncate">
-                {session?.user?.name ? truncateText(session.user.name, 16) : 'User'}
-              </div>
-              <div className="text-xs text-gray-400 truncate">
-                {session?.user?.email ? truncateText(session.user.email, 20) : 'user@example.com'}
+            {/* New Chat Button */}
+            <div className="px-4 py-3 border-b border-white/10">
+              <Button
+                onClick={handleNewChat}
+                disabled={isLoading}
+                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg "
+              >
+                <Plus className="w-4 h-4" />
+                <span className="font-medium">New Chat</span>
+              </Button>
+            </div>
+
+            {/* Chat History Section */}
+            <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
+              {/* History List */}
+              <div className="flex-1 overflow-y-auto px-2 py-2">
+                <div className="space-y-1">
+                  {sessions.length === 0 ? (
+                    <div className="text-center py-8 px-4">
+                      <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                      <p className="text-sm text-gray-500">No chats yet</p>
+                      <p className="text-xs text-gray-600 mt-1">Start a new conversation</p>
+                    </div>
+                  ) : (
+                    sessions.map((chatSession) => (
+                      <div
+                        key={chatSession.id}
+                        onClick={() => handleChatClick(chatSession.id)}
+                        className={`group relative p-2 rounded-lg transition-all duration-200 cursor-pointer ${
+                          currentSession?.id === chatSession.id
+                            ? 'bg-white/10'
+                            : 'hover:bg-white/5 hover:rounded-xl bg-black/10'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-shrink-0 mt-0.5">
+                            {chatSession.hasData ? (
+                              <FileText className="w-4 h-4 text-green-400" />
+                            ) : (
+                              <MessageSquare className="w-4 h-4 text-gray-400" />
+                            )}
+                          </div>
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-1">
+                              <h4 className="text-sm font-medium text-white truncate">
+                                {truncateText(chatSession.title, 25)}
+                              </h4>
+                              
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <button
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded-2xl transition-all"
+                                  >
+                                    <MoreVertical className="w-3 h-3 text-gray-400" />
+                                  </button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-gray-900 border-white/10">
+                                  <DropdownMenuItem
+                                    onClick={(e: React.MouseEvent<Element, MouseEvent>) => handleDeleteChat(e, chatSession.id)}
+                                    className="text-red-400 focus:text-red-300 focus:bg-red-500/10"
+                                  >
+                                    <Trash2 className="w-3 h-3 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            </div>
+                            
+                            {chatSession.lastMessage && (
+                              <p className="text-xs text-gray-500 truncate mt-1">
+                                {truncateText(chatSession.lastMessage, 35)}
+                              </p>
+                            )}
+                            
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-xs text-gray-600">
+                                {formatDate(chatSession.updatedAt)}
+                              </span>
+                              {chatSession.hasData && chatSession.dataFileName && (
+                                <span className="text-xs text-green-500/70 flex items-center gap-1">
+                                  <FileText className="w-3 h-3" />
+                                  {truncateText(chatSession.dataFileName, 15)}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+            
+         
+            <div className="px-4 pb-4 space-y-3 relative z-10 border-t border-white/10 pt-4">
+         
+              <button
+                onClick={handleProfileClick}
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 flex items-center backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                
+                <div className="w-8 h-8 rounded-full overflow-hidden mr-3 shadow-lg shadow-blue-500/20 relative z-10 group-hover:scale-110 transition-transform duration-300 flex-shrink-0">
+                  {userData.image ? (
+                    <Image
+                      src={userData.image}
+                      alt={userData.name}
+                      width={32}
+                      height={32}
+                      className="w-full h-full object-cover"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
+                      <User className="w-4 h-4 text-white" />
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex-1 relative z-10 min-w-0 text-left">
+                  <div className="text-sm font-medium text-white truncate">
+                    {truncateText(userData.name, 16)}
+                  </div>
+                  <div className="text-xs text-gray-400 truncate">
+                    {truncateText(userData.email, 20)}
+                  </div>
+                </div>
+          
+              </button>
+            </div>
+          </>
+        )}
       </aside>
 
-      {/* Upload Modal */}
-      <UploadModal />
+      {/* Profile Modal */}
+      <UserProfileModal 
+        isOpen={isProfileModalOpen} 
+        onClose={() => setIsProfileModalOpen(false)} 
+      />
     </>
   );
 }
+
+function SidebarWithSuspense(props: SidebarProps) {
+  return (
+    <Suspense fallback={
+      <aside className="fixed inset-y-0 left-0 z-40 w-16 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-gradient-to-brflex items-center justify-center ">
+        </div>
+      </aside>
+    }>
+      <Sidebar {...props} />
+    </Suspense>
+  );
+}
+
+export default SidebarWithSuspense;

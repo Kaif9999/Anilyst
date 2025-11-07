@@ -1,29 +1,51 @@
 "use client";
 
 import Sidebar from "@/components/sidebar";
-
 import { Inter } from "next/font/google";
-import { usePathname } from 'next/navigation';
+
+import { useState, createContext, useContext } from 'react';
 
 const inter = Inter({ subsets: ["latin"] });
+
+const SidebarContext = createContext<{
+  isSidebarCollapsed: boolean;
+  toggleSidebar: () => void;
+}>({
+  isSidebarCollapsed: false,
+  toggleSidebar: () => {},
+});
+
+export const useSidebar = () => useContext(SidebarContext);
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(!isSidebarCollapsed);
+  };
+
   return (
-    <div className={`min-h-screen bg-black/70 ${inter.className}`}>
-      <div className="flex">
-        <Sidebar />
-        
-        {/* Main content with matching black background */}
-        <main className="flex-1 md:ml-72 min-h-screen bg-black/70">
-          <div className="max-w-7xl mx-auto">
-            {children}
-          </div>
-        </main>
+    <SidebarContext.Provider value={{ isSidebarCollapsed, toggleSidebar }}>
+      <div className={`min-h-screen ${inter.className}`}>
+        <div className="flex">
+          <Sidebar 
+            isCollapsed={isSidebarCollapsed}
+            onToggle={toggleSidebar}
+          />
+          
+          <main className={`flex-1 min-h-screen transition-all duration-300  ${
+            isSidebarCollapsed ? 'md:ml-16' : 'md:ml-[260px]'
+          }`}>
+            <div className="w-full h-full ">
+              {children}
+            </div>
+          </main>
+        </div>
       </div>
-    </div>
+    </SidebarContext.Provider>
   );
 }

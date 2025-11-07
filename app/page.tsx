@@ -7,8 +7,6 @@ import { useState, useEffect } from "react";
 import {
   ChevronRight,
   BarChart2,
-  PieChart,
-  LineChart,
   Brain,
   Sparkles,
   ArrowRight,
@@ -1065,7 +1063,7 @@ export default function Home() {
                   transition={{ delay: 0.2 + index * 0.1, duration: 0.6 }}
                   viewport={{ once: true, margin: "-100px" }}
                 >
-                  {/* Feature heading for mobile */}
+                  
                   <div className="md:hidden mb-6">
                     <div className="flex items-center gap-3">
                       <div className={`p-3 rounded-xl bg-gradient-to-br ${section.color}`}>
