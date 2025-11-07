@@ -7,13 +7,7 @@ import {
   Upload, 
   X, 
   AlertCircle,
-  Database,
-  Loader2,
-  FolderOpen,
-  Globe,
-  Cloud,
-  Link,
-  FileSpreadsheet
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -29,9 +23,21 @@ interface DataSource {
   name: string;
   icon: React.ReactNode;
   description: string;
-  comingSoon?: boolean;
   onClick?: () => void;
 }
+
+// PostgreSQL Official Logo Component
+const PostgreSQLLogo = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    className={className}
+    fill="currentColor"
+  >
+    <path d="M17.128 0c-1.123 0-2.176.374-3.031 1.104-.855-.73-1.908-1.104-3.031-1.104C7.803 0 5.333 2.17 5.333 4.85c0 .547.088 1.074.25 1.567-.162.493-.25 1.02-.25 1.567 0 2.68 2.47 4.85 5.733 4.85 1.123 0 2.176-.374 3.031-1.104.855.73 1.908 1.104 3.031 1.104 3.263 0 5.733-2.17 5.733-4.85 0-.547-.088-1.074-.25-1.567.162-.493.25-1.02-.25-1.567C22.861 2.17 20.391 0 17.128 0zM7.5 8.5c0-1.381 1.119-2.5 2.5-2.5s2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5-2.5-1.119-2.5-2.5zm7 0c0-1.381 1.119-2.5 2.5-2.5s2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5-2.5-1.119-2.5-2.5z"/>
+    <path d="M12 13c-2.761 0-5-2.239-5-5s2.239-5 5-5 5 2.239 5 5-2.239 5-5 5z" opacity="0.3"/>
+    <circle cx="12" cy="8" r="1.5"/>
+  </svg>
+);
 
 export default function ChatUploadModal({ 
   isOpen, 
@@ -39,7 +45,6 @@ export default function ChatUploadModal({
   onUploadComplete, 
   sessionId
 }: ChatUploadModalProps) {
-  const [isDragOver, setIsDragOver] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
@@ -47,80 +52,26 @@ export default function ChatUploadModal({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  // Define data sources
   const dataSources: DataSource[] = [
     {
       id: 'csv-upload',
       name: 'Upload CSV',
-      icon: <Upload className="h-4 w-4" />,
-      description: 'Upload a CSV file from your computer',
+      icon: <Upload className="h-3 w-3" />,
+      description: 'Upload a CSV file',
       onClick: () => {
         setSelectedSource('csv-upload');
         fileInputRef.current?.click();
       }
     },
     {
-      id: 'google-sheets',
-      name: 'Google Sheets',
-      icon: <FileSpreadsheet className="h-4 w-4" />,
-      description: 'Import data from Google Sheets',
-      comingSoon: true,
+      id: 'postgresql',
+      name: 'PostgreSQL',
+      icon: <PostgreSQLLogo className="h-3 w-3" />,
+      description: 'Connect to database',
       onClick: () => {
         toast({
           title: "🚧 Coming Soon!",
-          description: "Google Sheets integration will be available soon",
-        });
-      }
-    },
-    {
-      id: 'url-import',
-      name: 'From URL',
-      icon: <Link className="h-4 w-4" />,
-      description: 'Import CSV data from a URL',
-      comingSoon: true,
-      onClick: () => {
-        toast({
-          title: "🚧 Coming Soon!",
-          description: "URL import will be available soon",
-        });
-      }
-    },
-    {
-      id: 'cloud-storage',
-      name: 'Cloud Storage',
-      icon: <Cloud className="h-4 w-4" />,
-      description: 'Import from Dropbox, OneDrive, etc.',
-      comingSoon: true,
-      onClick: () => {
-        toast({
-          title: "🚧 Coming Soon!",
-          description: "Cloud storage integration will be available soon",
-        });
-      }
-    },
-    {
-      id: 'api-data',
-      name: 'API Data',
-      icon: <Globe className="h-4 w-4" />,
-      description: 'Connect to external APIs',
-      comingSoon: true,
-      onClick: () => {
-        toast({
-          title: "🚧 Coming Soon!",
-          description: "API data integration will be available soon",
-        });
-      }
-    },
-    {
-      id: 'sample-data',
-      name: 'Sample Data',
-      icon: <Database className="h-4 w-4" />,
-      description: 'Use sample datasets for testing',
-      comingSoon: true,
-      onClick: () => {
-        toast({
-          title: "🚧 Coming Soon!",
-          description: "Sample datasets will be available soon",
+          description: "PostgreSQL integration will be available soon",
         });
       }
     }
@@ -139,25 +90,25 @@ export default function ChatUploadModal({
     setProcessingStep('Validating file...');
 
     try {
-      // ✅ 1. Validate file type - NO AI
+      // Validate file type
       if (!file.name.toLowerCase().endsWith('.csv')) {
         throw new Error('Please upload a CSV file only');
       }
 
-      // ✅ 2. Validate file size - NO AI
+      // Validate file size
       if (file.size > 10 * 1024 * 1024) {
         throw new Error('File size must be less than 10MB');
       }
 
       setProcessingStep('Reading file...');
       
-      // ✅ 3. Read file content - NO AI
+      // Read file content
       const text = await file.text();
       const lines = text.split('\n').filter(line => line.trim());
 
       setProcessingStep('Parsing CSV...');
 
-      // ✅ 4. Parse CSV locally - NO AI, NO backend calls
+      // Parse CSV locally
       const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
       const data = [];
       
@@ -183,14 +134,14 @@ export default function ChatUploadModal({
         throw new Error('No valid data rows found in CSV file');
       }
 
-      // ✅ 5. Create metadata - NO AI
+      // Create metadata
       const metadata = {
         filename: file.name,
         rowCount: data.length,
         columns: headers,
         fileSize: file.size,
         uploadedAt: new Date().toISOString(),
-        dataType: detectDataType(headers, data), // Simple string matching
+        dataType: detectDataType(headers, data),
         sessionId: sessionId
       };
 
@@ -200,9 +151,9 @@ export default function ChatUploadModal({
         columns: headers.length
       });
 
-      // ✅ 6. Return data and close modal - NO AI processing
+      // Return data and close modal
       onUploadComplete(data, metadata);
-      handleClose(); // Modal closes immediately
+      handleClose();
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to process file';
       setError(errorMessage);
@@ -231,27 +182,9 @@ export default function ChatUploadModal({
     }
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    setSelectedSource('csv-upload');
-    handleFileSelect(e.dataTransfer.files);
-  };
-
   const handleReset = () => {
     setError(null);
     setSelectedSource(null);
-    setIsDragOver(false);
     setProcessingStep('');
     setIsProcessing(false);
     if (fileInputRef.current) {
@@ -266,148 +199,115 @@ export default function ChatUploadModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] bg-black/95 backdrop-blur-xl border-white/20 text-white overflow-hidden">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-            <Database className="h-5 w-5 text-blue-400" />
-            Add Data Source
+      <DialogContent className="mt-auto max-w-2xl min-h-[500px] bg-gradient-to-br from-[#0a0b0c] via-[#0f1112] to-[#1a1b1d] backdrop-blur-xl border border-white/10 text-white shadow-2xl rounded-2xl">
+        
+        <DialogHeader className="relative z-10">
+          <DialogTitle className="text-xl font-bold flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30">
+              <Upload className="h-5 w-5 text-blue-400" />
+            </div>
+            <span className=" bg-white bg-clip-text text-transparent">
+              Add Data Source
+            </span>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 overflow-y-auto max-h-[75vh] pr-2">
-          {/* Data Sources Grid */}
-          {!isProcessing && !error && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-medium text-white">Choose Data Source</h3>
-                <span className="text-sm text-gray-400">Select how you want to import your data</span>
-              </div>
+        <div className="relative z-10 flex flex-col gap-6 p-2 h-[400px]">
+  
+          <div >
+            {/* Data Sources */}
+            {!isProcessing && !error && (
+              <div className="space-y-5">
+                <div className="space-y-1">
+                  <p className="text-base font-medium text-white">Choose your data source</p>
+                  <p className="text-sm text-gray-400">Select how you want to import your data for analysis</p>
+                </div>
               
-              {/* Data Sources Buttons */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                {dataSources.map((source) => (
-                  <Button
-                    key={source.id}
-                    onClick={source.onClick}
-                    variant="outline"
-                    className={`h-auto p-4 flex flex-col items-center gap-3 border-white/20 hover:border-white/40 hover:bg-white/5 transition-all duration-200 relative ${
-                      selectedSource === source.id ? 'border-blue-400 bg-blue-500/10' : ''
-                    } ${source.comingSoon ? 'opacity-60' : ''}`}
-                    disabled={isProcessing}
-                  >
-                    {/* Coming Soon Badge */}
-                    {source.comingSoon && (
-                      <div className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
-                        Soon
+                <div className="flex flex-row gap-3 max-w-sm">
+                  {dataSources.map((source) => (
+                    <Button
+                      key={source.id}
+                      onClick={source.onClick}
+                      variant="outline"
+                      size="sm"
+                      className="px-3 py-2 h-auto flex rounded-xl items-center justify-start gap-3 border-white/20 hover:border-white/40 hover:bg-white/10 transition-all duration-300 bg-white/5 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/10"
+                      disabled={isProcessing}
+                    >
+                      <div className="p-1.5 rounded bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-400 border border-blue-500/30">
+                        {source.icon}
                       </div>
-                    )}
-                    
-                    <div className={`p-3 rounded-lg ${
-                      selectedSource === source.id 
-                        ? 'bg-blue-500/20 text-blue-400' 
-                        : 'bg-white/10 text-gray-400'
-                    }`}>
-                      {source.icon}
-                    </div>
-                    
-                    <div className="text-center">
-                      <div className="font-medium text-white text-sm">{source.name}</div>
-                      <div className="text-xs text-gray-400 mt-1 leading-tight">
-                        {source.description}
+                      <div className="text-left">
+                        <div className="font-medium text-white text-sm">{source.name}</div>
+                        <div className="text-xs text-gray-400 leading-tight">{source.description}</div>
                       </div>
-                    </div>
-                  </Button>
-                ))}
+                    </Button>
+                  ))}
+                </div>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                  className="hidden"
+                />
               </div>
+            )}
 
-              {/* Hidden file input for CSV upload */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".csv"
-                onChange={(e) => handleFileSelect(e.target.files)}
-                className="hidden"
-              />
-
-              {/* Drag and Drop Area */}
-              <div
-                className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${
-                  isDragOver 
-                    ? 'border-blue-400 bg-blue-500/10' 
-                    : 'border-white/20 hover:border-white/30 hover:bg-white/5'
-                }`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                <div className="space-y-3">
-                  <FolderOpen className="h-8 w-8 text-gray-400 mx-auto" />
-                  <div>
-                    <p className="text-gray-300">Or drag and drop your CSV file here</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Max 10MB • Data will be available in this chat only
-                    </p>
+            {/* Processing State */}
+            {isProcessing && !error && (
+              <div className="flex flex-col items-center justify-center py-16 space-y-6">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500/20 to-purple-500/20 flex items-center justify-center border border-blue-500/30">
+                    <Loader2 className="h-8 w-8 text-blue-400 animate-spin" />
+                  </div>
+                  <div className="absolute inset-0 rounded-full border-2 border-blue-500/20 animate-pulse" />
+                </div>
+                <div className="text-center space-y-2">
+                  <h3 className="text-lg font-semibold text-white">Processing Your Data</h3>
+                  <p className="text-blue-400 text-sm animate-pulse">{processingStep}</p>
+                  <div className="w-48 h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full animate-pulse" />
                   </div>
                 </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Processing State - Only shown while parsing */}
-          {isProcessing && !error && (
-            <div className="flex flex-col items-center justify-center py-12 space-y-6">
-              <Loader2 className="h-16 w-16 text-blue-400 animate-spin" />
-              
-              <div className="text-center space-y-2">
-                <h3 className="text-xl font-medium text-white">Loading Your Data</h3>
-                <p className="text-blue-400 font-medium">{processingStep}</p>
-                <p className="text-gray-400 text-sm">
-                  Parsing your CSV file...
-                </p>
+            {/* Error Display */}
+            {error && (
+              <div className="relative p-5 rounded-2xl bg-gradient-to-br from-red-500/10 to-red-600/5 border border-red-500/20 backdrop-blur-sm">
+                <div className="flex items-start gap-4">
+                  <div className="p-2.5 rounded-xl bg-red-500/20 border border-red-500/30">
+                    <AlertCircle className="h-5 w-5 text-red-400" />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <h4 className="font-semibold text-red-400">Upload Error</h4>
+                    <p className="text-red-300 text-sm leading-relaxed">{error}</p>
+                  </div>
+                  <Button
+                    onClick={() => setError(null)}
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 p-2 rounded-xl transition-all duration-200"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
-          )}
-
-          {/* Error Display */}
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-400 mt-0.5 flex-shrink-0" />
-              <div className="flex-1">
-                <h4 className="font-medium text-red-400">Upload Error</h4>
-                <p className="text-red-300 text-sm mt-1">{error}</p>
-              </div>
-              <Button
-                onClick={() => setError(null)}
-                variant="ghost"
-                size="sm"
-                className="text-red-400 hover:text-red-300 p-1 h-auto"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        <div className="flex justify-between items-center pt-4 border-t border-white/10">
-          <div className="text-sm text-gray-400">
-            {isProcessing ? (
-              '🔄 Parsing your file...'
-            ) : error ? (
-              '❌ Upload failed'
-            ) : (
-              'Select a data source to get started'
             )}
           </div>
-          
-          <Button
-            onClick={handleClose}
-            variant="ghost"
-            className="text-gray-400 hover:text-white"
-            disabled={isProcessing}
-          >
-            Cancel
-          </Button>
+
+          {/* Actions - Fixed at bottom */}
+          <div className="relative z-10 flex justify-end pt-6 mt-auto border-t border-white/10">
+            <Button
+              onClick={handleClose}
+              variant="ghost"
+              className="text-gray-400 hover:text-white hover:bg-white/10 px-6 py-2 rounded-xl transition-all duration-200 font-medium"
+              disabled={isProcessing}
+            >
+              Cancel
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
