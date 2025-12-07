@@ -2,16 +2,34 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, FileText, FileSpreadsheet, Table, Upload, CheckCircle, AlertCircle } from "lucide-react";
+import { X, FileText, FileSpreadsheet, Table, Upload, CheckCircle, AlertCircle, Database, Loader2 } from "lucide-react";
 import { useFileStore, StockData, SimpleData, ChartData } from "@/store/file-store";
 import { useToast } from "@/components/ui/use-toast";
+
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
 interface ProcessedData {
   [key: string]: string | number;
 }
 
+// PostgreSQL Logo Component
+const PostgreSQLLogo = ({ className }: { className?: string }) => (
+  <svg 
+    viewBox="0 0 24 24" 
+    className={className}
+    fill="currentColor"
+  >
+    <path d="M17.128 0c-1.123 0-2.176.374-3.031 1.104-.855-.73-1.908-1.104-3.031-1.104C7.803 0 5.333 2.17 5.333 4.85c0 .547.088 1.074.25 1.567-.162.493-.25 1.02-.25 1.567 0 2.68 2.47 4.85 5.733 4.85 1.123 0 2.176-.374 3.031-1.104.855.73 1.908 1.104 3.031 1.104 3.263 0 5.733-2.17 5.733-4.85 0-.547-.088-1.074-.25-1.567.162-.493.25-1.02-.25-1.567C22.861 2.17 20.391 0 17.128 0zM7.5 8.5c0-1.381 1.119-2.5 2.5-2.5s2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5-2.5-1.119-2.5-2.5zm7 0c0-1.381 1.119-2.5 2.5-2.5s2.5 1.119 2.5 2.5-1.119 2.5-2.5 2.5-2.5-1.119-2.5-2.5z"/>
+    <path d="M12 13c-2.761 0-5-2.239-5-5s2.239-5 5-5 5 2.239 5 5-2.239 5-5 5z" opacity="0.3"/>
+    <circle cx="12" cy="8" r="1.5"/>
+  </svg>
+);
+
 export default function UploadModal() {
   const { toast } = useToast();
+  const [uploadMode, setUploadMode] = useState<'file' | 'postgres'>('file');
+  const [connectionString, setConnectionString] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
   
   const {
     isUploadModalOpen,
@@ -25,6 +43,7 @@ export default function UploadModal() {
     setSelectedYear,
     setLoading,
     setError,
+    setPostgresConnection,
   } = useFileStore();
 
   const processStockData = (data: StockData[], year: string = "all"): ChartData => {
@@ -194,6 +213,73 @@ export default function UploadModal() {
     }
   };
 
+  const handlePostgresConnection = async () => {
+    if (!connectionString.trim()) {
+      setError('Please enter a connection string');
+      return;
+    }
+
+    setIsConnecting(true);
+    setError('');
+
+    try {
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Test connection
+      const response = await fetch(`${FASTAPI_URL}/api/postgres/test-connection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          connection_string: connectionString.trim(),
+          session_id: sessionId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.connected) {
+        // Store connection
+        setPostgresConnection({
+          connectionString: connectionString.trim(),
+          sessionId,
+          database: result.database,
+          version: result.version,
+          tableCount: result.table_count,
+          connected: true,
+          connectedAt: new Date(),
+        });
+
+        toast({
+          title: "Success!",
+          description: `Connected to database: ${result.database}`,
+        });
+
+        // Close modal
+        setUploadModalOpen(false);
+        setConnectionString('');
+      } else {
+        setError(result.error || 'Failed to connect to database');
+        toast({
+          title: "Connection Failed",
+          description: result.error || 'Failed to connect to database',
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error connecting to PostgreSQL:', error);
+      setError(error instanceof Error ? error.message : 'Failed to connect to database');
+      toast({
+        title: "Connection Error",
+        description: "There was an error connecting to your database.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
@@ -296,7 +382,7 @@ export default function UploadModal() {
         >
           {/* Header */}
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold text-white">Upload Your Data</h2>
+            <h2 className="text-2xl font-bold text-white">Add Data Source</h2>
             <button
               onClick={() => setUploadModalOpen(false)}
               className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 hover:text-white transition-colors"
@@ -305,65 +391,175 @@ export default function UploadModal() {
             </button>
           </div>
 
+          {/* Mode Switcher */}
+          <div className="flex gap-2 mb-6 p-1 bg-white/5 rounded-xl">
+            <button
+              onClick={() => setUploadMode('file')}
+              className={`flex-1 px-4 py-2 rounded-lg transition-all ${
+                uploadMode === 'file'
+                  ? 'bg-blue-500/20 text-white border border-blue-500/30'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Upload className="w-4 h-4" />
+                <span className="text-sm font-medium">Upload File</span>
+              </div>
+            </button>
+            <button
+              onClick={() => setUploadMode('postgres')}
+              className={`flex-1 px-4 py-2 rounded-lg transition-all ${
+                uploadMode === 'postgres'
+                  ? 'bg-blue-500/20 text-white border border-blue-500/30'
+                  : 'text-white/60 hover:text-white'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Database className="w-4 h-4" />
+                <span className="text-sm font-medium">PostgreSQL</span>
+              </div>
+            </button>
+          </div>
+
           {/* Upload Area */}
           <div className="space-y-6">
-            <div className="relative">
-              <div className="bg-black/20 border-2 border-dashed border-white/20 rounded-2xl p-12 hover:border-blue-500/50 transition-colors">
-                <input
-                  type="file"
-                  accept=".csv,.xlsx,.xls,.pdf"
-                  onChange={handleFileChange}
-                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                  disabled={isLoading}
-                />
-                <div className="flex flex-col items-center justify-center text-center">
-                  <Upload className="h-12 w-12 text-blue-400 mb-4" />
-                  <h3 className="text-white font-medium mb-2 text-lg">
-                    Drop your file here or click to browse
-                  </h3>
-                  <p className="text-white/60 text-sm">
-                    Supports CSV, Excel and PDF files
-                  </p>
-                </div>
-              </div>
-              
-              {isLoading && (
-                <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                  <div className="flex flex-col items-center space-y-4">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
-                    <p className="text-sm text-white/80">Processing your data...</p>
+            {uploadMode === 'file' ? (
+              <>
+                <div className="relative">
+                  <div className="bg-black/20 border-2 border-dashed border-white/20 rounded-2xl p-12 hover:border-blue-500/50 transition-colors">
+                    <input
+                      type="file"
+                      accept=".csv,.xlsx,.xls,.pdf"
+                      onChange={handleFileChange}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      disabled={isLoading}
+                    />
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <Upload className="h-12 w-12 text-blue-400 mb-4" />
+                      <h3 className="text-white font-medium mb-2 text-lg">
+                        Drop your file here or click to browse
+                      </h3>
+                      <p className="text-white/60 text-sm">
+                        Supports CSV, Excel and PDF files
+                      </p>
+                    </div>
                   </div>
+                  
+                  {isLoading && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white"></div>
+                        <p className="text-sm text-white/80">Processing your data...</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Supported Formats */}
-            <div className="space-y-4">
-              <p className="text-sm font-medium text-white/60">Supported Formats:</p>
-              <div className="grid grid-cols-3 gap-3">
-                <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-4">
-                  <Table className="w-6 h-6 text-blue-400" />
-                  <div>
-                    <div className="text-sm font-medium text-white">CSV</div>
-                    <div className="text-xs text-white/60">Comma-separated values</div>
+                {/* Supported Formats */}
+                <div className="space-y-4">
+                  <p className="text-sm font-medium text-white/60">Supported Formats:</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-4">
+                      <Table className="w-6 h-6 text-blue-400" />
+                      <div>
+                        <div className="text-sm font-medium text-white">CSV</div>
+                        <div className="text-xs text-white/60">Comma-separated values</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-4">
+                      <FileSpreadsheet className="w-6 h-6 text-green-400" />
+                      <div>
+                        <div className="text-sm font-medium text-white">Excel</div>
+                        <div className="text-xs text-white/60">XLSX, XLS files</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-4">
+                      <FileText className="w-6 h-6 text-purple-400" />
+                      <div>
+                        <div className="text-sm font-medium text-white">PDF</div>
+                        <div className="text-xs text-white/60">Tables in PDF</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-4">
-                  <FileSpreadsheet className="w-6 h-6 text-green-400" />
+              </>
+            ) : (
+              <>
+                {/* PostgreSQL Connection Form */}
+                <div className="space-y-4">
                   <div>
-                    <div className="text-sm font-medium text-white">Excel</div>
-                    <div className="text-xs text-white/60">XLSX, XLS files</div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Connection String
+                    </label>
+                    <textarea
+                      value={connectionString}
+                      onChange={(e) => setConnectionString(e.target.value)}
+                      placeholder="postgresql://user:password@host:port/database?sslmode=require"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 font-mono text-sm"
+                      rows={4}
+                      disabled={isConnecting}
+                    />
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-white/60">
+                        Format: postgresql://username:password@host:port/database
+                      </p>
+                      <details className="text-xs text-white/60">
+                        <summary className="cursor-pointer hover:text-white/80 font-medium">
+                          Cloud Database Examples
+                        </summary>
+                        <div className="mt-2 space-y-2 pl-4 border-l-2 border-white/10">
+                          <div>
+                            <p className="font-medium text-white/80 mb-1">Neon DB:</p>
+                            <code className="block bg-black/30 p-2 rounded text-xs break-all">
+                              postgresql://user:pass@ep-xxx.region.neon.tech/dbname?sslmode=require
+                            </code>
+                          </div>
+                          <div>
+                            <p className="font-medium text-white/80 mb-1">Supabase:</p>
+                            <code className="block bg-black/30 p-2 rounded text-xs break-all">
+                              postgresql://postgres:pass@db.xxx.supabase.co:5432/postgres?sslmode=require
+                            </code>
+                          </div>
+                          <div>
+                            <p className="font-medium text-white/80 mb-1">Railway:</p>
+                            <code className="block bg-black/30 p-2 rounded text-xs break-all">
+                              postgresql://postgres:pass@containers-us-xxx.railway.app:5432/railway?sslmode=require
+                            </code>
+                          </div>
+                          <div>
+                            <p className="font-medium text-white/80 mb-1">Render:</p>
+                            <code className="block bg-black/30 p-2 rounded text-xs break-all">
+                              postgresql://user:pass@dpg-xxx.region.render.com/dbname?sslmode=require
+                            </code>
+                          </div>
+                          <p className="text-white/50 italic mt-2">
+                            Note: SSL mode is automatically set to 'require' for cloud databases
+                          </p>
+                        </div>
+                      </details>
+                    </div>
                   </div>
+                  
+                  <button
+                    onClick={handlePostgresConnection}
+                    disabled={!connectionString.trim() || isConnecting}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-xl font-medium hover:from-blue-600 hover:to-purple-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {isConnecting ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span>Connecting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Database className="w-5 h-5" />
+                        <span>Connect to Database</span>
+                      </>
+                    )}
+                  </button>
                 </div>
-                <div className="flex items-center space-x-2 bg-white/5 rounded-xl p-4">
-                  <FileText className="w-6 h-6 text-purple-400" />
-                  <div>
-                    <div className="text-sm font-medium text-white">PDF</div>
-                    <div className="text-xs text-white/60">Tables in PDF</div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              </>
+            )}
 
             {/* Error Display */}
             {error && (
@@ -384,10 +580,21 @@ export default function UploadModal() {
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-blue-200">How it works</h4>
                   <ul className="text-xs text-blue-200/80 space-y-1">
-                    <li>• Upload your data file (CSV, Excel, or PDF)</li>
-                    <li>• We automatically detect data types and patterns</li>
-                    <li>• Your data becomes available across all dashboard sections</li>
-                    <li>• Start analyzing in Visualizations, Analysis, or with the AI Agent</li>
+                    {uploadMode === 'file' ? (
+                      <>
+                        <li>• Upload your data file (CSV, Excel, or PDF)</li>
+                        <li>• We automatically detect data types and patterns</li>
+                        <li>• Your data becomes available across all dashboard sections</li>
+                        <li>• Start analyzing in Visualizations, Analysis, or with the AI Agent</li>
+                      </>
+                    ) : (
+                      <>
+                        <li>• Enter your PostgreSQL connection string</li>
+                        <li>• We securely connect to your database</li>
+                        <li>• Query and analyze your database tables with the AI Agent</li>
+                        <li>• Create visualizations from your database data</li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>

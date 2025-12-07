@@ -33,6 +33,16 @@ export interface FileMetadata {
   rowCount: number;
 }
 
+export interface PostgresConnection {
+  connectionString: string;
+  sessionId: string;
+  database?: string;
+  version?: string;
+  tableCount?: number;
+  connected: boolean;
+  connectedAt?: Date;
+}
+
 interface FileStore {
   currentFile: FileMetadata | null;
   rawData: (StockData | SimpleData)[];
@@ -40,6 +50,9 @@ interface FileStore {
   aiAnalysis: string;
   availableYears: string[];
   selectedYear: string;
+  
+  // PostgreSQL connection
+  postgresConnection: PostgresConnection | null;
   
   // UI state
   isLoading: boolean;
@@ -58,12 +71,14 @@ interface FileStore {
   setAnalyzing: (analyzing: boolean) => void;
   setError: (error: string) => void;
   setUploadModalOpen: (open: boolean) => void;
+  setPostgresConnection: (connection: PostgresConnection | null) => void;
   clearData: () => void;
   
   // Computed getters
   getProcessedData: () => ChartData | null;
   isStockData: () => boolean;
   hasData: () => boolean;
+  hasPostgresConnection: () => boolean;
 }
 
 export const useFileStore = create<FileStore>()(
@@ -76,6 +91,7 @@ export const useFileStore = create<FileStore>()(
       aiAnalysis: '',
       availableYears: [],
       selectedYear: 'all',
+      postgresConnection: null,
       isLoading: false,
       isAnalyzing: false,
       error: '',
@@ -92,6 +108,7 @@ export const useFileStore = create<FileStore>()(
       setAnalyzing: (analyzing) => set({ isAnalyzing: analyzing }),
       setError: (error) => set({ error }),
       setUploadModalOpen: (open) => set({ isUploadModalOpen: open }),
+      setPostgresConnection: (connection) => set({ postgresConnection: connection }),
       
       clearData: () => set({
         currentFile: null,
@@ -99,6 +116,7 @@ export const useFileStore = create<FileStore>()(
         chartData: null,
         availableYears: [],
         selectedYear: 'all',
+        postgresConnection: null,
       }),
       
       // Computed getters
@@ -115,6 +133,11 @@ export const useFileStore = create<FileStore>()(
       hasData: () => {
         const state = get();
         return !!state.currentFile && state.rawData.length > 0;
+      },
+      
+      hasPostgresConnection: () => {
+        const state = get();
+        return !!state.postgresConnection && state.postgresConnection.connected;
       },
     }),
     {

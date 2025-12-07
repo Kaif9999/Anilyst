@@ -39,6 +39,8 @@ const PostgreSQLLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
+
 export default function ChatUploadModal({ 
   isOpen, 
   onClose, 
@@ -49,6 +51,8 @@ export default function ChatUploadModal({
   const [error, setError] = useState<string | null>(null);
   const [selectedSource, setSelectedSource] = useState<string | null>(null);
   const [processingStep, setProcessingStep] = useState<string>('');
+  const [connectionString, setConnectionString] = useState('');
+  const [isConnecting, setIsConnecting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -69,10 +73,7 @@ export default function ChatUploadModal({
       icon: <PostgreSQLLogo className="h-3 w-3" />,
       description: 'Connect to database',
       onClick: () => {
-        toast({
-          title: "🚧 Coming Soon!",
-          description: "PostgreSQL integration will be available soon",
-        });
+        setSelectedSource('postgresql');
       }
     }
   ];
@@ -182,11 +183,91 @@ export default function ChatUploadModal({
     }
   };
 
+  const handlePostgresConnection = async () => {
+    if (!connectionString.trim()) {
+      setError('Please enter a connection string');
+      return;
+    }
+
+    if (!sessionId) {
+      setError('Session ID is required');
+      return;
+    }
+
+    setIsConnecting(true);
+    setError(null);
+    setProcessingStep('Testing connection...');
+
+    try {
+      const response = await fetch(`${FASTAPI_URL}/api/postgres/test-connection`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          connection_string: connectionString.trim(),
+          session_id: sessionId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.connected) {
+        setProcessingStep('Fetching schema...');
+        
+        // Get schema
+        const schemaResponse = await fetch(`${FASTAPI_URL}/api/postgres/schema`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            connection_string: connectionString.trim(),
+            session_id: sessionId,
+          }),
+        });
+
+        const schema = await schemaResponse.json();
+
+        // Create metadata
+        const metadata = {
+          connectionString: connectionString.trim(),
+          sessionId: sessionId,
+          database: result.database,
+          version: result.version,
+          tableCount: result.table_count || 0,
+          schema: schema,
+          dataType: 'PostgreSQL Database',
+          connectedAt: new Date().toISOString(),
+        };
+
+        // Return empty data array but with connection metadata
+        onUploadComplete([], metadata);
+        handleClose();
+      } else {
+        setError(result.error || 'Failed to connect to database');
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to connect to database';
+      setError(errorMessage);
+      toast({
+        title: "❌ Connection Error",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsConnecting(false);
+      setProcessingStep('');
+    }
+  };
+
   const handleReset = () => {
     setError(null);
     setSelectedSource(null);
     setProcessingStep('');
     setIsProcessing(false);
+    setIsConnecting(false);
+    setConnectionString('');
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -216,7 +297,7 @@ export default function ChatUploadModal({
   
           <div >
             {/* Data Sources */}
-            {!isProcessing && !error && (
+            {!isProcessing && !error && selectedSource !== 'postgresql' && (
               <div className="space-y-5">
                 <div className="space-y-1">
                   <p className="text-base font-medium text-white">Choose your data source</p>
@@ -251,6 +332,82 @@ export default function ChatUploadModal({
                   onChange={(e) => handleFileSelect(e.target.files)}
                   className="hidden"
                 />
+              </div>
+            )}
+
+            {/* PostgreSQL Connection Form */}
+            {selectedSource === 'postgresql' && !isProcessing && !error && (
+              <div className="space-y-5">
+                <div className="space-y-1">
+                  <p className="text-base font-medium text-white">Connect to PostgreSQL</p>
+                  <p className="text-sm text-gray-400">Enter your database connection string</p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-white/80 mb-2">
+                      Connection String
+                    </label>
+                    <textarea
+                      value={connectionString}
+                      onChange={(e) => setConnectionString(e.target.value)}
+                      placeholder="postgresql://user:password@host:port/database?sslmode=require"
+                      className="w-full px-4 py-3 bg-black/20 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-blue-500/50 focus:ring-2 focus:ring-blue-500/20 font-mono text-sm"
+                      rows={4}
+                      disabled={isConnecting}
+                    />
+                    <div className="mt-2 space-y-2">
+                      <p className="text-xs text-white/60">
+                        Format: postgresql://username:password@host:port/database
+                      </p>
+                      <details className="text-xs text-white/60">
+                        <summary className="cursor-pointer hover:text-white/80 font-medium">
+                          Cloud Database Examples (Neon, Supabase, etc.)
+                        </summary>
+                        <div className="mt-2 space-y-2 pl-4 border-l-2 border-white/10">
+                          <div>
+                            <p className="font-medium text-white/80 mb-1">Neon DB:</p>
+                            <code className="block bg-black/30 p-2 rounded text-xs break-all">
+                              postgresql://user:pass@ep-xxx.region.neon.tech/dbname
+                            </code>
+                          </div>
+                          <div>
+                            <p className="font-medium text-white/80 mb-1">Supabase:</p>
+                            <code className="block bg-black/30 p-2 rounded text-xs break-all">
+                              postgresql://postgres:pass@db.xxx.supabase.co:5432/postgres
+                            </code>
+                          </div>
+                          <div>
+                            <p className="font-medium text-white/80 mb-1">Railway/Render:</p>
+                            <code className="block bg-black/30 p-2 rounded text-xs break-all">
+                              postgresql://user:pass@host:port/dbname
+                            </code>
+                          </div>
+                          <p className="text-white/50 italic mt-2">
+                            SSL is automatically configured for cloud databases
+                          </p>
+                        </div>
+                      </details>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handlePostgresConnection}
+                      disabled={!connectionString.trim() || isConnecting}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600"
+                    >
+                      {isConnecting ? 'Connecting...' : 'Connect'}
+                    </Button>
+                    <Button
+                      onClick={() => setSelectedSource(null)}
+                      variant="outline"
+                      className="border-white/20"
+                    >
+                      Back
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
 

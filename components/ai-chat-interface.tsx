@@ -1321,9 +1321,27 @@ function AgentPageContent() {
     }
 
     // ✅ Show a simple confirmation message, don't analyze yet
+    const isPostgres = metadata.dataType === 'PostgreSQL Database' || metadata.connectionString;
+    
     const confirmationMessage: Message = {
       role: "assistant",
-      content: `📊 **Data Loaded Successfully!**
+      content: isPostgres ? `🔗 **PostgreSQL Database Connected!**
+
+I've successfully connected to your PostgreSQL database.
+
+**Database Details:**
+• Database: ${metadata.database || 'Connected'}
+• Tables: ${metadata.tableCount || 0} tables available
+• Connection: Established ✅
+
+**Ready for Analysis!** 🚀
+You can now ask me to:
+• "Show me all tables"
+• "Analyze data from the [table_name] table"
+• "Query the database for [your question]"
+• "Create a chart from [table_name]"
+
+*I can query your database, analyze the data, and create visualizations!* 💡` : `📊 **Data Loaded Successfully!**
 
 I've loaded "${
         metadata.filename
@@ -1344,7 +1362,12 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
 
 *Note: I'll only process your data when you send a message - saving your API credits!* 💡`,
       timestamp: new Date().toISOString(),
-      dataContext: {
+      dataContext: isPostgres ? {
+        fileName: metadata.database || 'PostgreSQL Database',
+        rowCount: 0,
+        dataType: "PostgreSQL Database",
+        columns: [],
+      } : {
         fileName: metadata.filename,
         rowCount: data.length,
         dataType: "General Data",
@@ -1433,6 +1456,10 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
         throw new Error('No active session - cannot save messages');
       }
   
+      // Check for PostgreSQL connection in metadata
+      const hasPostgres = chatData?.metadata?.connectionString || chatData?.metadata?.dataType === 'PostgreSQL Database';
+      const postgresConnectionString = chatData?.metadata?.connectionString;
+
       const requestPayload = {
         message: formatUserPrompt(currentInput, hasData, dataContext),
         dataset: hasData && rawData.length > 0 ? {
@@ -1447,9 +1474,20 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
             available_years: availableYears.length > 0 ? availableYears : [],
             selected_year: selectedYear !== 'all' ? selectedYear : 'all'
           }
+        } : hasPostgres ? {
+          data: [], // Empty data array for PostgreSQL
+          metadata: {
+            connectionString: postgresConnectionString,
+            dataType: 'PostgreSQL Database',
+            database: chatData?.metadata?.database,
+            tableCount: chatData?.metadata?.tableCount,
+            schema: chatData?.metadata?.schema,
+            sessionId: sessionId
+          }
         } : null,
         context: {
           has_uploaded_data: hasData,
+          has_postgres_connection: hasPostgres,
           user_request_type: detectRequestType(currentInput),
           previous_analysis: null,
           handle_parsing_errors: true,
