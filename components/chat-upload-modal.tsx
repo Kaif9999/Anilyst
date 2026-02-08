@@ -53,6 +53,8 @@ export default function ChatUploadModal({
   const [processingStep, setProcessingStep] = useState<string>('');
   const [connectionString, setConnectionString] = useState('');
   const [isConnecting, setIsConnecting] = useState(false);
+  const [previewData, setPreviewData] = useState<any[] | null>(null);
+  const [previewMetadata, setPreviewMetadata] = useState<any | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
@@ -135,7 +137,6 @@ export default function ChatUploadModal({
         throw new Error('No valid data rows found in CSV file');
       }
 
-      // Create metadata
       const metadata = {
         filename: file.name,
         rowCount: data.length,
@@ -146,15 +147,11 @@ export default function ChatUploadModal({
         sessionId: sessionId
       };
 
-      console.log('✅ CSV parsed successfully:', {
-        filename: metadata.filename,
-        rows: data.length,
-        columns: headers.length
-      });
-
-      // Return data and close modal
-      onUploadComplete(data, metadata);
-      handleClose();
+      // #25: Show preview (first 10 rows) before confirming
+      setPreviewData(data);
+      setPreviewMetadata(metadata);
+      setIsProcessing(false);
+      setProcessingStep('');
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to process file';
       setError(errorMessage);
@@ -261,6 +258,17 @@ export default function ChatUploadModal({
     }
   };
 
+  const handleConfirmPreview = () => {
+    if (previewData && previewMetadata) {
+      onUploadComplete(previewData, previewMetadata);
+      toast({
+        title: "✅ Data loaded",
+        description: `${previewMetadata.rowCount} rows from ${previewMetadata.filename}`,
+      });
+      handleClose();
+    }
+  };
+
   const handleReset = () => {
     setError(null);
     setSelectedSource(null);
@@ -268,6 +276,8 @@ export default function ChatUploadModal({
     setIsProcessing(false);
     setIsConnecting(false);
     setConnectionString('');
+    setPreviewData(null);
+    setPreviewMetadata(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -297,7 +307,7 @@ export default function ChatUploadModal({
   
           <div >
             {/* Data Sources */}
-            {!isProcessing && !error && selectedSource !== 'postgresql' && (
+            {!isProcessing && !error && selectedSource !== 'postgresql' && !previewData && (
               <div className="space-y-5">
                 <div className="space-y-1">
                   <p className="text-base font-medium text-white">Choose your data source</p>
@@ -336,7 +346,7 @@ export default function ChatUploadModal({
             )}
 
             {/* PostgreSQL Connection Form */}
-            {selectedSource === 'postgresql' && !isProcessing && !error && (
+            {selectedSource === 'postgresql' && !isProcessing && !error && !previewData && (
               <div className="space-y-5">
                 <div className="space-y-1">
                   <p className="text-base font-medium text-white">Connect to PostgreSQL</p>
@@ -407,6 +417,55 @@ export default function ChatUploadModal({
                       Back
                     </Button>
                   </div>
+                </div>
+              </div>
+            )}
+
+            {/* #25: Data preview before upload */}
+            {previewData && previewMetadata && !isProcessing && !error && (
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-base font-medium text-white">Preview data</h3>
+                  <p className="text-sm text-gray-400">
+                    {previewMetadata.rowCount} rows × {previewMetadata.columns.length} columns — first 10 rows shown
+                  </p>
+                </div>
+                <div className="overflow-x-auto rounded-lg border border-white/10 bg-black/20 max-h-48 overflow-y-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="sticky top-0 bg-black/40 border-b border-white/10">
+                      <tr>
+                        {previewMetadata.columns.slice(0, 6).map((h: string) => (
+                          <th key={h} className="px-2 py-1.5 font-medium text-white/90 truncate max-w-[100px]">{h}</th>
+                        ))}
+                        {previewMetadata.columns.length > 6 && <th className="px-2 py-1.5 text-gray-500">...</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewData.slice(0, 10).map((row: any, i: number) => (
+                        <tr key={i} className="border-b border-white/5">
+                          {previewMetadata.columns.slice(0, 6).map((col: string) => (
+                            <td key={col} className="px-2 py-1 text-white/80 truncate max-w-[100px]" title={String(row[col])}>{String(row[col] ?? "")}</td>
+                          ))}
+                          {previewMetadata.columns.length > 6 && <td className="px-2 py-1 text-gray-500">...</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleConfirmPreview}
+                    className="flex-1 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:from-blue-600 hover:to-purple-600"
+                  >
+                    Use this data
+                  </Button>
+                  <Button
+                    onClick={() => { setPreviewData(null); setPreviewMetadata(null); }}
+                    variant="outline"
+                    className="border-white/20"
+                  >
+                    Choose another file
+                  </Button>
                 </div>
               </div>
             )}

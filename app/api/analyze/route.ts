@@ -4,12 +4,10 @@ import { readFile } from "fs/promises";
 import * as XLSX from 'xlsx';
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
-import { PrismaClient, SubscriptionType } from "@prisma/client";
-import { Prisma } from "@prisma/client";
 import OpenAI from "openai";
-import { toast } from "@/hooks/use-toast";
-
-const prisma = new PrismaClient();
+import { prisma } from "@/lib/prisma";
+import { checkAnalysisAccess, incrementAnalysisCount } from "@/lib/subscription-check";
+import { validateAnalyzeFilePath } from "@/lib/api-schemas";
 
 // Default response structure
 const defaultAnalysis = {
@@ -64,130 +62,25 @@ export async function POST(req: Request) {
       );
     }
 
-    // Get user with subscription type
-    const user = await prisma.user.findUnique({
-      where: { id: session.user.id },
-      select: {
-        id: true,
-        subscriptionType: true
-      }
-    });
-
-    if (!user) {
+    // Centralized subscription check
+    const access = await checkAnalysisAccess(session.user.id);
+    if (!access.allowed) {
       return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 }
+        { error: access.error, ...defaultAnalysis },
+        { status: access.status }
       );
     }
 
-    // Check usage limits
-    const usageLimit = await prisma.usageLimit.findUnique({
-      where: { userId: user.id },
-      select: {
-        visualizations: true,
-        analyses: true,
-        visualizationLimit: true,
-        analysisLimit: true,
-        lastResetDate: true,
-        nextBillingDate: true,
-        subscriptionStatus: true
-      }
-    });
-
-    // Check subscription status
-    if (usageLimit?.subscriptionStatus === 'expired') {
+    const contentLength = req.headers.get("content-length");
+    if (contentLength && parseInt(contentLength, 10) > 15 * 1024 * 1024) {
       return NextResponse.json(
-        { error: "Your subscription has expired. Please renew to continue using the service.", ...defaultAnalysis },
-        { status: 402 }
+        { error: "Request body too large", ...defaultAnalysis },
+        { status: 413 }
       );
-    }
-
-    // For PRO and LIFETIME users, don't enforce limits
-    if (user.subscriptionType === SubscriptionType.PRO || user.subscriptionType === SubscriptionType.LIFETIME) {
-      // Just increment the counters for tracking purposes
-      await prisma.usageLimit.update({
-        where: { userId: user.id },
-        data: {
-          analyses: {
-            increment: 1
-          }
-        }
-      });
-    } else {
-      // For FREE users, check and enforce limits
-      const maxLimits = {
-        visualizations: 1,
-        analyses: 4
-      };
-
-      if (!usageLimit) {
-        // Create default usage limit if it doesn't exist
-        const createData = {
-          user: { connect: { id: user.id } },
-          visualizations: 0,
-          analyses: 0,
-          visualizationLimit: maxLimits.visualizations,
-          analysisLimit: maxLimits.analyses,
-          lastResetDate: new Date(),
-          subscriptionStatus: 'active'
-        };
-
-        await prisma.usageLimit.create({
-          data: createData
-        });
-
-        return NextResponse.json(
-          { error: "Please try again" },
-          { status: 400 }
-        );
-      }
-
-      // Check if we need to reset usage counts (daily reset for free users)
-      const lastReset = new Date(usageLimit.lastResetDate);
-      const now = new Date();
-      const shouldReset = lastReset.getDate() !== now.getDate() || lastReset.getMonth() !== now.getMonth();
-
-      if (shouldReset) {
-        await prisma.usageLimit.update({
-          where: { userId: user.id },
-          data: {
-            visualizations: 0,
-            analyses: 0,
-            lastResetDate: now
-          }
-        });
-        usageLimit.visualizations = 0;
-        usageLimit.analyses = 0;
-      }
-
-      // Check if user has reached their analysis limit
-      if (usageLimit.analyses >= usageLimit.analysisLimit) {
-        return NextResponse.json(
-          toast({
-            title: "You've reached your daily analysis limit. Upgrade to PRO for unlimited analyses!",
-            description: "Please try again tomorrow.",
-            variant: "destructive",
-          }),
-          { status: 429 }
-        );
-      }
-
-      // Increment analysis count for free users
-      await prisma.usageLimit.update({
-        where: { userId: user.id },
-        data: {
-          analyses: {
-            increment: 1
-          }
-        }
-      });
     }
 
     // Parse the request body
     const body = await req.json();
-    
-    // Log the body to help debug the issue
-    console.log("Request body:", JSON.stringify(body, null, 2));
     
     // Handle both file path uploads and direct data submissions
     let textContent = '';
@@ -197,35 +90,18 @@ export async function POST(req: Request) {
       // Process file upload
       const { filePath, type } = body;
 
-      if (!filePath) {
+      const pathValidation = validateAnalyzeFilePath(body.filePath);
+      if (typeof pathValidation === "object") {
         return NextResponse.json(
-          { error: "No file path provided", ...defaultAnalysis },
+          { error: pathValidation.error, ...defaultAnalysis },
           { status: 400 }
         );
       }
-
-      if (!type) {
+      const cleanPath = pathValidation;
+      const fileMimeType = body.type;
+      if (!fileMimeType) {
         return NextResponse.json(
-          { error: "No file type provided" },
-          { status: 400 }
-        );
-      }
-
-      // Validate file path - prevent directory traversal
-      const cleanPath = filePath.replace(/^\//, '');
-
-      // Check for traversal sequences BEFORE normalizing
-      if (cleanPath.includes('..') || cleanPath.includes('//')) {
-        return NextResponse.json(
-          { error: "Invalid file path - directory traversal detected", ...defaultAnalysis },
-          { status: 400 }
-        );
-      }
-
-      // Ensure path starts with uploads/
-      if (!cleanPath.startsWith('uploads/')) {
-        return NextResponse.json(
-          { error: "Invalid file path", ...defaultAnalysis },
+          { error: "No file type provided", ...defaultAnalysis },
           { status: 400 }
         );
       }
@@ -257,7 +133,7 @@ export async function POST(req: Request) {
 
       // Process file based on type
       try {
-        switch (type) {
+        switch (fileMimeType) {
           case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
           case 'application/vnd.ms-excel':
             const workbook = XLSX.read(fileContent);
@@ -365,6 +241,8 @@ export async function POST(req: Request) {
             }
           });
         }
+
+        await incrementAnalysisCount(session.user.id);
 
         return NextResponse.json({
           success: true,
@@ -519,6 +397,8 @@ export async function POST(req: Request) {
           }
         });
       }
+
+      await incrementAnalysisCount(session.user.id);
 
       return NextResponse.json({
         success: true,

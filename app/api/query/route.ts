@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { AnalyticsResult } from "@/types/index";
 import OpenAI from "openai";
+import { validateQuery } from "@/lib/api-schemas";
 import { 
   trimDataForTokenLimit, 
   ensurePromptFitsTokenLimit,
@@ -15,7 +16,16 @@ const openai = new OpenAI({
 
 export async function POST(req: Request) {
   try {
-    const { query, data, context } = await req.json();
+    const body = await req.json();
+    const queryValidation = validateQuery(body);
+    if ("error" in queryValidation) {
+      return NextResponse.json(
+        { error: queryValidation.error },
+        { status: queryValidation.status }
+      );
+    }
+    const { query } = queryValidation;
+    const { data, context } = body;
     
     // Create initial context if none exists
     const initialContext: AnalyticsResult = context || {

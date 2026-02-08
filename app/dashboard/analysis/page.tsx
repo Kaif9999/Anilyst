@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
+import { fetchWithCsrf } from '@/lib/api-client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -9,9 +10,11 @@ import {
   Loader2, Copy, Check, Mic, Settings,
   Sparkles, Database, FileText, Calendar,
   Activity, PieChart, LineChart, AlertCircle,
-  Upload, Plus
+  Upload, Plus, Download
 } from 'lucide-react';
 import { useFileStore } from '@/store/file-store';
+import { downloadCSV, downloadJSON } from '@/lib/export-data';
+import { useToast } from '@/components/ui/use-toast';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -72,12 +75,14 @@ export default function AnalysisPage() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { toast } = useToast();
 
   // Get file data from Zustand store
   const { 
     currentFile, 
     hasData, 
     chartData,
+    rawData,
     setUploadModalOpen 
   } = useFileStore();
 
@@ -149,7 +154,7 @@ export default function AnalysisPage() {
     try {
       if (hasData() && chartData) {
         // Use the existing query API for data analysis
-        const response = await fetch('/api/query', {
+        const response = await fetchWithCsrf('/api/query', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -497,6 +502,32 @@ Please try rephrasing your question or check your data format.`,
               Online
             </Badge>
             <DataStatusBadge />
+            {hasData() && (
+              <>
+                <button
+                  onClick={() => {
+                    if (rawData.length) {
+                      downloadCSV(rawData as Record<string, unknown>[], currentFile?.name ? `${currentFile.name.replace(/\.[^.]+$/, '')}-export.csv` : 'analysis-export.csv');
+                      toast({ title: 'Exported', description: 'CSV downloaded' });
+                    }
+                  }}
+                  className="text-white/60 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-colors"
+                  title="Export data as CSV"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => {
+                    downloadJSON({ messages, chartData, exportedAt: new Date().toISOString() }, 'analysis-export.json');
+                    toast({ title: 'Exported', description: 'JSON downloaded' });
+                  }}
+                  className="text-white/60 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-colors"
+                  title="Export as JSON"
+                >
+                  <FileText className="h-4 w-4" />
+                </button>
+              </>
+            )}
             <button
               onClick={clearChat}
               className="text-white/60 hover:text-white hover:bg-white/10 rounded-lg p-2 transition-colors"

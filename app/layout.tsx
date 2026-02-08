@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "@/providers/auth-provider";
 import { PostHogProvider } from "./providers";
+import { CsrfProvider } from "@/providers/csrf-provider";
 import { Toaster } from '@/components/ui/toaster';
 import PostHogPageView from './PostHogPageView';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -44,11 +46,15 @@ export default function RootLayout({
       <head />
       <body className={inter.className}>
         <PostHogProvider>
+          <CsrfProvider>
           <AuthProvider>
-            {children}
+            <ErrorBoundary>
+              {children}
+            </ErrorBoundary>
             <Toaster />
             <PostHogPageView />
           </AuthProvider>
+          </CsrfProvider>
         </PostHogProvider>
       </body>
     </html>

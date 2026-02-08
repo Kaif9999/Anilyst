@@ -14,6 +14,7 @@ import {
   MoreVertical,
   Plus,
   PanelRightOpen,
+  Search,
 } from 'lucide-react';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import {
@@ -38,6 +39,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [sessionSearch, setSessionSearch] = useState("");
   
   const {
     sessions,
@@ -263,6 +265,21 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
             {/* Chat History Section */}
             <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
+              {sessions.length > 0 && (
+                <div className="px-3 py-2 border-b border-white/10">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+                    <input
+                      type="text"
+                      placeholder="Search chats..."
+                      value={sessionSearch}
+                      onChange={(e) => setSessionSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                      aria-label="Search chat sessions"
+                    />
+                  </div>
+                </div>
+              )}
               {/* History List */}
               <div className="flex-1 overflow-y-auto px-2 py-2">
                 <div className="space-y-1">
@@ -273,7 +290,16 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       <p className="text-xs text-gray-600 mt-1">Start a new conversation</p>
                     </div>
                   ) : (
-                    sessions.map((chatSession) => (
+                    sessions
+                      .filter((chatSession) => {
+                        if (!sessionSearch.trim()) return true;
+                        const q = sessionSearch.trim().toLowerCase();
+                        return (
+                          chatSession.title?.toLowerCase().includes(q) ||
+                          chatSession.lastMessage?.toLowerCase().includes(q)
+                        );
+                      })
+                      .map((chatSession) => (
                       <div
                         key={chatSession.id}
                         onClick={() => handleChatClick(chatSession.id)}

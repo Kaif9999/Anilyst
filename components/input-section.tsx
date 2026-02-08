@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { fetchWithCsrf } from "@/lib/api-client";
 import { Calendar, CandlestickChart, BarChart2, AlertCircle, FileSpreadsheet, FileText, Table, Info, Server, InfoIcon, CheckCircle, ServerCrash } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
@@ -224,7 +225,7 @@ export default function InputSection({
   const getAiAnalysis = async (filePath: string, fileType: string) => {
     setAnalyzing(true);
     try {
-      const response = await fetch("/api/analyze", {
+      const response = await fetchWithCsrf("/api/analyze", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

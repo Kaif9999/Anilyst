@@ -10,14 +10,18 @@ const ChartComponents = {
   // ... etc
 };
 
-export default function ChartWrapper({ type, data }: { type: string; data: ChartData }) {
-  const ChartComponent = ChartComponents[type];
+export default function ChartWrapper({ type, data, title }: { type: string; data: ChartData; title?: string }) {
+  const ChartComponent = ChartComponents[type as keyof typeof ChartComponents];
   
   if (!ChartComponent) return null;
   
+  const ariaLabel = title || `Chart: ${type}`;
+  
   return (
-    <Suspense fallback={<div>Loading chart...</div>}>
-      <ChartComponent data={data} />
-    </Suspense>
+    <div role="img" aria-label={ariaLabel} className="chart-container">
+      <Suspense fallback={<div>Loading chart...</div>}>
+        <ChartComponent data={data} />
+      </Suspense>
+    </div>
   );
 }

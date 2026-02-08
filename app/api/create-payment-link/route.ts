@@ -2,10 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { dodoPayments } from "@/lib/dodoPayments";
+import { validateCreatePaymentLink } from "@/lib/api-schemas";
 
 export async function POST(req: Request) {
   try {
-    // Check authentication
     const session = await getServerSession(authOptions);
     if (!session?.user) {
       return NextResponse.json(
@@ -14,14 +14,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const { productId, billingCycle, customerEmail, redirectUrl } = await req.json();
+    const body = await req.json();
+    const validation = validateCreatePaymentLink(body);
+    if ("error" in validation) {
+      return NextResponse.json(
+        { error: validation.error },
+        { status: validation.status }
+      );
+    }
+    const { productId, billingCycle, customerEmail, redirectUrl } = validation;
 
-    // Create payment link
     const paymentLink = await dodoPayments.createPaymentLink({
       productId,
-      customerEmail: customerEmail || session.user.email,
+      customerEmail: customerEmail ?? session.user.email ?? undefined,
       billingCycle,
-      redirectUrl,
+      redirectUrl: redirectUrl || process.env.NEXT_PUBLIC_APP_URL || "https://anilyst.tech",
     });
 
     return NextResponse.json(paymentLink);

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { fetchWithCsrf } from '@/lib/api-client';
 
 interface VectorContext {
   similar_analyses: Array<{
@@ -26,7 +27,7 @@ export function useVectorContext(query: string, sessionId: string | null) {
     const getContext = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch('/api/vector/context', {
+        const response = await fetchWithCsrf('/api/vector/context', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

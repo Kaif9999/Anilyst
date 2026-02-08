@@ -35,6 +35,8 @@ import { useSession } from "next-auth/react";
 import Image from "next/image";
 import ChatUploadModal from "./chat-upload-modal";
 import { useChatSessions } from "@/hooks/useChatSessions";
+import { fetchWithCsrf } from "@/lib/api-client";
+import { sanitizeHref } from "@/lib/sanitize";
 
 import {
   Chart as ChartJS,
@@ -153,7 +155,7 @@ function useVectorContext(query: string, sessionId: string | null) {
     const getContext = async () => {
       setIsLoading(true);
       try {
-        const response = await fetch("/api/vector/context", {
+        const response = await fetchWithCsrf("/api/vector/context", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1265,10 +1267,11 @@ function AgentPageContent() {
         const hrefMatch = part.match(/href="([^"]+)"/);
         const textMatch = part.match(/>([^<]+)</);
         if (hrefMatch && textMatch) {
+          const safeHref = sanitizeHref(hrefMatch[1]);
           elements.push(
             <a
               key={i}
-              href={hrefMatch[1]}
+              href={safeHref}
               className="text-blue-400 hover:text-blue-300 underline"
               target="_blank"
               rel="noopener noreferrer"
@@ -1771,7 +1774,27 @@ Would you like to upload some data to analyze?`;
       e.preventDefault();
       handleSend(showWelcome);
     }
+    if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+      e.preventDefault();
+      handleSend(showWelcome);
+    }
   };
+
+  // Ctrl+/ or Cmd+/ to focus input (#18)
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "/") {
+        e.preventDefault();
+        if (showWelcome && welcomeTextareaRef.current) {
+          welcomeTextareaRef.current.focus();
+        } else if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [showWelcome]);
 
   const clearChat = () => {
     setMessages([]);

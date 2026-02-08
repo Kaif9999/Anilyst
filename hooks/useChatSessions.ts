@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { useToast } from '@/components/ui/use-toast';
+import { fetchWithCsrf } from '@/lib/api-client';
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
@@ -57,7 +58,7 @@ export function useChatSessions() {
 
     setIsLoading(true);
     try {
-      const response = await fetch('/api/chat-sessions', {
+      const response = await fetchWithCsrf('/api/chat-sessions', {
         method: 'POST',
       });
 
@@ -114,7 +115,7 @@ export function useChatSessions() {
   // Delete session
   const deleteSession = useCallback(async (sessionId: string) => {
     try {
-      const response = await fetch(`/api/chat-sessions/${sessionId}`, {
+      const response = await fetchWithCsrf(`/api/chat-sessions/${sessionId}`, {
         method: 'DELETE',
       });
 
@@ -160,7 +161,7 @@ export function useChatSessions() {
         hasMetadata: !!metadata
       });
 
-      const response = await fetch(`/api/chat-sessions/${sessionId}/messages`, {
+      const response = await fetchWithCsrf(`/api/chat-sessions/${sessionId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -199,7 +200,7 @@ export function useChatSessions() {
     columns: string[]
   ) => {
     try {
-      const response = await fetch(`/api/chat-sessions/${sessionId}`, {
+      const response = await fetchWithCsrf(`/api/chat-sessions/${sessionId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -239,7 +240,7 @@ export function useChatSessions() {
         filename
       });
 
-      const titleResponse = await fetch(`/api/chat-sessions/${sessionId}/generate-title`, {
+      const titleResponse = await fetchWithCsrf(`/api/chat-sessions/${sessionId}/generate-title`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
