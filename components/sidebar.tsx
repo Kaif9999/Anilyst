@@ -15,6 +15,7 @@ import {
   Plus,
   PanelRightOpen,
   Search,
+  Plug,
 } from 'lucide-react';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import {
@@ -373,7 +374,13 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             
          
             <div className="px-4 pb-4 space-y-3 relative z-10 border-t border-white/10 pt-4">
-         
+              <button
+                onClick={() => { router.push("/dashboard/integrations"); handleItemClick(); }}
+                className="w-full bg-white/5 border border-white/10 rounded-lg p-3 flex items-center gap-3 backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+              >
+                <Plug className="w-5 h-5 text-gray-400 group-hover:text-blue-400" />
+                <span className="text-sm font-medium text-white">Integrations</span>
+              </button>
               <button
                 onClick={handleProfileClick}
                 className="w-full bg-white/5 border border-white/10 rounded-lg p-3 flex items-center backdrop-blur-sm hover:bg-white/10 hover:border-white/20 transition-all duration-300 group relative overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500/50"

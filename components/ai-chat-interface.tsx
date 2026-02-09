@@ -27,6 +27,8 @@ import {
   PanelRightClose,
   PanelLeftOpen,
   User,
+  RotateCcw,
+  ExternalLink,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useSidebar } from "@/app/dashboard/layout";
@@ -84,6 +86,17 @@ interface Message {
     dataType: string;
     columns: string[];
   };
+  /** When set, show a "Connect Stripe" (or other) card with this URL so the agent can read data via Arcade */
+  authorizationUrl?: string;
+  authorizationMessage?: string;
+  questions?: Array<{
+    field: string;
+    question: string;
+    required?: boolean;
+    task?: string;
+    action?: string;
+  }>;
+  needsInfo?: boolean;
 }
 
 interface VectorContext {
@@ -1406,10 +1419,9 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = async (isFromWelcomeScreen = false) => {
-    if (!input.trim() || isLoading) return;
-  
-    const currentInput = input;
+  const handleSend = async (isFromWelcomeScreen = false, overrideInput?: string) => {
+    const currentInput = overrideInput ?? input;
+    if (!currentInput.trim() || isLoading) return;
     setTransitionInput(currentInput);
   
     // Handle welcome screen transition
@@ -1442,7 +1454,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
     };
   
     setMessages(prev => [...prev, userMessage]);
-    setInput('');
+    if (!overrideInput) setInput('');
     setIsLoading(true);
   
     try {
@@ -1494,7 +1506,8 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           user_request_type: detectRequestType(currentInput),
           previous_analysis: null,
           handle_parsing_errors: true,
-          user_id: session?.user?.id || 'anonymous', 
+          user_id: session?.user?.id || (session?.user?.email as string) || 'anonymous',
+          user_email: (session?.user?.email as string) || '', // For Arcade OAuth (needs email, not ID) - use empty string instead of null
           session_id: sessionId,
           original_query: currentInput
         }
@@ -1530,10 +1543,31 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           rowCount: dataContext.rowCount,
           dataType: dataContext.dataType,
           columns: dataContext.columns
-        } : undefined
+        } : undefined,
+        ...(result.authorization_required && result.authorization_url && {
+          authorizationUrl: result.authorization_url,
+          authorizationMessage: result.authorization_message || 'Connect your account so the agent can read your data.',
+        }),
+        ...(result.questions && {
+          questions: result.questions,
+          needsInfo: result.needs_info || true,
+        }),
       };
-  
-      setMessages(prev => [...prev, assistantMessage]);
+
+      // If backend says the user sent a secret (e.g. Stripe key), redact it in the UI and in saved messages
+      const userContentToSave = result.redact_user_message ? 'Stripe key added' : currentInput;
+      setMessages(prev => {
+        let next = [...prev];
+        if (result.redact_user_message) {
+          for (let i = next.length - 1; i >= 0; i--) {
+            if (next[i].role === 'user') {
+              next[i] = { ...next[i], content: 'Stripe key added' };
+              break;
+            }
+          }
+        }
+        return [...next, assistantMessage];
+      });
   
   
       console.log('💾 Starting message save process...');
@@ -1547,7 +1581,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
         const userMessageResult = await addMessage(
           sessionId,
           'user',
-          currentInput,
+          userContentToSave,
           false,
           null,
           { dataContext }
@@ -1831,6 +1865,13 @@ Would you like to upload some data to analyze?`;
         variant: "destructive",
       });
     }
+  };
+
+  const handleRetry = (assistantIndex: number) => {
+    const userMessage = messages[assistantIndex - 1];
+    if (!userMessage || userMessage.role !== "user") return;
+    setMessages((prev) => prev.slice(0, assistantIndex - 1));
+    handleSend(false, userMessage.content);
   };
 
   const useExamplePrompt = (prompt: string) => {
@@ -2348,36 +2389,17 @@ Would you like to upload some data to analyze?`;
           {messages.map((message, index) => (
             <div
               key={index}
-              className={`flex gap-4 ${
+              className={`flex gap-4 w-full ${
                 message.role === "user" ? "justify-end" : "justify-start"
               }`}
             >
-              {message.role === "assistant" && (
-                <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
-                  <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                    <Image
-                      src="/anilyst_logo.svg"
-                      alt="AI Agent"
-                      width={24}
-                      height={34}
-                      className="w-6 h-7 object-cover"
-                      unoptimized
-                    />
-                  </AvatarFallback>
-                </Avatar>
-              )}
-
+              {message.role === "user" && (
+                <>
               <div
-                className={`max-w-[85%] ${
-                  message.role === "user" ? "order-first" : ""
-                }`}
+                className={`max-w-[85%] ${"order-first"}`}
               >
                 <div
-                  className={`relative group rounded-2xl ${
-                    message.role === "user"
-                      ? "bg-white/5 backdrop-blur-sm text-gray-100 p-4"
-                      : "bg-white/5 backdrop-blur-sm text-gray-100 p-6"
-                  }`}
+                  className="relative group rounded-2xl bg-white/5 backdrop-blur-sm text-gray-100 p-4"
                 >
                   {/* Copy button */}
                   <button
@@ -2392,38 +2414,15 @@ Would you like to upload some data to analyze?`;
                     )}
                   </button>
 
-
                   <div className="prose prose-sm max-w-none text-current">
-                    {message.role === "user" ? (
-                      <div className="whitespace-pre-wrap leading-relaxed text-gray-200">
-                        {message.content}
-                      </div>
-                    ) : (
-                      renderMarkdown(message.content)
-                    )}
-                  </div>
-
-                  {message.vector_context_used && message.context_summary && (
-                    <div className="mt-4 text-xs text-blue-300 bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Brain className="h-3 w-3" />
-                        <span className="font-medium">
-                          Enhanced with AI Context
-                        </span>
-                      </div>
-                      <p className="text-blue-200">
-                        Analyzed{" "}
-                        {message.context_summary.similar_analyses_count} similar
-                        past analyses for personalized insights
-                      </p>
+                    <div className="whitespace-pre-wrap leading-relaxed text-gray-200">
+                      {message.content}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
-
-              {message.role === "user" && (
-                <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
-                  <AvatarFallback className="bg-white/10 text-white p-0 overflow-hidden">
+              <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
+                <AvatarFallback className="bg-white/10 text-white p-0 overflow-hidden">
                     {userData.image ? (
                       <Image
                         src={userData.image}
@@ -2440,26 +2439,101 @@ Would you like to upload some data to analyze?`;
                     )}
                   </AvatarFallback>
                 </Avatar>
+              </>
+              )}
+
+              {message.role === "assistant" && (
+                <div className="w-full">
+                  <div className="w-full">
+                    <div className="prose prose-sm max-w-none text-current text-gray-200">
+                      {renderMarkdown(message.content)}
+                    </div>
+                    {message.vector_context_used && message.context_summary && (
+                      <div className="mt-4 text-xs text-blue-300 bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Brain className="h-3 w-3" />
+                          <span className="font-medium">
+                            Enhanced with AI Context
+                          </span>
+                        </div>
+                        <p className="text-blue-200">
+                          Analyzed{" "}
+                          {message.context_summary.similar_analyses_count} similar
+                          past analyses for personalized insights
+                        </p>
+                      </div>
+                    )}
+                    {message.authorizationUrl && (
+                      <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                        <p className="text-sm text-gray-300 mb-3">
+                          {message.authorizationMessage || 'Connect your account so the agent can read and analyze your data.'}
+                        </p>
+                        <a
+                          href={message.authorizationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm font-medium transition-all"
+                        >
+                          Connect account
+                          <ExternalLink className="h-4 w-4" />
+                        </a>
+                        <p className="text-xs text-gray-400 mt-2">
+                          You’ll be redirected to connect securely. After connecting, try your request again.
+                        </p>
+                      </div>
+                    )}
+                    {message.questions && message.questions.length > 0 && (
+                      <div className="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                        <p className="text-sm text-yellow-200 mb-3 font-medium">
+                          I need some information to complete this task:
+                        </p>
+                        <ul className="space-y-2 mb-4">
+                          {message.questions.map((q: any, idx: number) => (
+                            <li key={idx} className="text-sm text-gray-300">
+                              {idx + 1}. {q.question}
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="text-xs text-gray-400">
+                          Please provide the requested information in your next message, and I'll complete the task automatically.
+                        </p>
+                      </div>
+                    )}
+                    <div className="flex justify-start items-center gap-2 mt-2">
+                      <button
+                        onClick={() => copyMessage(message.content, index)}
+                        className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
+                        title="Copy message"
+                      >
+                        {copiedMessageId === index.toString() ? (
+                          <Check className="h-4 w-4 text-green-400" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
+                        )}
+                      </button>
+                      <button
+                        onClick={() => handleRetry(index)}
+                        className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
+                        title="Try again"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           ))}
 
           {isLoading && (
-            <div className="flex gap-4 justify-start">
-              <Avatar className="w-10 h-10 mt-1">
-                <AvatarFallback className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-                  <Bot className="h-5 w-5" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="bg-white/5 backdrop-blur-sm border border-white/10 rounded-3xl p-6">
-                <div className="flex items-center gap-3 text-gray-300">
-                  <Loader2 className="h-5 w-5 animate-spin text-blue-400" />
-                  <span className="text-sm">
-                    {hasData
-                      ? `Analyzing ${currentFile?.name}...`
-                      : "Processing your request..."}
-                  </span>
-                </div>
+            <div className="flex w-full justify-start">
+              <div className="flex items-center gap-3 text-gray-300 w-full">
+                <Loader2 className="h-5 w-5 animate-spin text-blue-400 flex-shrink-0" />
+                <span className="text-sm">
+                  {hasData
+                    ? `Analyzing ${currentFile?.name}...`
+                    : "Processing your request..."}
+                </span>
               </div>
             </div>
           )}
