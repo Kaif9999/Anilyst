@@ -7,7 +7,6 @@ import { useState, useEffect } from "react";
 import {
   ChevronRight,
   BarChart2,
-  Brain,
   Sparkles,
   ArrowRight,
   Code,
@@ -174,7 +173,7 @@ const featureSections = [
       "Pattern recognition with AI algorithms",
       "Automated reporting and insights generation"
     ],
-    icon: <Brain className="w-10 h-10 text-purple-400" />,
+    icon: <img src="/anilyst_logo.svg" alt="Anilyst Logo" className="w-10 h-10 text-purple-400" />,
     image: "https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&h=500&fit=crop",
     color: "from-purple-600/20 to-purple-700/20",
     hoverColor: "group-hover:from-purple-600/40 group-hover:to-purple-700/40"
@@ -194,7 +193,7 @@ const architectureComponents = [
     description: "Dedicated Python analytics engine for advanced statistical processing and ML predictions"
   },
   {
-    icon: <Brain className="w-6 h-6 text-purple-400" />,
+    icon: <Cpu className="w-6 h-6 text-purple-400" />,
     title: "AI Models",
     description: "Combination of OpenAI's language models and custom predictive analytics algorithms"
   }
@@ -228,7 +227,7 @@ const howItWorksSteps = [
     step: 3,
     title: "AI-Powered Insights",
     description: "Our powerful AI analyzes your data to uncover patterns, trends, anomalies, and correlations you might miss. Get statistical analysis and predictions without writing a single line of code.",
-    icon: <Brain className="w-8 h-8 text-purple-400" />,
+    icon: <Cpu className="w-8 h-8 text-purple-400" />,
     details: [
       "Automatic trend detection",
       "Outlier identification",
@@ -304,7 +303,7 @@ const userFriendlyArchitecture = [
     ]
   },
   {
-    icon: <Brain className="w-6 h-6 text-purple-400 group-hover:text-purple-300 transition-colors duration-300" />,
+    icon: <Cpu className="w-6 h-6 text-purple-400 group-hover:text-purple-300 transition-colors duration-300" />,
     title: "Smart AI Assistant",
     description: "Like having a data expert by your side, providing insights in plain language",
     detailedDescription: "Our AI assistant uses natural language processing to understand your questions about data and provides clear, insightful answers without requiring technical expertise.",
