@@ -29,12 +29,15 @@ import {
   User,
   RotateCcw,
   ExternalLink,
+  Search,
+  Code,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useSidebar } from "@/app/dashboard/layout";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { Highlight, themes } from "prism-react-renderer";
 import ChatUploadModal from "./chat-upload-modal";
 import { useChatSessions } from "@/hooks/useChatSessions";
 import { fetchWithCsrf } from "@/lib/api-client";
@@ -97,6 +100,84 @@ interface Message {
     action?: string;
   }>;
   needsInfo?: boolean;
+}
+
+/** Map common language labels to Prism language ids */
+const PRISM_LANG: Record<string, string> = {
+  js: "javascript",
+  jsx: "jsx",
+  ts: "typescript",
+  tsx: "tsx",
+  py: "python",
+  yml: "yaml",
+  sh: "bash",
+  shell: "bash",
+  md: "markdown",
+  rb: "ruby",
+  go: "go",
+  rs: "rust",
+  kt: "kotlin",
+  java: "java",
+  c: "c",
+  cpp: "cpp",
+  cs: "csharp",
+  sql: "sql",
+  html: "markup",
+  xml: "markup",
+};
+
+/** VS Code–style code block with syntax highlighting and copy button */
+function CodeBlock({
+  content,
+  language,
+  blockKey,
+  copiedKey,
+  onCopy,
+}: {
+  content: string;
+  language: string;
+  blockKey: string;
+  copiedKey: string | null;
+  onCopy: (k: string) => void;
+}) {
+  const copied = copiedKey === blockKey;
+  const prismLang = language
+    ? (PRISM_LANG[language.toLowerCase()] || language.toLowerCase())
+    : "plaintext";
+  return (
+    <div className="my-4 rounded-xl overflow-hidden border border-white/10 bg-[#1e1e1e] shadow-lg">
+      <div className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-white/10">
+        <span className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+          <Code className="h-3.5 w-3.5" />
+          {language || "code"}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(content);
+            onCopy(blockKey);
+          }}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <Highlight theme={themes.vsDark} code={content.trimEnd()} language={prismLang}>
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre className={`p-4 overflow-x-auto text-sm leading-relaxed m-0 font-mono text-[13px] ${className}`} style={style}>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })}>
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({ token })} />
+                ))}
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
+    </div>
+  );
 }
 
 interface VectorContext {
@@ -779,6 +860,7 @@ function AgentPageContent() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [copiedCodeKey, setCopiedCodeKey] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -1015,6 +1097,9 @@ function AgentPageContent() {
     let codeBlockLanguage = "";
     let chartIndex = 0;
     let elementKey = 0;
+    let inSourcesSection = false;
+    let sourcePills: { title: string; url: string }[] = [];
+    const sourceLinkRegex = /^-\s*\[([^\]]+)\]\(([^)]+)\)\s*$/;
 
     const getNextKey = () => `element-${elementKey++}`;
 
@@ -1023,10 +1108,10 @@ function AgentPageContent() {
         elements.push(
           <ul
             key={getNextKey()}
-            className="list-disc list-inside space-y-1 my-3 ml-4"
+            className="list-disc list-outside pl-5 space-y-2 my-3 text-gray-200 leading-relaxed"
           >
             {currentList.map((item, index) => (
-              <li key={index} className="text-gray-200">
+              <li key={index} className="pl-1">
                 {formatInlineMarkdown(item)}
               </li>
             ))}
@@ -1038,17 +1123,22 @@ function AgentPageContent() {
 
     const flushCodeBlock = () => {
       if (codeBlockContent.length > 0) {
+        const blockKey = `code-${getNextKey()}`;
         elements.push(
-          <pre
-            key={getNextKey()}
-            className="bg-gray-800/50 border border-gray-600 rounded-lg p-4 my-3 overflow-x-auto"
-          >
-            <code className="text-sm text-gray-300 font-mono">
-              {codeBlockContent.join("\n")}
-            </code>
-          </pre>
+          <CodeBlock
+            key={blockKey}
+            content={codeBlockContent.join("\n")}
+            language={codeBlockLanguage}
+            blockKey={blockKey}
+            copiedKey={copiedCodeKey}
+            onCopy={(k) => {
+              setCopiedCodeKey(k);
+              setTimeout(() => setCopiedCodeKey(null), 2000);
+            }}
+          />
         );
         codeBlockContent = [];
+        codeBlockLanguage = "";
       }
     };
 
@@ -1104,35 +1194,96 @@ function AgentPageContent() {
         return;
       }
 
+      // Handle "### 📎 **Sources**" — Perplexity-style source pills
+      if (line.includes("📎") && line.includes("Sources")) {
+        flushList();
+        inSourcesSection = true;
+        return;
+      }
+      if (inSourcesSection && sourceLinkRegex.test(line.trim())) {
+        const match = line.trim().match(sourceLinkRegex);
+        if (match) {
+          const [, title, url] = match;
+          sourcePills.push({ title, url });
+        }
+        return;
+      }
+      if (inSourcesSection) {
+        inSourcesSection = false;
+        if (sourcePills.length > 0) {
+          elements.push(
+            <div key={getNextKey()} className="mt-4 pt-4 border-t border-white/10">
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <ExternalLink className="h-3.5 w-3.5" />
+                Sources
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {sourcePills.map(({ title, url }, i) => (
+                  <a
+                    key={i}
+                    href={sanitizeHref(url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-gray-200 hover:text-white transition-colors"
+                  >
+                    <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />
+                    <span className="truncate max-w-[200px]">{title}</span>
+                  </a>
+                ))}
+              </div>
+            </div>
+          );
+          sourcePills = [];
+        }
+      }
+
       // Handle headers
       if (line.startsWith("#")) {
         flushList();
-        const headerText = line.replace(/^#+\s*/, "");
+        const headerText = line.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
         const level = line.match(/^#+/)?.[0].length || 2;
+        const isWebSearchHeader = level === 2 && line.includes("🔍");
 
         if (level === 1) {
           elements.push(
             <h1
               key={getNextKey()}
-              className="text-2xl font-bold text-white mt-6 mb-3"
+              className="text-2xl font-bold text-white mt-6 mb-3 leading-tight"
             >
               {headerText}
             </h1>
           );
         } else if (level === 2) {
-          elements.push(
-            <h2
-              key={getNextKey()}
-              className="text-xl font-bold text-white mt-5 mb-2"
-            >
-              {headerText}
-            </h2>
-          );
+          if (isWebSearchHeader) {
+            elements.push(
+              <div
+                key={getNextKey()}
+                className="border-l-4 border-blue-500/50 bg-blue-500/5 rounded-r-xl pl-4 pr-4 py-3 my-4"
+              >
+                <div className="flex items-center gap-2 text-xs text-blue-400 mb-1.5">
+                  <Search className="h-3.5 w-3.5" />
+                  <span className="font-medium uppercase tracking-wider">Web search</span>
+                </div>
+                <h2 className="text-lg font-semibold text-white mt-0 mb-0 leading-snug">
+                  {headerText}
+                </h2>
+              </div>
+            );
+          } else {
+            elements.push(
+              <h2
+                key={getNextKey()}
+                className="text-lg font-semibold text-white mt-5 mb-2 leading-snug"
+              >
+                {headerText}
+              </h2>
+            );
+          }
         } else if (level === 3) {
           elements.push(
             <h3
               key={getNextKey()}
-              className="text-lg font-semibold text-white mt-4 mb-2"
+              className="text-base font-semibold text-white mt-4 mb-2 leading-snug"
             >
               {headerText}
             </h3>
@@ -1141,7 +1292,7 @@ function AgentPageContent() {
           elements.push(
             <h4
               key={getNextKey()}
-              className="text-base font-semibold text-white mt-3 mb-2"
+              className="text-sm font-semibold text-white mt-3 mb-1.5 leading-snug"
             >
               {headerText}
             </h4>
@@ -1162,8 +1313,8 @@ function AgentPageContent() {
         flushList();
         const listItem = line.replace(/^\d+\.\s*/, "");
         elements.push(
-          <ol key={getNextKey()} className="list-decimal list-inside my-2 ml-4">
-            <li className="text-gray-200">{formatInlineMarkdown(listItem)}</li>
+          <ol key={getNextKey()} className="list-decimal list-outside pl-5 space-y-1.5 my-3 text-gray-200 leading-relaxed">
+            <li className="pl-1">{formatInlineMarkdown(listItem)}</li>
           </ol>
         );
         return;
@@ -1189,7 +1340,7 @@ function AgentPageContent() {
       flushList();
       if (line.trim()) {
         elements.push(
-          <p key={getNextKey()} className="text-gray-200 leading-relaxed my-2">
+          <p key={getNextKey()} className="text-gray-200 leading-[1.65] my-2.5">
             {formatInlineMarkdown(line)}
           </p>
         );
@@ -1199,6 +1350,30 @@ function AgentPageContent() {
     // Flush any remaining content
     flushList();
     flushCodeBlock();
+    if (inSourcesSection && sourcePills.length > 0) {
+      elements.push(
+        <div key={getNextKey()} className="mt-4 pt-4 border-t border-white/10">
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+            <ExternalLink className="h-3.5 w-3.5" />
+            Sources
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {sourcePills.map(({ title, url }, i) => (
+              <a
+                key={i}
+                href={sanitizeHref(url)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-gray-200 hover:text-white transition-colors"
+              >
+                <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />
+                <span className="truncate max-w-[200px]">{title}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      );
+    }
 
     // ✅ FIX: Add remaining charts with proper error handling
     while (chartIndex < charts.length) {
@@ -1232,10 +1407,10 @@ function AgentPageContent() {
     // Handle italic text
     formatted = formatted.replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
-    // Handle inline code
+    // Handle inline code (VS Code–style)
     formatted = formatted.replace(
       /`([^`]+)`/g,
-      '<code class="bg-gray-700/50 px-1 py-0.5 rounded text-xs font-mono text-blue-300">$1</code>'
+      '<code class="bg-[#2d2d2d] border border-white/10 px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">$1</code>'
     );
 
     // Handle links (basic)
@@ -1271,7 +1446,7 @@ function AgentPageContent() {
         elements.push(
           <code
             key={i}
-            className="bg-gray-700/50 px-1 py-0.5 rounded text-xs font-mono text-blue-300"
+            className="bg-[#2d2d2d] border border-white/10 px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]"
           >
             {content}
           </code>
@@ -2443,9 +2618,18 @@ Would you like to upload some data to analyze?`;
               )}
 
               {message.role === "assistant" && (
-                <div className="w-full">
-                  <div className="w-full">
-                    <div className="prose prose-sm max-w-none text-current text-gray-200">
+                <div className="w-full flex gap-3">
+                  <div className="w-7 h-7 mt-0.5 flex-shrink-0 flex items-center justify-center">
+                    <Image
+                      src="/anilyst_logo.svg"
+                      alt="Anilyst"
+                      width={28}
+                      height={28}
+                      className="object-contain"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="prose prose-sm max-w-none text-current text-gray-200 prose-headings:font-semibold prose-p:my-2.5 prose-ul:my-3 prose-ol:my-3">
                       {renderMarkdown(message.content)}
                     </div>
                     {message.vector_context_used && message.context_summary && (
