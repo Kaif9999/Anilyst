@@ -37,8 +37,31 @@ import { useSidebar } from "@/app/dashboard/layout";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
-import { Highlight, themes } from "prism-react-renderer";
+import { Highlight, PrismTheme } from "prism-react-renderer";
 import ChatUploadModal from "./chat-upload-modal";
+
+/** Neutral vibrant code theme: mixed colors (blue, green, amber, rose, teal) on a neutral dark background */
+const ANILYST_CODE_THEME: PrismTheme = {
+  plain: {
+    color: "#cbd5e1",
+    backgroundColor: "#1e293b",
+  },
+  styles: [
+    { types: ["comment"], style: { color: "#64748b", fontStyle: "italic" } },
+    { types: ["prolog", "doctype"], style: { color: "#94a3b8" } },
+    { types: ["keyword", "boolean", "changed"], style: { color: "#f472b6" } },
+    { types: ["builtin"], style: { color: "#38bdf8" } },
+    { types: ["number", "inserted"], style: { color: "#fbbf24" } },
+    { types: ["constant"], style: { color: "#2dd4bf" } },
+    { types: ["attr-name", "variable", "property"], style: { color: "#7dd3fc" } },
+    { types: ["function"], style: { color: "#a78bfa" } },
+    { types: ["class-name"], style: { color: "#2dd4bf" } },
+    { types: ["deleted", "string", "attr-value", "template-punctuation", "interpolation", "char"], style: { color: "#4ade80" } },
+    { types: ["selector"], style: { color: "#fbbf24" } },
+    { types: ["tag"], style: { color: "#38bdf8" } },
+    { types: ["punctuation", "operator"], style: { color: "#94a3b8" } },
+  ],
+};
 import { useChatSessions } from "@/hooks/useChatSessions";
 import { fetchWithCsrf } from "@/lib/api-client";
 import { sanitizeHref } from "@/lib/sanitize";
@@ -145,9 +168,9 @@ function CodeBlock({
     ? (PRISM_LANG[language.toLowerCase()] || language.toLowerCase())
     : "plaintext";
   return (
-    <div className="my-4 rounded-xl overflow-hidden border border-white/10 bg-[#1e1e1e] shadow-lg">
+    <div className="my-4 rounded-xl overflow-hidden border border-white/10 bg-[#1e293b] shadow-lg">
       <div className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-white/10">
-        <span className="text-xs font-medium text-gray-400 uppercase tracking-wider flex items-center gap-2">
+        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-2">
           <Code className="h-3.5 w-3.5" />
           {language || "code"}
         </span>
@@ -157,13 +180,13 @@ function CodeBlock({
             navigator.clipboard.writeText(content);
             onCopy(blockKey);
           }}
-          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
         >
           {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
           {copied ? "Copied" : "Copy"}
         </button>
       </div>
-      <Highlight theme={themes.vsDark} code={content.trimEnd()} language={prismLang}>
+      <Highlight theme={ANILYST_CODE_THEME} code={content.trimEnd()} language={prismLang}>
         {({ className, style, tokens, getLineProps, getTokenProps }) => (
           <pre className={`p-4 overflow-x-auto text-sm leading-relaxed m-0 font-mono text-[13px] ${className}`} style={style}>
             {tokens.map((line, i) => (
