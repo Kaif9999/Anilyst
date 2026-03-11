@@ -31,6 +31,7 @@ import {
   ExternalLink,
   Search,
   Code,
+  Pencil,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useSidebar } from "@/app/dashboard/layout";
@@ -95,6 +96,24 @@ ChartJS.register(
 const FASTAPI_URL =
   process.env.NEXT_PUBLIC_FASTAPI_URL || "http://localhost:8000";
 
+/** Format OpenRouter model id (e.g. openai/gpt-4o) for display (e.g. OpenAI: GPT-4o) */
+function formatModelLabel(modelId: string): string {
+  if (!modelId || modelId === "unknown") return "AI";
+  const [provider, name] = modelId.split("/");
+  const providerLabel =
+    provider === "openai"
+      ? "OpenAI"
+      : provider === "anthropic"
+        ? "Anthropic"
+        : provider === "google"
+          ? "Google"
+          : provider?.charAt(0)?.toUpperCase() + (provider?.slice(1) ?? "");
+  const nameLabel = (name ?? modelId)
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return `${providerLabel}: ${nameLabel}`;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
@@ -115,6 +134,10 @@ interface Message {
   /** When set, show a "Connect Stripe" (or other) card with this URL so the agent can read data via Arcade */
   authorizationUrl?: string;
   authorizationMessage?: string;
+  /** Model used for this response (e.g. OpenAI: GPT-4o) – shown in footer */
+  model_used?: string;
+  /** Approximate token count – shown in footer when available */
+  token_count?: number;
   questions?: Array<{
     field: string;
     question: string;
@@ -892,6 +915,8 @@ function AgentPageContent() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isNewSession, setIsNewSession] = useState(true);
   const [isFirstMessage, setIsFirstMessage] = useState(true);
+  /** When set, next send replaces this user message (and following messages) with the new prompt (rewrite flow) */
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
 
   const [chatData, setChatData] = useState<ChatData | null>(null);
 
@@ -1650,8 +1675,13 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
         columns: dataContext.columns
       } : undefined
     };
-  
-    setMessages(prev => [...prev, userMessage]);
+
+    if (editingMessageIndex !== null) {
+      setMessages(prev => [...prev.slice(0, editingMessageIndex), userMessage]);
+      setEditingMessageIndex(null);
+    } else {
+      setMessages(prev => [...prev, userMessage]);
+    }
     if (!overrideInput) setInput('');
     setIsLoading(true);
   
@@ -1750,6 +1780,8 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           questions: result.questions,
           needsInfo: result.needs_info || true,
         }),
+        ...(result.model_used != null && { model_used: formatModelLabel(result.model_used) }),
+        ...(result.token_count != null && { token_count: result.token_count }),
       };
 
       // If backend says the user sent a secret (e.g. Stripe key), redact it in the UI and in saved messages
@@ -2593,30 +2625,46 @@ Would you like to upload some data to analyze?`;
             >
               {message.role === "user" && (
                 <>
-              <div
-                className={`max-w-[85%] ${"order-first"}`}
-              >
-                <div
-                  className="relative group rounded-2xl bg-white/5 backdrop-blur-sm text-gray-100 p-4"
-                >
-                  {/* Copy button */}
-                  <button
-                    onClick={() => copyMessage(message.content, index)}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-white/10 rounded"
-                    title="Copy message"
-                  >
-                    {copiedMessageId === index.toString() ? (
-                      <Check className="h-4 w-4 text-green-400" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-
+              <div className="max-w-[85%] order-first flex flex-col items-end group">
+                <div className="rounded-2xl bg-white/5 backdrop-blur-sm text-gray-100 p-4 w-full">
                   <div className="prose prose-sm max-w-none text-current">
                     <div className="whitespace-pre-wrap leading-relaxed text-gray-200">
                       {message.content}
                     </div>
                   </div>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span className="text-xs">
+                    {message.timestamp
+                      ? new Date(message.timestamp).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : ""}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setInput(message.content);
+                      setEditingMessageIndex(index);
+                      setTimeout(() => textareaRef.current?.focus(), 0);
+                    }}
+                    className="p-1 hover:text-gray-200 rounded hover:bg-white/5 transition-colors"
+                    title="Rewrite"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => copyMessage(message.content, index)}
+                    className="p-1 hover:text-gray-200 rounded hover:bg-white/5 transition-colors"
+                    title="Copy"
+                  >
+                    {copiedMessageId === index.toString() ? (
+                      <Check className="h-3.5 w-3.5 text-green-400" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
                 </div>
               </div>
               <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
@@ -2706,25 +2754,35 @@ Would you like to upload some data to analyze?`;
                         </p>
                       </div>
                     )}
-                    <div className="flex justify-start items-center gap-2 mt-2">
-                      <button
-                        onClick={() => copyMessage(message.content, index)}
-                        className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
-                        title="Copy message"
-                      >
-                        {copiedMessageId === index.toString() ? (
-                          <Check className="h-4 w-4 text-green-400" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t border-white/5">
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => copyMessage(message.content, index)}
+                          className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
+                          title="Copy"
+                        >
+                          {copiedMessageId === index.toString() ? (
+                            <Check className="h-4 w-4 text-green-400" />
+                          ) : (
+                            <Copy className="h-4 w-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => handleRetry(index)}
+                          className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
+                          title="Retry"
+                        >
+                          <RotateCcw className="h-4 w-4" />
+                        </button>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        {message.model_used && (
+                          <span>{message.model_used}</span>
                         )}
-                      </button>
-                      <button
-                        onClick={() => handleRetry(index)}
-                        className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
-                        title="Try again"
-                      >
-                        <RotateCcw className="h-4 w-4" />
-                      </button>
+                        {message.token_count != null && message.token_count > 0 && (
+                          <span>~{message.token_count.toLocaleString()} tokens</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
