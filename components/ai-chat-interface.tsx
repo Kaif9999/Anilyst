@@ -29,9 +29,12 @@ import {
   User,
   RotateCcw,
   ExternalLink,
-  Search,
   Code,
   Pencil,
+  BookOpen,
+  X,
+  Share2,
+  Download,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useSidebar } from "@/app/dashboard/layout";
@@ -96,6 +99,43 @@ ChartJS.register(
 const FASTAPI_URL =
   process.env.NEXT_PUBLIC_FASTAPI_URL || "http://localhost:8000";
 
+/** Extract web sources from markdown content (Sources section and inline links) */
+function extractWebSourcesFromContent(content: string): WebSource[] {
+  const sources: WebSource[] = [];
+  const seen = new Set<string>();
+  const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let inSources = false;
+  for (const line of content.split("\n")) {
+    const s = line.trim();
+    if (line.includes("📎") && /Sources/i.test(line)) inSources = true;
+    if (inSources && s.startsWith("- ")) {
+      for (const m of s.matchAll(linkRe)) {
+        const [, title, url] = m;
+        if (url?.startsWith("http") && !seen.has(url)) {
+          seen.add(url);
+          sources.push({ title: (title || url).trim(), url: url.trim(), snippet: undefined });
+        }
+      }
+    } else if (inSources && s && !s.startsWith("- ")) inSources = false;
+  }
+  for (const m of content.matchAll(linkRe)) {
+    if (sources.length >= 20) break;
+    const [, title, url] = m;
+    if (url?.startsWith("http") && !seen.has(url)) {
+      seen.add(url);
+      const lastPara = content.lastIndexOf("\n\n", m.index);
+      const paraStart = lastPara < 0 ? 0 : lastPara + 2;
+      const nextPara = content.indexOf("\n\n", m.index + m[0].length);
+      const paraEnd = nextPara < 0 ? content.length : nextPara;
+      const para = content.slice(paraStart, paraEnd);
+      let snippet = para.replace(/\[([^\]]+)\]\([^)]+\)/g, "").replace(/\s+/g, " ").trim();
+      if (snippet.length > 250) snippet = snippet.slice(0, 247) + "...";
+      sources.push({ title: (title || url).trim(), url: url.trim(), snippet: snippet || undefined });
+    }
+  }
+  return sources;
+}
+
 /** Format OpenRouter model id (e.g. openai/gpt-4o) for display (e.g. OpenAI: GPT-4o) */
 function formatModelLabel(modelId: string): string {
   if (!modelId || modelId === "unknown") return "AI";
@@ -114,12 +154,22 @@ function formatModelLabel(modelId: string): string {
   return `${providerLabel}: ${nameLabel}`;
 }
 
+interface WebSource {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
   analysis_results?: any;
   vector_context_used?: boolean;
+  /** Web search was used; show sources button and inline citation pills */
+  web_search_used?: boolean;
+  /** Structured sources from API (or parsed from content) */
+  webSources?: WebSource[];
   context_summary?: {
     similar_analyses_count: number;
     suggested_sources: string[];
@@ -191,8 +241,8 @@ function CodeBlock({
     ? (PRISM_LANG[language.toLowerCase()] || language.toLowerCase())
     : "plaintext";
   return (
-    <div className="my-4 rounded-xl overflow-hidden border border-white/10 bg-[#1e293b] shadow-lg">
-      <div className="flex items-center justify-between px-3 py-2 bg-white/5 border-b border-white/10">
+    <div className="my-4 rounded-xl overflow-hidden bg-[#1e293b] shadow-lg">
+      <div className="flex items-center justify-between px-3 py-2 bg-white/5">
         <span className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-2">
           <Code className="h-3.5 w-3.5" />
           {language || "code"}
@@ -917,6 +967,13 @@ function AgentPageContent() {
   const [isFirstMessage, setIsFirstMessage] = useState(true);
   /** When set, next send replaces this user message (and following messages) with the new prompt (rewrite flow) */
   const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+  /** Sources sidebar: open state and data for the selected message */
+  const [sourcesSidebarOpen, setSourcesSidebarOpen] = useState(false);
+  const [sourcesSidebarMessageIndex, setSourcesSidebarMessageIndex] = useState<number | null>(null);
+  const [sourcesSidebarData, setSourcesSidebarData] = useState<{
+    sources: WebSource[];
+    query?: string;
+  } | null>(null);
 
   const [chatData, setChatData] = useState<ChatData | null>(null);
 
@@ -1013,6 +1070,8 @@ function AgentPageContent() {
                 vector_context_used: msg.vectorContextUsed,
                 context_summary: msg.metadata?.context_summary,
                 dataContext: msg.metadata?.dataContext,
+                web_search_used: msg.metadata?.web_search_used,
+                webSources: msg.metadata?.webSources,
               }));
 
               console.log("✅ Formatted messages:", formattedMessages.length);
@@ -1133,34 +1192,52 @@ function AgentPageContent() {
     }
   }, [input]);
 
-  const renderMarkdown = (content: string) => {
+  const renderMarkdown = (content: string, opts?: { citationPills?: boolean }) => {
+    const citationPills = opts?.citationPills ?? false;
     const { content: textContent, charts } = detectAndRenderCharts(content);
 
     // Convert markdown to HTML-like JSX elements
     const lines = textContent.split("\n");
     const elements: JSX.Element[] = [];
     let currentList: string[] = [];
+    let currentOrderedList: string[] = [];
     let inCodeBlock = false;
     let codeBlockContent: string[] = [];
     let codeBlockLanguage = "";
     let chartIndex = 0;
     let elementKey = 0;
     let inSourcesSection = false;
+    let inSearchDetailsSection = false;
     let sourcePills: { title: string; url: string }[] = [];
     const sourceLinkRegex = /^-\s*\[([^\]]+)\]\(([^)]+)\)\s*$/;
 
     const getNextKey = () => `element-${elementKey++}`;
 
     const flushList = () => {
+      if (currentOrderedList.length > 0) {
+        elements.push(
+          <ol
+            key={getNextKey()}
+            className="list-decimal list-outside pl-5 space-y-1.5 my-3 text-gray-200 leading-relaxed [&_li::marker]:text-purple-400 [&_li::marker]:font-medium"
+          >
+            {currentOrderedList.map((item, index) => (
+              <li key={index} className="pl-1">
+                {formatInlineMarkdown(item, citationPills)}
+              </li>
+            ))}
+          </ol>
+        );
+        currentOrderedList = [];
+      }
       if (currentList.length > 0) {
         elements.push(
           <ul
             key={getNextKey()}
-            className="list-disc list-outside pl-5 space-y-2 my-3 text-gray-200 leading-relaxed"
+            className="list-disc list-outside pl-5 space-y-2 my-3 text-gray-200 leading-relaxed [&_li::marker]:text-purple-400"
           >
             {currentList.map((item, index) => (
               <li key={index} className="pl-1">
-                {formatInlineMarkdown(item)}
+                {formatInlineMarkdown(item, citationPills)}
               </li>
             ))}
           </ul>
@@ -1242,7 +1319,7 @@ function AgentPageContent() {
         return;
       }
 
-      // Handle "### 📎 **Sources**" — Perplexity-style source pills
+      // Skip "### 📎 **Sources**" section — not rendered (sources in sidebar/pills only)
       if (line.includes("📎") && line.includes("Sources")) {
         flushList();
         inSourcesSection = true;
@@ -1258,30 +1335,21 @@ function AgentPageContent() {
       }
       if (inSourcesSection) {
         inSourcesSection = false;
-        if (sourcePills.length > 0) {
-          elements.push(
-            <div key={getNextKey()} className="mt-4 pt-4 border-t border-white/10">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-                <ExternalLink className="h-3.5 w-3.5" />
-                Sources
-              </p>
-              <div className="flex flex-wrap gap-2">
-                {sourcePills.map(({ title, url }, i) => (
-                  <a
-                    key={i}
-                    href={sanitizeHref(url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-gray-200 hover:text-white transition-colors"
-                  >
-                    <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />
-                    <span className="truncate max-w-[200px]">{title}</span>
-                  </a>
-                ))}
-              </div>
-            </div>
-          );
-          sourcePills = [];
+        sourcePills = [];
+        return;
+      }
+
+      // Skip "### 📊 **Search Details**" section
+      if (line.includes("📊") && /Search Details/i.test(line)) {
+        flushList();
+        inSearchDetailsSection = true;
+        return;
+      }
+      if (inSearchDetailsSection) {
+        if (line.trim() === "" || line.match(/^#+\s/)) {
+          inSearchDetailsSection = false;
+        } else {
+          return;
         }
       }
 
@@ -1290,7 +1358,6 @@ function AgentPageContent() {
         flushList();
         const headerText = line.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
         const level = line.match(/^#+/)?.[0].length || 2;
-        const isWebSearchHeader = level === 2 && line.includes("🔍");
 
         if (level === 1) {
           elements.push(
@@ -1302,31 +1369,14 @@ function AgentPageContent() {
             </h1>
           );
         } else if (level === 2) {
-          if (isWebSearchHeader) {
-            elements.push(
-              <div
-                key={getNextKey()}
-                className="border-l-4 border-blue-500/50 bg-blue-500/5 rounded-r-xl pl-4 pr-4 py-3 my-4"
-              >
-                <div className="flex items-center gap-2 text-xs text-blue-400 mb-1.5">
-                  <Search className="h-3.5 w-3.5" />
-                  <span className="font-medium uppercase tracking-wider">Web search</span>
-                </div>
-                <h2 className="text-lg font-semibold text-white mt-0 mb-0 leading-snug">
-                  {headerText}
-                </h2>
-              </div>
-            );
-          } else {
-            elements.push(
-              <h2
-                key={getNextKey()}
-                className="text-lg font-semibold text-white mt-5 mb-2 leading-snug"
-              >
-                {headerText}
-              </h2>
-            );
-          }
+          elements.push(
+            <h2
+              key={getNextKey()}
+              className="text-lg font-semibold text-white mt-5 mb-2 leading-snug"
+            >
+              {headerText}
+            </h2>
+          );
         } else if (level === 3) {
           elements.push(
             <h3
@@ -1349,22 +1399,23 @@ function AgentPageContent() {
         return;
       }
 
-      // Handle bullet points
+      // Handle bullet points (unordered)
       if (line.match(/^[•\-\*]\s/)) {
+        if (currentOrderedList.length > 0) {
+          flushList();
+        }
         const listItem = line.replace(/^[•\-\*]\s*/, "");
         currentList.push(listItem);
         return;
       }
 
-      // Handle numbered lists
+      // Handle numbered lists (ordered) – accumulate into one <ol>
       if (line.match(/^\d+\.\s/)) {
-        flushList();
+        if (currentList.length > 0) {
+          flushList();
+        }
         const listItem = line.replace(/^\d+\.\s*/, "");
-        elements.push(
-          <ol key={getNextKey()} className="list-decimal list-outside pl-5 space-y-1.5 my-3 text-gray-200 leading-relaxed">
-            <li className="pl-1">{formatInlineMarkdown(listItem)}</li>
-          </ol>
-        );
+        currentOrderedList.push(listItem);
         return;
       }
 
@@ -1389,7 +1440,7 @@ function AgentPageContent() {
       if (line.trim()) {
         elements.push(
           <p key={getNextKey()} className="text-gray-200 leading-[1.65] my-2.5">
-            {formatInlineMarkdown(line)}
+            {formatInlineMarkdown(line, citationPills)}
           </p>
         );
       }
@@ -1398,30 +1449,6 @@ function AgentPageContent() {
     // Flush any remaining content
     flushList();
     flushCodeBlock();
-    if (inSourcesSection && sourcePills.length > 0) {
-      elements.push(
-        <div key={getNextKey()} className="mt-4 pt-4 border-t border-white/10">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <ExternalLink className="h-3.5 w-3.5" />
-            Sources
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {sourcePills.map(({ title, url }, i) => (
-              <a
-                key={i}
-                href={sanitizeHref(url)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10 text-sm text-gray-200 hover:text-white transition-colors"
-              >
-                <ExternalLink className="h-3 w-3 flex-shrink-0 opacity-70" />
-                <span className="truncate max-w-[200px]">{title}</span>
-              </a>
-            ))}
-          </div>
-        </div>
-      );
-    }
 
     // ✅ FIX: Add remaining charts with proper error handling
     while (chartIndex < charts.length) {
@@ -1448,83 +1475,98 @@ function AgentPageContent() {
     return <div className="space-y-1">{elements}</div>;
   };
 
-  const formatInlineMarkdown = (text: string): React.ReactNode => {
-    // Handle bold text
-    let formatted = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-
-    // Handle italic text
-    formatted = formatted.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-
-    // Handle inline code (VS Code–style)
-    formatted = formatted.replace(
-      /`([^`]+)`/g,
-      '<code class="bg-[#2d2d2d] border border-white/10 px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">$1</code>'
-    );
-
-    // Handle links (basic)
-    formatted = formatted.replace(
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" class="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
-
-    // Split by HTML tags and render accordingly
+  const renderHtmlLike = (formatted: string): React.ReactNode => {
     const parts = formatted.split(/(<[^>]+>)/);
     const elements: React.ReactNode[] = [];
-
     let i = 0;
     while (i < parts.length) {
       const part = parts[i];
-
       if (part.startsWith("<strong>")) {
         const content = part.replace(/<\/?strong>/g, "");
-        elements.push(
-          <strong key={i} className="font-semibold text-white">
-            {content}
-          </strong>
-        );
+        elements.push(<strong key={i} className="font-semibold text-white">{content}</strong>);
       } else if (part.startsWith("<em>")) {
         const content = part.replace(/<\/?em>/g, "");
-        elements.push(
-          <em key={i} className="italic text-gray-300">
-            {content}
-          </em>
-        );
+        elements.push(<em key={i} className="italic text-gray-300">{content}</em>);
       } else if (part.startsWith("<code")) {
         const content = part.replace(/<code[^>]*>|<\/code>/g, "");
-        elements.push(
-          <code
-            key={i}
-            className="bg-[#2d2d2d] border border-white/10 px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]"
-          >
-            {content}
-          </code>
-        );
+        elements.push(<code key={i} className="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">{content}</code>);
       } else if (part.startsWith("<a")) {
         const hrefMatch = part.match(/href="([^"]+)"/);
         const textMatch = part.match(/>([^<]+)</);
         if (hrefMatch && textMatch) {
-          const safeHref = sanitizeHref(hrefMatch[1]);
           elements.push(
-            <a
-              key={i}
-              href={safeHref}
-              className="text-blue-400 hover:text-blue-300 underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a key={i} href={sanitizeHref(hrefMatch[1])} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">
               {textMatch[1]}
             </a>
           );
         }
       } else if (!part.match(/^<[^>]+>$/)) {
-        // Regular text
         elements.push(part);
       }
-
       i++;
     }
+    return elements.length > 1 ? <>{elements}</> : elements[0] || formatted;
+  };
 
-    return elements.length > 1 ? <>{elements}</> : elements[0] || text;
+  const formatInlineMarkdown = (text: string, asCitationPills?: boolean): React.ReactNode => {
+    const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+    const renderLinkPill = (title: string, url: string) => {
+      let domain = "";
+      try {
+        if (url.startsWith("http")) domain = new URL(url).hostname.replace(/^www\./, "");
+      } catch {}
+      const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
+      return (
+        <a
+          href={sanitizeHref(url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 py-0.5 px-2 rounded-full text-xs font-mono bg-white/10 hover:bg-white/15 text-gray-200 hover:text-white transition-colors align-middle"
+        >
+          {faviconUrl && <img src={faviconUrl} alt="" className="w-3 h-3 rounded-sm flex-shrink-0" />}
+          <span className="truncate max-w-[25ch]">{title}</span>
+        </a>
+      );
+    };
+
+    const processWithoutLinks = (s: string) => {
+      let f = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      f = f.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      f = f.replace(/`([^`]+)`/g, '<code class="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">$1</code>');
+      f = f.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">$1</a>');
+      return f;
+    };
+
+    if (asCitationPills) {
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      let match;
+      const re = new RegExp(linkRe.source, "g");
+      while ((match = re.exec(text)) !== null) {
+        const before = text.slice(lastIndex, match.index);
+        if (before) parts.push(renderHtmlLike(processWithoutLinks(before)));
+        const [, title, url] = match;
+        parts.push(renderLinkPill(title, url));
+        lastIndex = match.index + match[0].length;
+      }
+      const after = text.slice(lastIndex);
+      if (after) parts.push(renderHtmlLike(processWithoutLinks(after)));
+      return parts.length > 1 ? <>{parts}</> : parts[0] ?? text;
+    }
+
+    let formatted = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    formatted = formatted.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    formatted = formatted.replace(
+      /`([^`]+)`/g,
+      '<code class="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">$1</code>'
+    );
+    formatted = formatted.replace(
+      linkRe,
+      '<a href="$2" class="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+
+    return renderHtmlLike(formatted);
   };
 
   const handleUploadComplete = async (data: any[], metadata: any) => {
@@ -1718,7 +1760,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
             selected_year: selectedYear !== 'all' ? selectedYear : 'all'
           }
         } : hasPostgres ? {
-          data: [], // Empty data array for PostgreSQL
+          data: [], 
           metadata: {
             connectionString: postgresConnectionString,
             dataType: 'PostgreSQL Database',
@@ -1782,6 +1824,12 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
         }),
         ...(result.model_used != null && { model_used: formatModelLabel(result.model_used) }),
         ...(result.token_count != null && { token_count: result.token_count }),
+        ...(result.web_search_used && {
+          web_search_used: true,
+          webSources: (result.web_sources?.length
+            ? result.web_sources.map((s: { title: string; url: string; snippet?: string }) => ({ title: s.title, url: s.url, snippet: s.snippet }))
+            : extractWebSourcesFromContent(responseContent)),
+        }),
       };
 
       // If backend says the user sent a secret (e.g. Stripe key), redact it in the UI and in saved messages
@@ -1828,7 +1876,11 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           result.analysis_type || null,
           { 
             context_summary: result.context_summary,
-            analysis_results: result.analysis_results 
+            analysis_results: result.analysis_results,
+            ...(result.web_search_used && {
+              web_search_used: true,
+              webSources: (result.web_sources || []).map((s: { title: string; url: string; snippet?: string }) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+            }),
           }
         );
         console.log('✅ Assistant message saved:', assistantMessageResult);
@@ -2198,21 +2250,21 @@ Would you like to upload some data to analyze?`;
       <div className="flex flex-wrap items-center gap-2">
         <Badge
           variant="secondary"
-          className="bg-green-500/20 text-green-400 border-green-500/30"
+          className="bg-green-500/20 text-green-400"
         >
           <Database className="h-3 w-3 mr-1" />
           {dataContext?.rowCount?.toLocaleString()} rows
         </Badge>
         <Badge
           variant="secondary"
-          className="bg-blue-500/20 text-blue-400 border-blue-500/30"
+          className="bg-blue-500/20 text-blue-400"
         >
           <FileText className="h-3 w-3 mr-1" />
           {dataContext?.totalColumns} columns
         </Badge>
         <Badge
           variant="secondary"
-          className="bg-purple-500/20 text-purple-400 border-purple-500/30"
+          className="bg-purple-500/20 text-purple-400"
         >
           <PieChart className="h-3 w-3 mr-1" />
           {dataContext?.dataType}
@@ -2532,7 +2584,6 @@ Would you like to upload some data to analyze?`;
 
   return (
     <div className="h-screen bg-[#0f1112] text-white flex flex-col overflow-hidden relative">
-
       {isSidebarCollapsed && (
         <button
           onClick={toggleSidebar}
@@ -2543,6 +2594,8 @@ Would you like to upload some data to analyze?`;
         </button>
       )}
 
+      <div className="flex flex-1 min-h-0 min-w-0">
+        <div className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300`}>
       <div className="backdrop-blur-sm max-h-20 sticky top-0 z-10 hidden md:block">
         <div
           className={`mx-auto py-2 px-4 transition-all duration-300 ${
@@ -2626,7 +2679,7 @@ Would you like to upload some data to analyze?`;
               {message.role === "user" && (
                 <>
               <div className="max-w-[85%] order-first flex flex-col items-end group">
-                <div className="rounded-2xl bg-white/5 backdrop-blur-sm text-gray-100 p-4 w-full">
+                <div className="rounded-2xl bg-white/10 backdrop-blur-sm text-gray-100 p-4 w-full">
                   <div className="prose prose-sm max-w-none text-current">
                     <div className="whitespace-pre-wrap leading-relaxed text-gray-200">
                       {message.content}
@@ -2689,7 +2742,7 @@ Would you like to upload some data to analyze?`;
               )}
 
               {message.role === "assistant" && (
-                <div className="w-full flex gap-3">
+                <div className="w-full flex gap-3 group">
                   <div className="w-7 h-7 mt-0.5 flex-shrink-0 flex items-center justify-center">
                     <Image
                       src="/anilyst_logo.svg"
@@ -2700,11 +2753,15 @@ Would you like to upload some data to analyze?`;
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="prose prose-sm max-w-none text-current text-gray-200 prose-headings:font-semibold prose-p:my-2.5 prose-ul:my-3 prose-ol:my-3">
-                      {renderMarkdown(message.content)}
+                    <div className="prose prose-sm max-w-none text-current text-gray-200 prose-headings:font-semibold prose-p:my-2.5 prose-ul:my-3 prose-ol:my-3 prose-li:my-0.5 prose-blockquote:border-l-4 prose-blockquote:border-blue-500/50 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-300 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 [&_table]:block [&_table]:overflow-x-auto">
+                      {renderMarkdown(message.content, {
+                        citationPills:
+                          (message.webSources?.length ?? 0) > 0 ||
+                          extractWebSourcesFromContent(message.content).length > 0,
+                      })}
                     </div>
                     {message.vector_context_used && message.context_summary && (
-                      <div className="mt-4 text-xs text-blue-300 bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
+                      <div className="mt-4 text-xs text-blue-300 bg-blue-500/20 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-1">
                           <Brain className="h-3 w-3" />
                           <span className="font-medium">
@@ -2719,7 +2776,7 @@ Would you like to upload some data to analyze?`;
                       </div>
                     )}
                     {message.authorizationUrl && (
-                      <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                      <div className="mt-4 p-4 rounded-xl bg-white/5">
                         <p className="text-sm text-gray-300 mb-3">
                           {message.authorizationMessage || 'Connect your account so the agent can read and analyze your data.'}
                         </p>
@@ -2738,7 +2795,7 @@ Would you like to upload some data to analyze?`;
                       </div>
                     )}
                     {message.questions && message.questions.length > 0 && (
-                      <div className="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                      <div className="mt-4 p-4 rounded-xl bg-yellow-500/10">
                         <p className="text-sm text-yellow-200 mb-3 font-medium">
                           I need some information to complete this task:
                         </p>
@@ -2754,35 +2811,91 @@ Would you like to upload some data to analyze?`;
                         </p>
                       </div>
                     )}
-                    <div className="flex flex-wrap items-center justify-between gap-2 mt-3 pt-2 border-t border-white/5">
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={() => copyMessage(message.content, index)}
-                          className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
-                          title="Copy"
-                        >
-                          {copiedMessageId === index.toString() ? (
-                            <Check className="h-4 w-4 text-green-400" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                        </button>
-                        <button
-                          onClick={() => handleRetry(index)}
-                          className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
-                          title="Retry"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-gray-400">
-                        {message.model_used && (
-                          <span>{message.model_used}</span>
+                    <div className="flex items-center gap-2 mt-3 pt-2">
+                      <button
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: "AI Response",
+                              text: message.content,
+                            }).catch(() => copyMessage(message.content, index));
+                          } else {
+                            copyMessage(message.content, index);
+                          }
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Share"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([message.content], { type: "text/plain" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `response-${index}.txt`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Download"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => copyMessage(message.content, index)}
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Copy"
+                      >
+                        {copiedMessageId === index.toString() ? (
+                          <Check className="h-4 w-4 text-green-400" />
+                        ) : (
+                          <Copy className="h-4 w-4" />
                         )}
-                        {message.token_count != null && message.token_count > 0 && (
-                          <span>~{message.token_count.toLocaleString()} tokens</span>
-                        )}
-                      </div>
+                      </button>
+                      <button
+                        onClick={() => handleRetry(index)}
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Retry"
+                      >
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                      {(() => {
+                        const sources =
+                          message.webSources?.length
+                            ? message.webSources
+                            : extractWebSourcesFromContent(message.content);
+                        const hasSources = sources.length > 0;
+                        const isSourcesActive = sourcesSidebarOpen && sourcesSidebarMessageIndex === index;
+                        return hasSources ? (
+                          <button
+                            onClick={() => {
+                              setSourcesSidebarData({
+                                sources,
+                                query: messages[index - 1]?.role === "user" ? messages[index - 1].content : undefined,
+                              });
+                              setSourcesSidebarMessageIndex(index);
+                              setSourcesSidebarOpen(true);
+                            }}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm text-gray-400 hover:text-white transition-colors`}
+                            title="View sources"
+                          >
+                            <span className="flex -space-x-1.5 items-center">
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500/90 ring-2 ring-[#0f0f0f]" />
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500/90 ring-2 ring-[#0f0f0f]" />
+                              <span className="w-2.5 h-2.5 rounded-full bg-white/95 ring-2 ring-[#0f0f0f] flex items-center justify-center">
+                                <span className="flex gap-0.5 items-center">
+                                  <span className="w-0.5 h-0.5 rounded-full bg-gray-600" />
+                                  <span className="w-0.5 h-0.5 rounded-full bg-gray-600" />
+                                  <span className="w-0.5 h-0.5 rounded-full bg-gray-600" />
+                                </span>
+                              </span>
+                            </span>
+                            <span>{sources.length} source{sources.length !== 1 ? "s" : ""}</span>
+                          </button>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2791,16 +2904,22 @@ Would you like to upload some data to analyze?`;
           ))}
 
           {isLoading && (
-            <div className="flex w-full justify-start">
-              <div className="flex items-center gap-3 text-gray-300 w-full">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-400 flex-shrink-0" />
-                <span className="text-sm">
-                  {hasData
-                    ? `Analyzing ${currentFile?.name}...`
-                    : "Processing your request..."}
-                </span>
+            <>
+              <div className="flex gap-4 w-full justify-end">
+                <div className="max-w-[85%] rounded-2xl bg-white/10  p-4 w-48 h-12 animate-pulse" />
               </div>
-            </div>
+              <div className="flex gap-4 w-full justify-start">
+                <div className="w-7 h-7 rounded flex-shrink-0 bg-white/10 animate-pulse" />
+                <div className="flex-1 max-w-[85%] space-y-2">
+                  <div className="h-4 bg-white/10 rounded animate-pulse w-full" />
+                  <div className="h-4 bg-white/10 rounded animate-pulse w-5/6" />
+                  <div className="h-4 bg-white/10 rounded animate-pulse w-4/5" />
+                </div>
+              </div>
+              <div className="flex gap-4 w-full justify-end">
+                <div className="max-w-[85%] rounded-2xl bg-white/10 p-4 w-56 h-10 animate-pulse" />
+              </div>
+            </>
           )}
 
           <div ref={messagesEndRef} />
@@ -2890,6 +3009,85 @@ Would you like to upload some data to analyze?`;
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+        </div>
+
+        {/* Sources sidebar - slides in from right, chat shrinks when open */}
+        <div
+          className={`flex-shrink-0 flex flex-col bg-[#0f0f0f] overflow-hidden transition-[width] duration-300 ease-out ${
+            sourcesSidebarOpen && sourcesSidebarData ? "w-[380px]" : "w-0"
+          }`}
+          role="complementary"
+          aria-label="Sources"
+        >
+          {sourcesSidebarOpen && sourcesSidebarData && (
+          <>
+            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-white">
+                {sourcesSidebarData.sources.length} source{sourcesSidebarData.sources.length !== 1 ? "s" : ""}
+              </h3>
+              <button
+                onClick={() => { setSourcesSidebarOpen(false); setSourcesSidebarMessageIndex(null); }}
+                className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {sourcesSidebarData.query && (
+              <p className="px-4 pb-3 text-sm text-gray-400 truncate flex-shrink-0" title={sourcesSidebarData.query}>
+                Sources for: {sourcesSidebarData.query}
+              </p>
+            )}
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-6">
+              {sourcesSidebarData.sources.map((source, i) => {
+                let domain = "";
+                try {
+                  if (source.url.startsWith("http")) domain = new URL(source.url).hostname.replace(/^www\./, "");
+                } catch {}
+                const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
+                const sourceName = domain || source.title;
+                const sourceUrl = sanitizeHref(source.url);
+                return (
+                  <div
+                    key={i}
+                    className="flex gap-3 group py-2 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    <a
+                      href={sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-transparent"
+                    >
+                      {faviconUrl ? (
+                        <img src={faviconUrl} alt="" className="w-8 h-8 object-contain" />
+                      ) : (
+                        <ExternalLink className="w-5 h-5 text-gray-500" />
+                      )}
+                    </a>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-500 mb-0.5">{sourceName}</p>
+                      <a
+                        href={sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-white group-hover:text-blue-400 transition-colors leading-snug"
+                      >
+                        {formatInlineMarkdown(source.title)}
+                      </a>
+                      {source.snippet && (
+                        <div className="text-sm text-gray-500 mt-1 leading-relaxed line-clamp-3 [&_a]:text-blue-400 [&_a]:hover:underline [&_strong]:font-medium [&_code]:bg-[#2d2d2d] [&_code]:px-1 [&_code]:rounded [&_code]:text-xs">
+                          {formatInlineMarkdown(source.snippet)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+          )}
         </div>
       </div>
 
