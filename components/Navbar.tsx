@@ -138,7 +138,8 @@ export default function Navbar() {
               {/* Logo Area */}
               <Link href="/" className="flex items-center space-x-3">
                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-blue-600 flex items-center justify-center">
-                  <Brain className="w-7 h-7 text-white" />
+                  
+                <img src="/anilyst_logo.svg" alt="Anilyst Logo" className="w-7 h-7 text-white" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xl md:text-2xl font-bold text-white">

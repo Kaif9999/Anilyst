@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,13 +29,43 @@ import {
   User,
   RotateCcw,
   ExternalLink,
+  Code,
+  Pencil,
+  BookOpen,
+  X,
+  Share2,
+  Download,
 } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { useSidebar } from "@/app/dashboard/layout";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Image from "next/image";
+import { Highlight, PrismTheme } from "prism-react-renderer";
 import ChatUploadModal from "./chat-upload-modal";
+
+/** Neutral vibrant code theme: mixed colors (blue, green, amber, rose, teal) on a neutral dark background */
+const ANILYST_CODE_THEME: PrismTheme = {
+  plain: {
+    color: "#cbd5e1",
+    backgroundColor: "#1e293b",
+  },
+  styles: [
+    { types: ["comment"], style: { color: "#64748b", fontStyle: "italic" } },
+    { types: ["prolog", "doctype"], style: { color: "#94a3b8" } },
+    { types: ["keyword", "boolean", "changed"], style: { color: "#f472b6" } },
+    { types: ["builtin"], style: { color: "#38bdf8" } },
+    { types: ["number", "inserted"], style: { color: "#fbbf24" } },
+    { types: ["constant"], style: { color: "#2dd4bf" } },
+    { types: ["attr-name", "variable", "property"], style: { color: "#7dd3fc" } },
+    { types: ["function"], style: { color: "#a78bfa" } },
+    { types: ["class-name"], style: { color: "#2dd4bf" } },
+    { types: ["deleted", "string", "attr-value", "template-punctuation", "interpolation", "char"], style: { color: "#4ade80" } },
+    { types: ["selector"], style: { color: "#fbbf24" } },
+    { types: ["tag"], style: { color: "#38bdf8" } },
+    { types: ["punctuation", "operator"], style: { color: "#94a3b8" } },
+  ],
+};
 import { useChatSessions } from "@/hooks/useChatSessions";
 import { fetchWithCsrf } from "@/lib/api-client";
 import { sanitizeHref } from "@/lib/sanitize";
@@ -69,12 +99,77 @@ ChartJS.register(
 const FASTAPI_URL =
   process.env.NEXT_PUBLIC_FASTAPI_URL || "http://localhost:8000";
 
+/** Extract web sources from markdown content (Sources section and inline links) */
+function extractWebSourcesFromContent(content: string): WebSource[] {
+  const sources: WebSource[] = [];
+  const seen = new Set<string>();
+  const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+  let inSources = false;
+  for (const line of content.split("\n")) {
+    const s = line.trim();
+    if (line.includes("📎") && /Sources/i.test(line)) inSources = true;
+    if (inSources && s.startsWith("- ")) {
+      for (const m of s.matchAll(linkRe)) {
+        const [, title, url] = m;
+        if (url?.startsWith("http") && !seen.has(url)) {
+          seen.add(url);
+          sources.push({ title: (title || url).trim(), url: url.trim(), snippet: undefined });
+        }
+      }
+    } else if (inSources && s && !s.startsWith("- ")) inSources = false;
+  }
+  for (const m of content.matchAll(linkRe)) {
+    if (sources.length >= 20) break;
+    const [, title, url] = m;
+    if (url?.startsWith("http") && !seen.has(url)) {
+      seen.add(url);
+      const lastPara = content.lastIndexOf("\n\n", m.index);
+      const paraStart = lastPara < 0 ? 0 : lastPara + 2;
+      const nextPara = content.indexOf("\n\n", m.index + m[0].length);
+      const paraEnd = nextPara < 0 ? content.length : nextPara;
+      const para = content.slice(paraStart, paraEnd);
+      let snippet = para.replace(/\[([^\]]+)\]\([^)]+\)/g, "").replace(/\s+/g, " ").trim();
+      if (snippet.length > 250) snippet = snippet.slice(0, 247) + "...";
+      sources.push({ title: (title || url).trim(), url: url.trim(), snippet: snippet || undefined });
+    }
+  }
+  return sources;
+}
+
+/** Format OpenRouter model id (e.g. openai/gpt-4o) for display (e.g. OpenAI: GPT-4o) */
+function formatModelLabel(modelId: string): string {
+  if (!modelId || modelId === "unknown") return "AI";
+  const [provider, name] = modelId.split("/");
+  const providerLabel =
+    provider === "openai"
+      ? "OpenAI"
+      : provider === "anthropic"
+        ? "Anthropic"
+        : provider === "google"
+          ? "Google"
+          : provider?.charAt(0)?.toUpperCase() + (provider?.slice(1) ?? "");
+  const nameLabel = (name ?? modelId)
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return `${providerLabel}: ${nameLabel}`;
+}
+
+interface WebSource {
+  title: string;
+  url: string;
+  snippet?: string;
+}
+
 interface Message {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
   analysis_results?: any;
   vector_context_used?: boolean;
+  /** Web search was used; show sources button and inline citation pills */
+  web_search_used?: boolean;
+  /** Structured sources from API (or parsed from content) */
+  webSources?: WebSource[];
   context_summary?: {
     similar_analyses_count: number;
     suggested_sources: string[];
@@ -89,6 +184,10 @@ interface Message {
   /** When set, show a "Connect Stripe" (or other) card with this URL so the agent can read data via Arcade */
   authorizationUrl?: string;
   authorizationMessage?: string;
+  /** Model used for this response (e.g. OpenAI: GPT-4o) – shown in footer */
+  model_used?: string;
+  /** Approximate token count – shown in footer when available */
+  token_count?: number;
   questions?: Array<{
     field: string;
     question: string;
@@ -99,13 +198,92 @@ interface Message {
   needsInfo?: boolean;
 }
 
+/** Map common language labels to Prism language ids */
+const PRISM_LANG: Record<string, string> = {
+  js: "javascript",
+  jsx: "jsx",
+  ts: "typescript",
+  tsx: "tsx",
+  py: "python",
+  yml: "yaml",
+  sh: "bash",
+  shell: "bash",
+  md: "markdown",
+  rb: "ruby",
+  go: "go",
+  rs: "rust",
+  kt: "kotlin",
+  java: "java",
+  c: "c",
+  cpp: "cpp",
+  cs: "csharp",
+  sql: "sql",
+  html: "markup",
+  xml: "markup",
+};
+
+/** VS Code–style code block with syntax highlighting and copy button */
+function CodeBlock({
+  content,
+  language,
+  blockKey,
+  copiedKey,
+  onCopy,
+}: {
+  content: string;
+  language: string;
+  blockKey: string;
+  copiedKey: string | null;
+  onCopy: (k: string) => void;
+}) {
+  const copied = copiedKey === blockKey;
+  const prismLang = language
+    ? (PRISM_LANG[language.toLowerCase()] || language.toLowerCase())
+    : "plaintext";
+  return (
+    <div className="my-4 rounded-xl overflow-hidden bg-[#1e293b] shadow-lg">
+      <div className="flex items-center justify-between px-3 py-2 bg-white/5">
+        <span className="text-xs font-medium text-slate-400 uppercase tracking-wider flex items-center gap-2">
+          <Code className="h-3.5 w-3.5" />
+          {language || "code"}
+        </span>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard.writeText(content);
+            onCopy(blockKey);
+          }}
+          className="flex items-center gap-1.5 px-2 py-1 rounded-md text-xs text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? "Copied" : "Copy"}
+        </button>
+      </div>
+      <Highlight theme={ANILYST_CODE_THEME} code={content.trimEnd()} language={prismLang}>
+        {({ className, style, tokens, getLineProps, getTokenProps }) => (
+          <pre className={`p-4 overflow-x-auto text-sm leading-relaxed m-0 font-mono text-[13px] ${className}`} style={style}>
+            {tokens.map((line, i) => (
+              <div key={i} {...getLineProps({ line })}>
+                {line.map((token, key) => (
+                  <span key={key} {...getTokenProps({ token })} />
+                ))}
+              </div>
+            ))}
+          </pre>
+        )}
+      </Highlight>
+    </div>
+  );
+}
+
 interface VectorContext {
   similar_analyses: Array<{
-    id: string;
-    score: number;
-    analysis_type: string;
-    key_insights: string[];
-    session_id: string;
+    id?: string;
+    score?: number;
+    similarity_score?: number;
+    analysis_type?: string;
+    key_insights?: string[];
+    session_id?: string;
   }>;
   suggested_data_sources: string[];
   suggested_analysis_types: string[];
@@ -155,12 +333,16 @@ interface ChartData {
   };
 }
 
-function useVectorContext(query: string, sessionId: string | null) {
+function useVectorContext(
+  query: string,
+  sessionId: string | null,
+  userId: string | null
+) {
   const [context, setContext] = useState<VectorContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!query || query.length < 20 || !sessionId) {
+    if (!query || query.trim().length < 8 || !sessionId || !userId || userId === "anonymous") {
       setContext(null);
       return;
     }
@@ -172,19 +354,23 @@ function useVectorContext(query: string, sessionId: string | null) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            query,
+            query: query.trim(),
             session_id: sessionId,
-            user_id: "user_123",
+            user_id: userId,
           }),
         });
 
         if (response.ok) {
           const data = await response.json();
-          if (data.context && data.context.has_context) {
-            setContext(data.context);
+          // Backend returns { context: { has_context, similar_analyses, ... } }
+          const ctx = data.context ?? data;
+          if (ctx && ctx.has_context) {
+            setContext(ctx);
           } else {
             setContext(null);
           }
+        } else {
+          setContext(null);
         }
       } catch (error) {
         console.error("Error fetching vector context:", error);
@@ -194,9 +380,9 @@ function useVectorContext(query: string, sessionId: string | null) {
       }
     };
 
-    const timer = setTimeout(getContext, 1000);
+    const timer = setTimeout(getContext, 800);
     return () => clearTimeout(timer);
-  }, [query, sessionId]);
+  }, [query, sessionId, userId]);
 
   return { context, isLoading };
 }
@@ -492,7 +678,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
   if (!chartData || !chartData.data) {
     console.error("Chart data is invalid");
     return (
-      <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+      <div className="my-6 p-4 bg-gray-900/50 rounded-lg">
         <div className="h-96 w-full flex items-center justify-center">
           <p className="text-gray-400">Chart data is missing or invalid</p>
         </div>
@@ -510,7 +696,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
     validatedData.datasets.length === 0
   ) {
     return (
-      <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+      <div className="my-6 p-4 bg-gray-900/50 rounded-lg">
         <div className="h-96 w-full flex items-center justify-center">
           <p className="text-gray-400">No data available for chart</p>
         </div>
@@ -764,7 +950,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
   };
 
   return (
-    <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+    <div className="my-6 p-4 bg-gray-900/50 rounded-lg">
       <div className="h-96 w-full">{renderChart()}</div>
     </div>
   );
@@ -779,6 +965,7 @@ function AgentPageContent() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [copiedCodeKey, setCopiedCodeKey] = useState<string | null>(null);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -787,6 +974,15 @@ function AgentPageContent() {
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isNewSession, setIsNewSession] = useState(true);
   const [isFirstMessage, setIsFirstMessage] = useState(true);
+  /** When set, next send replaces this user message (and following messages) with the new prompt (rewrite flow) */
+  const [editingMessageIndex, setEditingMessageIndex] = useState<number | null>(null);
+  /** Sources sidebar: open state and data for the selected message */
+  const [sourcesSidebarOpen, setSourcesSidebarOpen] = useState(false);
+  const [sourcesSidebarMessageIndex, setSourcesSidebarMessageIndex] = useState<number | null>(null);
+  const [sourcesSidebarData, setSourcesSidebarData] = useState<{
+    sources: WebSource[];
+    query?: string;
+  } | null>(null);
 
   const [chatData, setChatData] = useState<ChatData | null>(null);
 
@@ -807,8 +1003,14 @@ function AgentPageContent() {
     loadSession,
   } = useChatSessions();
 
+  const { data: session } = useSession();
+
   const { context: vectorContext, isLoading: isContextLoading } =
-    useVectorContext(input, sessionId);
+    useVectorContext(
+      input,
+      sessionId,
+      (session?.user?.id as string) || (session?.user?.email as string) || null
+    );
 
   const hasData = !!chatData;
   const rawData = chatData?.data || [];
@@ -822,9 +1024,6 @@ function AgentPageContent() {
   const availableYears: string[] = [];
   const selectedYear = "all";
   const fileLoading = false;
-
-
-  const { data: session } = useSession();
 
 
   const getUserData = () => {
@@ -851,7 +1050,6 @@ function AgentPageContent() {
         console.log("📌 Loading existing session:", sessionParam);
         setSessionId(sessionParam);
         setIsNewSession(false);
-        setIsFirstMessage(false);
 
         // ✅ CRITICAL: Load the session object first
         try {
@@ -883,21 +1081,27 @@ function AgentPageContent() {
                 vector_context_used: msg.vectorContextUsed,
                 context_summary: msg.metadata?.context_summary,
                 dataContext: msg.metadata?.dataContext,
+                web_search_used: msg.metadata?.web_search_used,
+                webSources: msg.metadata?.webSources,
               }));
 
               console.log("✅ Formatted messages:", formattedMessages.length);
               setMessages(formattedMessages);
               setShowWelcome(false);
+              setIsFirstMessage(false); // Has messages - not first prompt
             } else {
-              console.log("ℹ️ No messages found in session");
+              console.log("ℹ️ No messages found in session - new chat, will rename after first prompt");
               setMessages([]);
               setShowWelcome(true);
+              setIsFirstMessage(true); // No messages - first prompt will trigger title rename
             }
           } else {
             console.error("❌ Failed to load messages:", response.status);
+            setIsFirstMessage(true); // Assume new on error
           }
         } catch (error) {
           console.error("❌ Error loading messages:", error);
+          setIsFirstMessage(true); // Assume new on error
         }
       } else {
         // ✅ Create new session
@@ -930,14 +1134,23 @@ function AgentPageContent() {
     }
   }, [searchParams, isMounted, sessionsLoading, createSession, loadSession]);
 
-  // ✅ Clear data and messages when session changes
+  // ✅ Clear data and messages when switching to a different session (user clicked another chat)
+  const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
-    console.log("🔄 Session changed, clearing chat data");
-    setChatData(null);
-    setMessages([]);
-    setShowWelcome(true);
-    setIsNewSession(false);
-    setIsFirstMessage(false);
+    // Only clear when switching from one session to another (not on initial load)
+    if (
+      prevSessionIdRef.current !== null &&
+      sessionId !== null &&
+      prevSessionIdRef.current !== sessionId
+    ) {
+      console.log("🔄 Session switched, clearing chat data");
+      setChatData(null);
+      setMessages([]);
+      setShowWelcome(true);
+      setIsNewSession(false);
+      setIsFirstMessage(false);
+    }
+    prevSessionIdRef.current = sessionId;
   }, [sessionId]);
 
   useEffect(() => {
@@ -1003,31 +1216,55 @@ function AgentPageContent() {
     }
   }, [input]);
 
-  const renderMarkdown = (content: string) => {
+  const renderMarkdown = (content: string, opts?: { citationPills?: boolean }) => {
+    const citationPills = opts?.citationPills ?? false;
     const { content: textContent, charts } = detectAndRenderCharts(content);
 
     // Convert markdown to HTML-like JSX elements
     const lines = textContent.split("\n");
     const elements: JSX.Element[] = [];
     let currentList: string[] = [];
+    let currentOrderedList: string[] = [];
     let inCodeBlock = false;
     let codeBlockContent: string[] = [];
     let codeBlockLanguage = "";
     let chartIndex = 0;
     let elementKey = 0;
+    let inSourcesSection = false;
+    let inSearchDetailsSection = false;
+    let sourcePills: { title: string; url: string }[] = [];
+    const sourceLinkRegex = /^-\s*\[([^\]]+)\]\(([^)]+)\)\s*$/;
 
     const getNextKey = () => `element-${elementKey++}`;
 
     const flushList = () => {
+      if (currentOrderedList.length > 0) {
+        elements.push(
+          <ol
+            key={getNextKey()}
+            className="list-none space-y-1.5 my-3 text-gray-200 leading-relaxed pl-6"
+          >
+            {currentOrderedList.map((item, index) => (
+              <li key={index} className="flex gap-1.5">
+                <span className="shrink-0 font-medium text-purple-400 tabular-nums">
+                  {index + 1}.
+                </span>
+                <span>{formatInlineMarkdown(item, citationPills)}</span>
+              </li>
+            ))}
+          </ol>
+        );
+        currentOrderedList = [];
+      }
       if (currentList.length > 0) {
         elements.push(
           <ul
             key={getNextKey()}
-            className="list-disc list-inside space-y-1 my-3 ml-4"
+            className="list-disc list-outside pl-5 space-y-2 my-3 text-gray-200 leading-relaxed [&_li::marker]:text-purple-400"
           >
             {currentList.map((item, index) => (
-              <li key={index} className="text-gray-200">
-                {formatInlineMarkdown(item)}
+              <li key={index} className="pl-1">
+                {formatInlineMarkdown(item, citationPills)}
               </li>
             ))}
           </ul>
@@ -1038,17 +1275,22 @@ function AgentPageContent() {
 
     const flushCodeBlock = () => {
       if (codeBlockContent.length > 0) {
+        const blockKey = `code-${getNextKey()}`;
         elements.push(
-          <pre
-            key={getNextKey()}
-            className="bg-gray-800/50 border border-gray-600 rounded-lg p-4 my-3 overflow-x-auto"
-          >
-            <code className="text-sm text-gray-300 font-mono">
-              {codeBlockContent.join("\n")}
-            </code>
-          </pre>
+          <CodeBlock
+            key={blockKey}
+            content={codeBlockContent.join("\n")}
+            language={codeBlockLanguage}
+            blockKey={blockKey}
+            copiedKey={copiedCodeKey}
+            onCopy={(k) => {
+              setCopiedCodeKey(k);
+              setTimeout(() => setCopiedCodeKey(null), 2000);
+            }}
+          />
         );
         codeBlockContent = [];
+        codeBlockLanguage = "";
       }
     };
 
@@ -1104,17 +1346,51 @@ function AgentPageContent() {
         return;
       }
 
+      // Skip "### 📎 **Sources**" section — not rendered (sources in sidebar/pills only)
+      if (line.includes("📎") && line.includes("Sources")) {
+        flushList();
+        inSourcesSection = true;
+        return;
+      }
+      if (inSourcesSection && sourceLinkRegex.test(line.trim())) {
+        const match = line.trim().match(sourceLinkRegex);
+        if (match) {
+          const [, title, url] = match;
+          sourcePills.push({ title, url });
+        }
+        return;
+      }
+      if (inSourcesSection) {
+        inSourcesSection = false;
+        sourcePills = [];
+        return;
+      }
+
+      // Skip "### 📊 **Search Details**" section
+      if (line.includes("📊") && /Search Details/i.test(line)) {
+        flushList();
+        inSearchDetailsSection = true;
+        return;
+      }
+      if (inSearchDetailsSection) {
+        if (line.trim() === "" || line.match(/^#+\s/)) {
+          inSearchDetailsSection = false;
+        } else {
+          return;
+        }
+      }
+
       // Handle headers
       if (line.startsWith("#")) {
         flushList();
-        const headerText = line.replace(/^#+\s*/, "");
+        const headerText = line.replace(/^#+\s*/, "").replace(/\*\*/g, "").trim();
         const level = line.match(/^#+/)?.[0].length || 2;
 
         if (level === 1) {
           elements.push(
             <h1
               key={getNextKey()}
-              className="text-2xl font-bold text-white mt-6 mb-3"
+              className="text-2xl font-bold text-white mt-6 mb-3 leading-tight"
             >
               {headerText}
             </h1>
@@ -1123,7 +1399,7 @@ function AgentPageContent() {
           elements.push(
             <h2
               key={getNextKey()}
-              className="text-xl font-bold text-white mt-5 mb-2"
+              className="text-lg font-semibold text-white mt-5 mb-2 leading-snug"
             >
               {headerText}
             </h2>
@@ -1132,7 +1408,7 @@ function AgentPageContent() {
           elements.push(
             <h3
               key={getNextKey()}
-              className="text-lg font-semibold text-white mt-4 mb-2"
+              className="text-base font-semibold text-white mt-4 mb-2 leading-snug"
             >
               {headerText}
             </h3>
@@ -1141,7 +1417,7 @@ function AgentPageContent() {
           elements.push(
             <h4
               key={getNextKey()}
-              className="text-base font-semibold text-white mt-3 mb-2"
+              className="text-sm font-semibold text-white mt-3 mb-1.5 leading-snug"
             >
               {headerText}
             </h4>
@@ -1150,28 +1426,36 @@ function AgentPageContent() {
         return;
       }
 
-      // Handle bullet points
+      // Handle bullet points (unordered)
       if (line.match(/^[•\-\*]\s/)) {
+        if (currentOrderedList.length > 0) {
+          flushList();
+        }
         const listItem = line.replace(/^[•\-\*]\s*/, "");
         currentList.push(listItem);
         return;
       }
 
-      // Handle numbered lists
+      // Handle numbered lists (ordered) – accumulate into one <ol>
       if (line.match(/^\d+\.\s/)) {
-        flushList();
+        if (currentList.length > 0) {
+          flushList();
+        }
         const listItem = line.replace(/^\d+\.\s*/, "");
-        elements.push(
-          <ol key={getNextKey()} className="list-decimal list-inside my-2 ml-4">
-            <li className="text-gray-200">{formatInlineMarkdown(listItem)}</li>
-          </ol>
-        );
+        currentOrderedList.push(listItem);
         return;
       }
 
-      // Handle empty lines
       if (line.trim() === "") {
-        flushList();
+        const nextLine = lines[index + 1];
+        const nextIsNumbered = nextLine?.match(/^\d+\.\s/);
+        const nextIsBullet = nextLine?.match(/^[•\-\*]\s/);
+        const listContinues =
+          (nextIsNumbered && currentOrderedList.length > 0) ||
+          (nextIsBullet && currentList.length > 0);
+        if (!listContinues) {
+          flushList();
+        }
         elements.push(<br key={getNextKey()} />);
         return;
       }
@@ -1189,8 +1473,8 @@ function AgentPageContent() {
       flushList();
       if (line.trim()) {
         elements.push(
-          <p key={getNextKey()} className="text-gray-200 leading-relaxed my-2">
-            {formatInlineMarkdown(line)}
+          <p key={getNextKey()} className="text-gray-200 leading-[1.65] my-2.5">
+            {formatInlineMarkdown(line, citationPills)}
           </p>
         );
       }
@@ -1225,83 +1509,98 @@ function AgentPageContent() {
     return <div className="space-y-1">{elements}</div>;
   };
 
-  const formatInlineMarkdown = (text: string): React.ReactNode => {
-    // Handle bold text
-    let formatted = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
-
-    // Handle italic text
-    formatted = formatted.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-
-    // Handle inline code
-    formatted = formatted.replace(
-      /`([^`]+)`/g,
-      '<code class="bg-gray-700/50 px-1 py-0.5 rounded text-xs font-mono text-blue-300">$1</code>'
-    );
-
-    // Handle links (basic)
-    formatted = formatted.replace(
-      /\[([^\]]+)\]\(([^)]+)\)/g,
-      '<a href="$2" class="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">$1</a>'
-    );
-
-    // Split by HTML tags and render accordingly
+  const renderHtmlLike = (formatted: string): React.ReactNode => {
     const parts = formatted.split(/(<[^>]+>)/);
     const elements: React.ReactNode[] = [];
-
     let i = 0;
     while (i < parts.length) {
       const part = parts[i];
-
       if (part.startsWith("<strong>")) {
         const content = part.replace(/<\/?strong>/g, "");
-        elements.push(
-          <strong key={i} className="font-semibold text-white">
-            {content}
-          </strong>
-        );
+        elements.push(<strong key={i} className="font-semibold text-white">{content}</strong>);
       } else if (part.startsWith("<em>")) {
         const content = part.replace(/<\/?em>/g, "");
-        elements.push(
-          <em key={i} className="italic text-gray-300">
-            {content}
-          </em>
-        );
+        elements.push(<em key={i} className="italic text-gray-300">{content}</em>);
       } else if (part.startsWith("<code")) {
         const content = part.replace(/<code[^>]*>|<\/code>/g, "");
-        elements.push(
-          <code
-            key={i}
-            className="bg-gray-700/50 px-1 py-0.5 rounded text-xs font-mono text-blue-300"
-          >
-            {content}
-          </code>
-        );
+        elements.push(<code key={i} className="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">{content}</code>);
       } else if (part.startsWith("<a")) {
         const hrefMatch = part.match(/href="([^"]+)"/);
         const textMatch = part.match(/>([^<]+)</);
         if (hrefMatch && textMatch) {
-          const safeHref = sanitizeHref(hrefMatch[1]);
           elements.push(
-            <a
-              key={i}
-              href={safeHref}
-              className="text-blue-400 hover:text-blue-300 underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a key={i} href={sanitizeHref(hrefMatch[1])} className="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">
               {textMatch[1]}
             </a>
           );
         }
       } else if (!part.match(/^<[^>]+>$/)) {
-        // Regular text
-        elements.push(part);
+        elements.push(<Fragment key={i}>{part}</Fragment>);
       }
-
       i++;
     }
+    return elements.length > 1 ? <>{elements}</> : elements[0] || formatted;
+  };
 
-    return elements.length > 1 ? <>{elements}</> : elements[0] || text;
+  const formatInlineMarkdown = (text: string, asCitationPills?: boolean): React.ReactNode => {
+    const linkRe = /\[([^\]]+)\]\(([^)]+)\)/g;
+
+    const renderLinkPill = (title: string, url: string) => {
+      let domain = "";
+      try {
+        if (url.startsWith("http")) domain = new URL(url).hostname.replace(/^www\./, "");
+      } catch {}
+      const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
+      return (
+        <a
+          href={sanitizeHref(url)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 py-0.5 px-2 rounded-full text-xs font-mono bg-white/10 hover:bg-white/15 text-gray-200 hover:text-white transition-colors align-middle"
+        >
+          {faviconUrl && <img src={faviconUrl} alt="" className="w-3 h-3 rounded-sm flex-shrink-0" />}
+          <span className="truncate max-w-[25ch]">{title}</span>
+        </a>
+      );
+    };
+
+    const processWithoutLinks = (s: string) => {
+      let f = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      f = f.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+      f = f.replace(/`([^`]+)`/g, '<code class="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">$1</code>');
+      f = f.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">$1</a>');
+      return f;
+    };
+
+    if (asCitationPills) {
+      const parts: React.ReactNode[] = [];
+      let lastIndex = 0;
+      let match;
+      const re = new RegExp(linkRe.source, "g");
+      while ((match = re.exec(text)) !== null) {
+        const before = text.slice(lastIndex, match.index);
+        if (before) parts.push(renderHtmlLike(processWithoutLinks(before)));
+        const [, title, url] = match;
+        parts.push(renderLinkPill(title, url));
+        lastIndex = match.index + match[0].length;
+      }
+      const after = text.slice(lastIndex);
+      if (after) parts.push(renderHtmlLike(processWithoutLinks(after)));
+      return parts.length > 1 ? <>{parts.map((part, i) => <Fragment key={i}>{part}</Fragment>)}</> : parts[0] ?? text;
+    }
+
+    let formatted = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    formatted = formatted.replace(/\*([^*]+)\*/g, "<em>$1</em>");
+    formatted = formatted.replace(
+      /`([^`]+)`/g,
+      '<code class="bg-[#2d2d2d] px-1.5 py-0.5 rounded text-xs font-mono text-[#9cdcfe]">$1</code>'
+    );
+    formatted = formatted.replace(
+      linkRe,
+      '<a href="$2" class="text-blue-400 hover:text-blue-300 underline" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+
+    return renderHtmlLike(formatted);
   };
 
   const handleUploadComplete = async (data: any[], metadata: any) => {
@@ -1452,8 +1751,13 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
         columns: dataContext.columns
       } : undefined
     };
-  
-    setMessages(prev => [...prev, userMessage]);
+
+    if (editingMessageIndex !== null) {
+      setMessages(prev => [...prev.slice(0, editingMessageIndex), userMessage]);
+      setEditingMessageIndex(null);
+    } else {
+      setMessages(prev => [...prev, userMessage]);
+    }
     if (!overrideInput) setInput('');
     setIsLoading(true);
   
@@ -1490,7 +1794,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
             selected_year: selectedYear !== 'all' ? selectedYear : 'all'
           }
         } : hasPostgres ? {
-          data: [], // Empty data array for PostgreSQL
+          data: [], 
           metadata: {
             connectionString: postgresConnectionString,
             dataType: 'PostgreSQL Database',
@@ -1552,6 +1856,14 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           questions: result.questions,
           needsInfo: result.needs_info || true,
         }),
+        ...(result.model_used != null && { model_used: formatModelLabel(result.model_used) }),
+        ...(result.token_count != null && { token_count: result.token_count }),
+        ...(result.web_search_used && {
+          web_search_used: true,
+          webSources: (result.web_sources?.length
+            ? result.web_sources.map((s: { title: string; url: string; snippet?: string }) => ({ title: s.title, url: s.url, snippet: s.snippet }))
+            : extractWebSourcesFromContent(responseContent)),
+        }),
       };
 
       // If backend says the user sent a secret (e.g. Stripe key), redact it in the UI and in saved messages
@@ -1598,7 +1910,11 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           result.analysis_type || null,
           { 
             context_summary: result.context_summary,
-            analysis_results: result.analysis_results 
+            analysis_results: result.analysis_results,
+            ...(result.web_search_used && {
+              web_search_used: true,
+              webSources: (result.web_sources || []).map((s: { title: string; url: string; snippet?: string }) => ({ title: s.title, url: s.url, snippet: s.snippet })),
+            }),
           }
         );
         console.log('✅ Assistant message saved:', assistantMessageResult);
@@ -1968,21 +2284,21 @@ Would you like to upload some data to analyze?`;
       <div className="flex flex-wrap items-center gap-2">
         <Badge
           variant="secondary"
-          className="bg-green-500/20 text-green-400 border-green-500/30"
+          className="bg-green-500/20 text-green-400"
         >
           <Database className="h-3 w-3 mr-1" />
           {dataContext?.rowCount?.toLocaleString()} rows
         </Badge>
         <Badge
           variant="secondary"
-          className="bg-blue-500/20 text-blue-400 border-blue-500/30"
+          className="bg-blue-500/20 text-blue-400"
         >
           <FileText className="h-3 w-3 mr-1" />
           {dataContext?.totalColumns} columns
         </Badge>
         <Badge
           variant="secondary"
-          className="bg-purple-500/20 text-purple-400 border-purple-500/30"
+          className="bg-purple-500/20 text-purple-400"
         >
           <PieChart className="h-3 w-3 mr-1" />
           {dataContext?.dataType}
@@ -2022,7 +2338,7 @@ Would you like to upload some data to analyze?`;
             <Textarea
               value={transitionInput}
               readOnly
-              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 transition-all duration-300"
+              className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 transition-all duration-300 border-0 focus:ring-0 focus-visible:ring-0"
             />
             <div className="absolute bottom-4 right-4 flex items-center gap-3">
               <Button
@@ -2068,7 +2384,7 @@ Would you like to upload some data to analyze?`;
                   {!hasData && (
                     <Badge
                       variant="secondary"
-                      className="bg-orange-500/20 text-orange-400 border-orange-500/30"
+                      className="bg-orange-500/20 text-orange-400"
                     >
                       <AlertCircle className="h-3 w-3 mr-1" />
                       No Data
@@ -2107,7 +2423,7 @@ Would you like to upload some data to analyze?`;
               </div>
 
               {vectorContext && vectorContext.has_context && (
-                <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg max-w-2xl mx-auto">
+                <div className="mb-6 p-4 bg-blue-500/10 rounded-lg max-w-2xl mx-auto">
                   <div className="flex items-center gap-2 mb-2">
                     <Lightbulb className="h-4 w-4 text-yellow-400" />
                     <span className="text-sm font-medium text-blue-400">
@@ -2137,7 +2453,7 @@ Would you like to upload some data to analyze?`;
                         ? `Ask anything about ${currentFile?.name}...`
                         : "Upload data using the 📎 button, then ask me questions..."
                     }
-                    className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] max-h-[200px] text-lg rounded-3xl pl-8 pr-32 py-6 pb-20 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10 overflow-y-auto"
+                    className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[70px] max-h-[200px] text-lg rounded-3xl pl-8 pr-32 py-6 pb-20 border-0 focus:ring-2 focus:ring-blue-500/50 focus:border-0 transition-all duration-300 group-hover:bg-white/10 overflow-y-auto"
                     disabled={isLoading || fileLoading}
                     style={{
                       height: 'auto',
@@ -2196,7 +2512,7 @@ Would you like to upload some data to analyze?`;
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsUploadModalOpen(true)}
-                      className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                      className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                       title="Upload Data"
                     >
                       <Paperclip className="h-4 w-4" />
@@ -2229,13 +2545,13 @@ Would you like to upload some data to analyze?`;
                       example.title !== "Supported Formats" &&
                       example.title !== "Analysis Types"
                     }
-                    className={`group relative text-left p-6 rounded-2xl transition-all duration-300 border ${
+                    className={`group relative text-left p-6 rounded-2xl transition-all duration-300 ${
                       !hasData &&
                       example.title !== "Upload Data" &&
                       example.title !== "Supported Formats" &&
                       example.title !== "Analysis Types"
-                        ? "bg-white/5 border-white/10 opacity-50 cursor-not-allowed"
-                        : "bg-white/5 backdrop-blur-sm hover:bg-white/10 border-white/10 hover:border-white/20 hover:scale-105 cursor-pointer"
+                        ? "bg-white/5 opacity-50 cursor-not-allowed"
+                        : "bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:scale-105 cursor-pointer"
                     }`}
                     style={{ transitionDelay: `${index * 100}ms` }}
                   >
@@ -2302,7 +2618,6 @@ Would you like to upload some data to analyze?`;
 
   return (
     <div className="h-screen bg-[#0f1112] text-white flex flex-col overflow-hidden relative">
-
       {isSidebarCollapsed && (
         <button
           onClick={toggleSidebar}
@@ -2313,6 +2628,8 @@ Would you like to upload some data to analyze?`;
         </button>
       )}
 
+      <div className="flex flex-1 min-h-0 min-w-0">
+        <div className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300`}>
       <div className="backdrop-blur-sm max-h-20 sticky top-0 z-10 hidden md:block">
         <div
           className={`mx-auto py-2 px-4 transition-all duration-300 ${
@@ -2341,7 +2658,7 @@ Would you like to upload some data to analyze?`;
 
       {vectorContext && vectorContext.has_context && (
         <div className="mx-auto px-4 py-2 max-w-4xl">
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+          <div className="bg-blue-500/10 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-2">
               <Lightbulb className="h-4 w-4 text-yellow-400" />
               <span className="text-sm font-medium text-blue-400">
@@ -2368,7 +2685,7 @@ Would you like to upload some data to analyze?`;
                             {analysis.analysis_type}
                           </span>
                           <span className="text-gray-500">
-                            ({Math.round(analysis.score * 100)}% similar)
+                            ({Math.round((analysis.score ?? analysis.similarity_score ?? 0) * 100)}% similar)
                           </span>
                         </div>
                       </div>
@@ -2395,30 +2712,46 @@ Would you like to upload some data to analyze?`;
             >
               {message.role === "user" && (
                 <>
-              <div
-                className={`max-w-[85%] ${"order-first"}`}
-              >
-                <div
-                  className="relative group rounded-2xl bg-white/5 backdrop-blur-sm text-gray-100 p-4"
-                >
-                  {/* Copy button */}
-                  <button
-                    onClick={() => copyMessage(message.content, index)}
-                    className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-1 hover:bg-white/10 rounded"
-                    title="Copy message"
-                  >
-                    {copiedMessageId === index.toString() ? (
-                      <Check className="h-4 w-4 text-green-400" />
-                    ) : (
-                      <Copy className="h-4 w-4 text-gray-400" />
-                    )}
-                  </button>
-
+              <div className="max-w-[85%] order-first flex flex-col items-end group">
+                <div className="rounded-2xl bg-white/10 backdrop-blur-sm text-gray-100 p-4 w-full">
                   <div className="prose prose-sm max-w-none text-current">
                     <div className="whitespace-pre-wrap leading-relaxed text-gray-200">
                       {message.content}
                     </div>
                   </div>
+                </div>
+                <div className="flex items-center gap-2 mt-1.5 text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                  <span className="text-xs">
+                    {message.timestamp
+                      ? new Date(message.timestamp).toLocaleTimeString("en-US", {
+                          hour: "numeric",
+                          minute: "2-digit",
+                          hour12: true,
+                        })
+                      : ""}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setInput(message.content);
+                      setEditingMessageIndex(index);
+                      setTimeout(() => textareaRef.current?.focus(), 0);
+                    }}
+                    className="p-1 hover:text-gray-200 rounded hover:bg-white/5 transition-colors"
+                    title="Rewrite"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => copyMessage(message.content, index)}
+                    className="p-1 hover:text-gray-200 rounded hover:bg-white/5 transition-colors"
+                    title="Copy"
+                  >
+                    {copiedMessageId === index.toString() ? (
+                      <Check className="h-3.5 w-3.5 text-green-400" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
+                  </button>
                 </div>
               </div>
               <Avatar className="w-10 h-10 mt-1 flex-shrink-0">
@@ -2443,28 +2776,27 @@ Would you like to upload some data to analyze?`;
               )}
 
               {message.role === "assistant" && (
-                <div className="w-full">
-                  <div className="w-full">
-                    <div className="prose prose-sm max-w-none text-current text-gray-200">
-                      {renderMarkdown(message.content)}
+                <div className="w-full flex gap-3 group">
+                  <div className="w-7 h-7 mt-0.5 flex-shrink-0 flex items-center justify-center">
+                    <Image
+                      src="/anilyst_logo.svg"
+                      alt="Anilyst"
+                      width={28}
+                      height={28}
+                      className="object-contain"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="prose prose-sm max-w-none text-current text-gray-200 prose-headings:font-semibold prose-p:my-2.5 prose-ul:my-3 prose-ol:my-3 prose-li:my-0.5 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-300 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 [&_table]:block [&_table]:overflow-x-auto">
+                      {renderMarkdown(message.content, {
+                        citationPills:
+                          (message.webSources?.length ?? 0) > 0 ||
+                          extractWebSourcesFromContent(message.content).length > 0,
+                      })}
                     </div>
-                    {message.vector_context_used && message.context_summary && (
-                      <div className="mt-4 text-xs text-blue-300 bg-blue-500/20 border border-blue-500/30 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Brain className="h-3 w-3" />
-                          <span className="font-medium">
-                            Enhanced with AI Context
-                          </span>
-                        </div>
-                        <p className="text-blue-200">
-                          Analyzed{" "}
-                          {message.context_summary.similar_analyses_count} similar
-                          past analyses for personalized insights
-                        </p>
-                      </div>
-                    )}
+                    
                     {message.authorizationUrl && (
-                      <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                      <div className="mt-4 p-4 rounded-xl bg-white/5">
                         <p className="text-sm text-gray-300 mb-3">
                           {message.authorizationMessage || 'Connect your account so the agent can read and analyze your data.'}
                         </p>
@@ -2483,7 +2815,7 @@ Would you like to upload some data to analyze?`;
                       </div>
                     )}
                     {message.questions && message.questions.length > 0 && (
-                      <div className="mt-4 p-4 rounded-xl bg-yellow-500/10 border border-yellow-500/20">
+                      <div className="mt-4 p-4 rounded-xl bg-yellow-500/10">
                         <p className="text-sm text-yellow-200 mb-3 font-medium">
                           I need some information to complete this task:
                         </p>
@@ -2499,11 +2831,42 @@ Would you like to upload some data to analyze?`;
                         </p>
                       </div>
                     )}
-                    <div className="flex justify-start items-center gap-2 mt-2">
+                    <div className="flex items-center gap-2 mt-3 pt-2">
+                      <button
+                        onClick={() => {
+                          if (navigator.share) {
+                            navigator.share({
+                              title: "AI Response",
+                              text: message.content,
+                            }).catch(() => copyMessage(message.content, index));
+                          } else {
+                            copyMessage(message.content, index);
+                          }
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Share"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => {
+                          const blob = new Blob([message.content], { type: "text/plain" });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement("a");
+                          a.href = url;
+                          a.download = `response-${index}.txt`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Download"
+                      >
+                        <Download className="h-4 w-4" />
+                      </button>
                       <button
                         onClick={() => copyMessage(message.content, index)}
-                        className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
-                        title="Copy message"
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Copy"
                       >
                         {copiedMessageId === index.toString() ? (
                           <Check className="h-4 w-4 text-green-400" />
@@ -2513,11 +2876,46 @@ Would you like to upload some data to analyze?`;
                       </button>
                       <button
                         onClick={() => handleRetry(index)}
-                        className="p-1.5 text-gray-400 hover:text-gray-200 rounded hover:bg-white/5 transition-colors duration-200"
-                        title="Try again"
+                        className="p-1.5 text-gray-400 hover:text-white rounded hover:bg-white/5 transition-colors"
+                        title="Retry"
                       >
                         <RotateCcw className="h-4 w-4" />
                       </button>
+                      {(() => {
+                        const sources =
+                          message.webSources?.length
+                            ? message.webSources
+                            : extractWebSourcesFromContent(message.content);
+                        const hasSources = sources.length > 0;
+                        const isSourcesActive = sourcesSidebarOpen && sourcesSidebarMessageIndex === index;
+                        return hasSources ? (
+                          <button
+                            onClick={() => {
+                              setSourcesSidebarData({
+                                sources,
+                                query: messages[index - 1]?.role === "user" ? messages[index - 1].content : undefined,
+                              });
+                              setSourcesSidebarMessageIndex(index);
+                              setSourcesSidebarOpen(true);
+                            }}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm text-gray-400 hover:text-white transition-colors ${isSourcesActive ? "bg-white/10" : "hover:bg-white/10"}`}
+                            title="View sources"
+                          >
+                            <span className="flex -space-x-1.5 items-center">
+                              <span className="w-2.5 h-2.5 rounded-full bg-amber-500/90 ring-2 ring-[#0f0f0f]" />
+                              <span className="w-2.5 h-2.5 rounded-full bg-red-500/90 ring-2 ring-[#0f0f0f]" />
+                              <span className="w-2.5 h-2.5 rounded-full bg-white/95 ring-2 ring-[#0f0f0f] flex items-center justify-center">
+                                <span className="flex gap-0.5 items-center">
+                                  <span className="w-0.5 h-0.5 rounded-full bg-gray-600" />
+                                  <span className="w-0.5 h-0.5 rounded-full bg-gray-600" />
+                                  <span className="w-0.5 h-0.5 rounded-full bg-gray-600" />
+                                </span>
+                              </span>
+                            </span>
+                            <span>{sources.length} source{sources.length !== 1 ? "s" : ""}</span>
+                          </button>
+                        ) : null;
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -2526,16 +2924,22 @@ Would you like to upload some data to analyze?`;
           ))}
 
           {isLoading && (
-            <div className="flex w-full justify-start">
-              <div className="flex items-center gap-3 text-gray-300 w-full">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-400 flex-shrink-0" />
-                <span className="text-sm">
-                  {hasData
-                    ? `Analyzing ${currentFile?.name}...`
-                    : "Processing your request..."}
-                </span>
+            <>
+              <div className="flex gap-4 w-full justify-end">
+                <div className="max-w-[85%] rounded-2xl bg-white/10  p-4 w-48 h-12 animate-pulse" />
               </div>
-            </div>
+              <div className="flex gap-4 w-full justify-start">
+                <div className="w-7 h-7 rounded flex-shrink-0 bg-white/10 animate-pulse" />
+                <div className="flex-1 max-w-[85%] space-y-2">
+                  <div className="h-4 bg-white/10 rounded animate-pulse w-full" />
+                  <div className="h-4 bg-white/10 rounded animate-pulse w-5/6" />
+                  <div className="h-4 bg-white/10 rounded animate-pulse w-4/5" />
+                </div>
+              </div>
+              <div className="flex gap-4 w-full justify-end">
+                <div className="max-w-[85%] rounded-2xl bg-white/10 p-4 w-56 h-10 animate-pulse" />
+              </div>
+            </>
           )}
 
           <div ref={messagesEndRef} />
@@ -2559,7 +2963,7 @@ Would you like to upload some data to analyze?`;
                   ? `Ask anything about ${currentFile?.name}...`
                   : "Upload data first using the attach button..."
               }
-              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[60px] max-h-[160px] rounded-2xl pl-6 pr-32 py-4 pb-16 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 overflow-y-auto"
+              className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[60px] max-h-[160px] rounded-2xl pl-6 pr-32 py-4 pb-16 border-0 focus:ring-2 focus:ring-blue-500/50 focus:border-0 transition-all duration-300 overflow-y-auto"
               disabled={isLoading || fileLoading}
               style={{
                 height: 'auto',
@@ -2617,7 +3021,7 @@ Would you like to upload some data to analyze?`;
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsUploadModalOpen(true)}
-                className="text-gray-400 hover:text-white bg-white/10 hover:bg-white/10  hover:border-white/20 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                className="text-gray-400 hover:text-white bg-white/10 hover:bg-white/10 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                 title="Upload Data"
               >
                 <Paperclip className="h-4 w-4" />
@@ -2625,6 +3029,85 @@ Would you like to upload some data to analyze?`;
               </Button>
             </div>
           </div>
+        </div>
+      </div>
+        </div>
+
+        {/* Sources sidebar - slides in from right, chat shrinks when open */}
+        <div
+          className={`flex-shrink-0 flex flex-col bg-[#0f0f0f] overflow-hidden transition-[width] duration-300 ease-out ${
+            sourcesSidebarOpen && sourcesSidebarData ? "w-[380px]" : "w-0"
+          }`}
+          role="complementary"
+          aria-label="Sources"
+        >
+          {sourcesSidebarOpen && sourcesSidebarData && (
+          <>
+            <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-white">
+                {sourcesSidebarData.sources.length} source{sourcesSidebarData.sources.length !== 1 ? "s" : ""}
+              </h3>
+              <button
+                onClick={() => { setSourcesSidebarOpen(false); setSourcesSidebarMessageIndex(null); }}
+                className="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-white/5 transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {sourcesSidebarData.query && (
+              <p className="px-4 pb-3 text-sm text-gray-400 truncate flex-shrink-0" title={sourcesSidebarData.query}>
+                Sources for: {sourcesSidebarData.query}
+              </p>
+            )}
+            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-6">
+              {sourcesSidebarData.sources.map((source, i) => {
+                let domain = "";
+                try {
+                  if (source.url.startsWith("http")) domain = new URL(source.url).hostname.replace(/^www\./, "");
+                } catch {}
+                const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=32` : null;
+                const sourceName = domain || source.title;
+                const sourceUrl = sanitizeHref(source.url);
+                return (
+                  <div
+                    key={i}
+                    className="flex gap-3 group py-2 px-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors"
+                  >
+                    <a
+                      href={sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 overflow-hidden bg-transparent"
+                    >
+                      {faviconUrl ? (
+                        <img src={faviconUrl} alt="" className="w-8 h-8 object-contain" />
+                      ) : (
+                        <ExternalLink className="w-5 h-5 text-gray-500" />
+                      )}
+                    </a>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-gray-500 mb-0.5">{sourceName}</p>
+                      <a
+                        href={sourceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block text-white group-hover:text-blue-400 transition-colors leading-snug"
+                      >
+                        {formatInlineMarkdown(source.title)}
+                      </a>
+                      {source.snippet && (
+                        <div className="text-sm text-gray-500 mt-1 leading-relaxed line-clamp-3 [&_a]:text-blue-400 [&_a]:hover:underline [&_strong]:font-medium [&_code]:bg-[#2d2d2d] [&_code]:px-1 [&_code]:rounded [&_code]:text-xs">
+                          {formatInlineMarkdown(source.snippet)}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+          )}
         </div>
       </div>
 

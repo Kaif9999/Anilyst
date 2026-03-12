@@ -47,6 +47,7 @@
     "pdfjs-dist": "^4.10.38",
     "postcss": "^8.4.35",
     "posthog-js": "^1.224.0",
+    "prism-react-renderer": "^2.4.1",
     "react": "^19.2.4",
     "react-chartjs-2": "^5.2.0",
     "react-dom": "^19.2.4",

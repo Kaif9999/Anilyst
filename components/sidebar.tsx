@@ -11,7 +11,6 @@ import {
   Trash2,
   MessageSquare,
   FileText,
-  MoreVertical,
   Plus,
   PanelRightOpen,
   Search,
@@ -19,11 +18,13 @@ import {
 } from 'lucide-react';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import UserProfileModal from './user-profile-modal';
 
@@ -40,6 +41,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [deleteModalSessionId, setDeleteModalSessionId] = useState<string | null>(null);
   const [sessionSearch, setSessionSearch] = useState("");
   
   const {
@@ -107,10 +109,15 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     handleItemClick();
   };
 
-  const handleDeleteChat = async (e: React.MouseEvent, sessionId: string) => {
+  const handleDeleteClick = (e: React.MouseEvent, sessionId: string) => {
     e.stopPropagation();
-    if (confirm('Are you sure you want to delete this chat?')) {
-      await deleteSession(sessionId);
+    setDeleteModalSessionId(sessionId);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (deleteModalSessionId) {
+      await deleteSession(deleteModalSessionId);
+      setDeleteModalSessionId(null);
     }
   };
 
@@ -324,26 +331,13 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                               <h4 className="text-sm font-medium text-white truncate">
                                 {truncateText(chatSession.title, 25)}
                               </h4>
-                              
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <button
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded-2xl transition-all"
-                                  >
-                                    <MoreVertical className="w-3 h-3 text-gray-400" />
-                                  </button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-gray-900 border-white/10">
-                                  <DropdownMenuItem
-                                    onClick={(e: React.MouseEvent<Element, MouseEvent>) => handleDeleteChat(e, chatSession.id)}
-                                    className="text-red-400 focus:text-red-300 focus:bg-red-500/10"
-                                  >
-                                    <Trash2 className="w-3 h-3 mr-2" />
-                                    Delete
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <button
+                                onClick={(e) => handleDeleteClick(e, chatSession.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-gray-400 hover:text-red-400"
+                                aria-label="Delete chat"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                             
                             {chatSession.lastMessage && (
@@ -424,6 +418,32 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 
       />
+
+      <Dialog open={!!deleteModalSessionId} onOpenChange={(open) => !open && setDeleteModalSessionId(null)}>
+        <DialogContent className="bg-[#1a1b1e] text-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete chat</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Are you sure you want to delete this chat? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteModalSessionId(null)}
+              className="border-white/20 text-white hover:bg-white/10"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
