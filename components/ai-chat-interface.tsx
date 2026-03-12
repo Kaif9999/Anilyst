@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -278,11 +278,12 @@ function CodeBlock({
 
 interface VectorContext {
   similar_analyses: Array<{
-    id: string;
-    score: number;
-    analysis_type: string;
-    key_insights: string[];
-    session_id: string;
+    id?: string;
+    score?: number;
+    similarity_score?: number;
+    analysis_type?: string;
+    key_insights?: string[];
+    session_id?: string;
   }>;
   suggested_data_sources: string[];
   suggested_analysis_types: string[];
@@ -332,12 +333,16 @@ interface ChartData {
   };
 }
 
-function useVectorContext(query: string, sessionId: string | null) {
+function useVectorContext(
+  query: string,
+  sessionId: string | null,
+  userId: string | null
+) {
   const [context, setContext] = useState<VectorContext | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (!query || query.length < 20 || !sessionId) {
+    if (!query || query.trim().length < 8 || !sessionId || !userId || userId === "anonymous") {
       setContext(null);
       return;
     }
@@ -349,19 +354,23 @@ function useVectorContext(query: string, sessionId: string | null) {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            query,
+            query: query.trim(),
             session_id: sessionId,
-            user_id: "user_123",
+            user_id: userId,
           }),
         });
 
         if (response.ok) {
           const data = await response.json();
-          if (data.context && data.context.has_context) {
-            setContext(data.context);
+          // Backend returns { context: { has_context, similar_analyses, ... } }
+          const ctx = data.context ?? data;
+          if (ctx && ctx.has_context) {
+            setContext(ctx);
           } else {
             setContext(null);
           }
+        } else {
+          setContext(null);
         }
       } catch (error) {
         console.error("Error fetching vector context:", error);
@@ -371,9 +380,9 @@ function useVectorContext(query: string, sessionId: string | null) {
       }
     };
 
-    const timer = setTimeout(getContext, 1000);
+    const timer = setTimeout(getContext, 800);
     return () => clearTimeout(timer);
-  }, [query, sessionId]);
+  }, [query, sessionId, userId]);
 
   return { context, isLoading };
 }
@@ -669,7 +678,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
   if (!chartData || !chartData.data) {
     console.error("Chart data is invalid");
     return (
-      <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+      <div className="my-6 p-4 bg-gray-900/50 rounded-lg">
         <div className="h-96 w-full flex items-center justify-center">
           <p className="text-gray-400">Chart data is missing or invalid</p>
         </div>
@@ -687,7 +696,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
     validatedData.datasets.length === 0
   ) {
     return (
-      <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+      <div className="my-6 p-4 bg-gray-900/50 rounded-lg">
         <div className="h-96 w-full flex items-center justify-center">
           <p className="text-gray-400">No data available for chart</p>
         </div>
@@ -941,7 +950,7 @@ const AIGeneratedChart = ({ chartData }: { chartData: ChartData }) => {
   };
 
   return (
-    <div className="my-6 p-4 bg-gray-900/50 border border-gray-600 rounded-lg">
+    <div className="my-6 p-4 bg-gray-900/50 rounded-lg">
       <div className="h-96 w-full">{renderChart()}</div>
     </div>
   );
@@ -994,8 +1003,14 @@ function AgentPageContent() {
     loadSession,
   } = useChatSessions();
 
+  const { data: session } = useSession();
+
   const { context: vectorContext, isLoading: isContextLoading } =
-    useVectorContext(input, sessionId);
+    useVectorContext(
+      input,
+      sessionId,
+      (session?.user?.id as string) || (session?.user?.email as string) || null
+    );
 
   const hasData = !!chatData;
   const rawData = chatData?.data || [];
@@ -1009,9 +1024,6 @@ function AgentPageContent() {
   const availableYears: string[] = [];
   const selectedYear = "all";
   const fileLoading = false;
-
-
-  const { data: session } = useSession();
 
 
   const getUserData = () => {
@@ -1038,7 +1050,6 @@ function AgentPageContent() {
         console.log("📌 Loading existing session:", sessionParam);
         setSessionId(sessionParam);
         setIsNewSession(false);
-        setIsFirstMessage(false);
 
         // ✅ CRITICAL: Load the session object first
         try {
@@ -1077,16 +1088,20 @@ function AgentPageContent() {
               console.log("✅ Formatted messages:", formattedMessages.length);
               setMessages(formattedMessages);
               setShowWelcome(false);
+              setIsFirstMessage(false); // Has messages - not first prompt
             } else {
-              console.log("ℹ️ No messages found in session");
+              console.log("ℹ️ No messages found in session - new chat, will rename after first prompt");
               setMessages([]);
               setShowWelcome(true);
+              setIsFirstMessage(true); // No messages - first prompt will trigger title rename
             }
           } else {
             console.error("❌ Failed to load messages:", response.status);
+            setIsFirstMessage(true); // Assume new on error
           }
         } catch (error) {
           console.error("❌ Error loading messages:", error);
+          setIsFirstMessage(true); // Assume new on error
         }
       } else {
         // ✅ Create new session
@@ -1119,14 +1134,23 @@ function AgentPageContent() {
     }
   }, [searchParams, isMounted, sessionsLoading, createSession, loadSession]);
 
-  // ✅ Clear data and messages when session changes
+  // ✅ Clear data and messages when switching to a different session (user clicked another chat)
+  const prevSessionIdRef = useRef<string | null>(null);
   useEffect(() => {
-    console.log("🔄 Session changed, clearing chat data");
-    setChatData(null);
-    setMessages([]);
-    setShowWelcome(true);
-    setIsNewSession(false);
-    setIsFirstMessage(false);
+    // Only clear when switching from one session to another (not on initial load)
+    if (
+      prevSessionIdRef.current !== null &&
+      sessionId !== null &&
+      prevSessionIdRef.current !== sessionId
+    ) {
+      console.log("🔄 Session switched, clearing chat data");
+      setChatData(null);
+      setMessages([]);
+      setShowWelcome(true);
+      setIsNewSession(false);
+      setIsFirstMessage(false);
+    }
+    prevSessionIdRef.current = sessionId;
   }, [sessionId]);
 
   useEffect(() => {
@@ -1218,11 +1242,14 @@ function AgentPageContent() {
         elements.push(
           <ol
             key={getNextKey()}
-            className="list-decimal list-outside pl-5 space-y-1.5 my-3 text-gray-200 leading-relaxed [&_li::marker]:text-purple-400 [&_li::marker]:font-medium"
+            className="list-none space-y-1.5 my-3 text-gray-200 leading-relaxed pl-6"
           >
             {currentOrderedList.map((item, index) => (
-              <li key={index} className="pl-1">
-                {formatInlineMarkdown(item, citationPills)}
+              <li key={index} className="flex gap-1.5">
+                <span className="shrink-0 font-medium text-purple-400 tabular-nums">
+                  {index + 1}.
+                </span>
+                <span>{formatInlineMarkdown(item, citationPills)}</span>
               </li>
             ))}
           </ol>
@@ -1419,9 +1446,16 @@ function AgentPageContent() {
         return;
       }
 
-      // Handle empty lines
       if (line.trim() === "") {
-        flushList();
+        const nextLine = lines[index + 1];
+        const nextIsNumbered = nextLine?.match(/^\d+\.\s/);
+        const nextIsBullet = nextLine?.match(/^[•\-\*]\s/);
+        const listContinues =
+          (nextIsNumbered && currentOrderedList.length > 0) ||
+          (nextIsBullet && currentList.length > 0);
+        if (!listContinues) {
+          flushList();
+        }
         elements.push(<br key={getNextKey()} />);
         return;
       }
@@ -1501,7 +1535,7 @@ function AgentPageContent() {
           );
         }
       } else if (!part.match(/^<[^>]+>$/)) {
-        elements.push(part);
+        elements.push(<Fragment key={i}>{part}</Fragment>);
       }
       i++;
     }
@@ -1552,7 +1586,7 @@ function AgentPageContent() {
       }
       const after = text.slice(lastIndex);
       if (after) parts.push(renderHtmlLike(processWithoutLinks(after)));
-      return parts.length > 1 ? <>{parts}</> : parts[0] ?? text;
+      return parts.length > 1 ? <>{parts.map((part, i) => <Fragment key={i}>{part}</Fragment>)}</> : parts[0] ?? text;
     }
 
     let formatted = text.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
@@ -2304,7 +2338,7 @@ Would you like to upload some data to analyze?`;
             <Textarea
               value={transitionInput}
               readOnly
-              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 transition-all duration-300"
+              className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[70px] text-lg rounded-3xl pl-8 pr-24 py-6 transition-all duration-300 border-0 focus:ring-0 focus-visible:ring-0"
             />
             <div className="absolute bottom-4 right-4 flex items-center gap-3">
               <Button
@@ -2350,7 +2384,7 @@ Would you like to upload some data to analyze?`;
                   {!hasData && (
                     <Badge
                       variant="secondary"
-                      className="bg-orange-500/20 text-orange-400 border-orange-500/30"
+                      className="bg-orange-500/20 text-orange-400"
                     >
                       <AlertCircle className="h-3 w-3 mr-1" />
                       No Data
@@ -2389,7 +2423,7 @@ Would you like to upload some data to analyze?`;
               </div>
 
               {vectorContext && vectorContext.has_context && (
-                <div className="mb-6 p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg max-w-2xl mx-auto">
+                <div className="mb-6 p-4 bg-blue-500/10 rounded-lg max-w-2xl mx-auto">
                   <div className="flex items-center gap-2 mb-2">
                     <Lightbulb className="h-4 w-4 text-yellow-400" />
                     <span className="text-sm font-medium text-blue-400">
@@ -2419,7 +2453,7 @@ Would you like to upload some data to analyze?`;
                         ? `Ask anything about ${currentFile?.name}...`
                         : "Upload data using the 📎 button, then ask me questions..."
                     }
-                    className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[70px] max-h-[200px] text-lg rounded-3xl pl-8 pr-32 py-6 pb-20 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 group-hover:bg-white/10 overflow-y-auto"
+                    className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[70px] max-h-[200px] text-lg rounded-3xl pl-8 pr-32 py-6 pb-20 border-0 focus:ring-2 focus:ring-blue-500/50 focus:border-0 transition-all duration-300 group-hover:bg-white/10 overflow-y-auto"
                     disabled={isLoading || fileLoading}
                     style={{
                       height: 'auto',
@@ -2478,7 +2512,7 @@ Would you like to upload some data to analyze?`;
                       variant="ghost"
                       size="sm"
                       onClick={() => setIsUploadModalOpen(true)}
-                      className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                      className="text-gray-400 hover:text-white bg-white/5 hover:bg-white/10 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                       title="Upload Data"
                     >
                       <Paperclip className="h-4 w-4" />
@@ -2511,13 +2545,13 @@ Would you like to upload some data to analyze?`;
                       example.title !== "Supported Formats" &&
                       example.title !== "Analysis Types"
                     }
-                    className={`group relative text-left p-6 rounded-2xl transition-all duration-300 border ${
+                    className={`group relative text-left p-6 rounded-2xl transition-all duration-300 ${
                       !hasData &&
                       example.title !== "Upload Data" &&
                       example.title !== "Supported Formats" &&
                       example.title !== "Analysis Types"
-                        ? "bg-white/5 border-white/10 opacity-50 cursor-not-allowed"
-                        : "bg-white/5 backdrop-blur-sm hover:bg-white/10 border-white/10 hover:border-white/20 hover:scale-105 cursor-pointer"
+                        ? "bg-white/5 opacity-50 cursor-not-allowed"
+                        : "bg-white/5 backdrop-blur-sm hover:bg-white/10 hover:scale-105 cursor-pointer"
                     }`}
                     style={{ transitionDelay: `${index * 100}ms` }}
                   >
@@ -2624,7 +2658,7 @@ Would you like to upload some data to analyze?`;
 
       {vectorContext && vectorContext.has_context && (
         <div className="mx-auto px-4 py-2 max-w-4xl">
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-3">
+          <div className="bg-blue-500/10 rounded-lg p-3">
             <div className="flex items-center gap-2 mb-2">
               <Lightbulb className="h-4 w-4 text-yellow-400" />
               <span className="text-sm font-medium text-blue-400">
@@ -2651,7 +2685,7 @@ Would you like to upload some data to analyze?`;
                             {analysis.analysis_type}
                           </span>
                           <span className="text-gray-500">
-                            ({Math.round(analysis.score * 100)}% similar)
+                            ({Math.round((analysis.score ?? analysis.similarity_score ?? 0) * 100)}% similar)
                           </span>
                         </div>
                       </div>
@@ -2753,28 +2787,14 @@ Would you like to upload some data to analyze?`;
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="prose prose-sm max-w-none text-current text-gray-200 prose-headings:font-semibold prose-p:my-2.5 prose-ul:my-3 prose-ol:my-3 prose-li:my-0.5 prose-blockquote:border-l-4 prose-blockquote:border-blue-500/50 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-300 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 [&_table]:block [&_table]:overflow-x-auto">
+                    <div className="prose prose-sm max-w-none text-current text-gray-200 prose-headings:font-semibold prose-p:my-2.5 prose-ul:my-3 prose-ol:my-3 prose-li:my-0.5 prose-blockquote:pl-4 prose-blockquote:italic prose-blockquote:text-gray-300 prose-th:px-3 prose-th:py-2 prose-td:px-3 prose-td:py-2 [&_table]:block [&_table]:overflow-x-auto">
                       {renderMarkdown(message.content, {
                         citationPills:
                           (message.webSources?.length ?? 0) > 0 ||
                           extractWebSourcesFromContent(message.content).length > 0,
                       })}
                     </div>
-                    {message.vector_context_used && message.context_summary && (
-                      <div className="mt-4 text-xs text-blue-300 bg-blue-500/20 rounded-lg p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Brain className="h-3 w-3" />
-                          <span className="font-medium">
-                            Enhanced with AI Context
-                          </span>
-                        </div>
-                        <p className="text-blue-200">
-                          Analyzed{" "}
-                          {message.context_summary.similar_analyses_count} similar
-                          past analyses for personalized insights
-                        </p>
-                      </div>
-                    )}
+                    
                     {message.authorizationUrl && (
                       <div className="mt-4 p-4 rounded-xl bg-white/5">
                         <p className="text-sm text-gray-300 mb-3">
@@ -2878,7 +2898,7 @@ Would you like to upload some data to analyze?`;
                               setSourcesSidebarMessageIndex(index);
                               setSourcesSidebarOpen(true);
                             }}
-                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm text-gray-400 hover:text-white transition-colors`}
+                            className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm text-gray-400 hover:text-white transition-colors ${isSourcesActive ? "bg-white/10" : "hover:bg-white/10"}`}
                             title="View sources"
                           >
                             <span className="flex -space-x-1.5 items-center">
@@ -2943,7 +2963,7 @@ Would you like to upload some data to analyze?`;
                   ? `Ask anything about ${currentFile?.name}...`
                   : "Upload data first using the attach button..."
               }
-              className="w-full bg-white/5 backdrop-blur-sm border-white/10 text-white placeholder-gray-400 resize-none min-h-[60px] max-h-[160px] rounded-2xl pl-6 pr-32 py-4 pb-16 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500/50 transition-all duration-300 overflow-y-auto"
+              className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[60px] max-h-[160px] rounded-2xl pl-6 pr-32 py-4 pb-16 border-0 focus:ring-2 focus:ring-blue-500/50 focus:border-0 transition-all duration-300 overflow-y-auto"
               disabled={isLoading || fileLoading}
               style={{
                 height: 'auto',
@@ -3001,7 +3021,7 @@ Would you like to upload some data to analyze?`;
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsUploadModalOpen(true)}
-                className="text-gray-400 hover:text-white bg-white/10 hover:bg-white/10  hover:border-white/20 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
+                className="text-gray-400 hover:text-white bg-white/10 hover:bg-white/10 px-3 py-2 rounded-xl transition-all duration-200 flex items-center gap-2 shadow-sm hover:shadow-md"
                 title="Upload Data"
               >
                 <Paperclip className="h-4 w-4" />
