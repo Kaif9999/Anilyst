@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { fetchWithCsrf } from '@/lib/api-client';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -13,6 +12,8 @@ import {
   Upload, Plus, Download
 } from 'lucide-react';
 import { useFileStore } from '@/store/file-store';
+
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 import { downloadCSV, downloadJSON } from '@/lib/export-data';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -153,31 +154,37 @@ export default function AnalysisPage() {
 
     try {
       if (hasData() && chartData) {
-        // Use the existing query API for data analysis
-        const response = await fetchWithCsrf('/api/query', {
+        // Use backend AI chat for data analysis
+        const response = await fetch(`${FASTAPI_URL}/ai-chat`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            query: formatUserPrompt(currentInput, true, dataContext),
-            data: chartData,
-            context: null
+            message: formatUserPrompt(currentInput, true, dataContext),
+            dataset: {
+              data: chartData,
+              metadata: {
+                filename: dataContext?.fileName || 'data',
+              },
+            },
+            context: {},
           }),
         });
 
         if (!response.ok) {
-          throw new Error(`Server returned ${response.status}`);
+          const errText = await response.text();
+          throw new Error(errText || `Server returned ${response.status}`);
         }
 
         const result = await response.json();
-        
-        let responseContent = result.insights?.queryResponse?.answer || 'No analysis available';
-        
+        const responseContent = result.response ?? 'No analysis available';
+        const timestamp = result.timestamp ?? new Date().toISOString();
+
         const assistantMessage: Message = {
           role: 'assistant',
           content: responseContent,
-          timestamp: result.insights?.queryResponse?.timestamp || new Date().toISOString(),
+          timestamp,
           analysis_results: result,
           dataContext: dataContext ? {
             fileName: dataContext.fileName,
