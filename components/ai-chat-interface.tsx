@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense, Fragment } from "react";
+import React, { useState, useEffect, useRef, Suspense, Fragment } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -20,7 +20,6 @@ import {
   LineChart,
   AlertCircle,
   ArrowUp,
-  Lightbulb,
   Paperclip,
   Copy,
   Check,
@@ -66,7 +65,7 @@ const ANILYST_CODE_THEME: PrismTheme = {
     { types: ["punctuation", "operator"], style: { color: "#94a3b8" } },
   ],
 };
-import { useChatSessions } from "@/hooks/useChatSessions";
+import { useChatSessionsContext } from "@/contexts/ChatSessionsContext";
 import { fetchWithCsrf } from "@/lib/api-client";
 import { sanitizeHref } from "@/lib/sanitize";
 
@@ -196,6 +195,13 @@ interface Message {
     action?: string;
   }>;
   needsInfo?: boolean;
+  /** Lead gen table (columns + rows) from fetch_leads tool */
+  lead_gen_result?: {
+    columns: string[];
+    rows: string[][];
+    total_entries?: number;
+    error?: string | null;
+  };
 }
 
 /** Map common language labels to Prism language ids */
@@ -276,20 +282,6 @@ function CodeBlock({
   );
 }
 
-interface VectorContext {
-  similar_analyses: Array<{
-    id?: string;
-    score?: number;
-    similarity_score?: number;
-    analysis_type?: string;
-    key_insights?: string[];
-    session_id?: string;
-  }>;
-  suggested_data_sources: string[];
-  suggested_analysis_types: string[];
-  has_context: boolean;
-}
-
 interface ChatData {
   data: any[];
   metadata: {
@@ -298,6 +290,12 @@ interface ChatData {
     columns: string[];
     fileSize: number;
     uploadedAt: string;
+    /** PostgreSQL connection (when data source is DB) */
+    connectionString?: string;
+    dataType?: string;
+    database?: string;
+    tableCount?: number;
+    schema?: string;
   };
 }
 
@@ -331,60 +329,6 @@ interface ChartData {
       pointBorderWidth?: number;
     }>;
   };
-}
-
-function useVectorContext(
-  query: string,
-  sessionId: string | null,
-  userId: string | null
-) {
-  const [context, setContext] = useState<VectorContext | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    if (!query || query.trim().length < 8 || !sessionId || !userId || userId === "anonymous") {
-      setContext(null);
-      return;
-    }
-
-    const getContext = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetchWithCsrf("/api/vector/context", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            query: query.trim(),
-            session_id: sessionId,
-            user_id: userId,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          // Backend returns { context: { has_context, similar_analyses, ... } }
-          const ctx = data.context ?? data;
-          if (ctx && ctx.has_context) {
-            setContext(ctx);
-          } else {
-            setContext(null);
-          }
-        } else {
-          setContext(null);
-        }
-      } catch (error) {
-        console.error("Error fetching vector context:", error);
-        setContext(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    const timer = setTimeout(getContext, 800);
-    return () => clearTimeout(timer);
-  }, [query, sessionId, userId]);
-
-  return { context, isLoading };
 }
 
 const normalizeChartData = (chartConfig: any): ChartData | null => {
@@ -1001,16 +945,9 @@ function AgentPageContent() {
     createSession,
     isLoading: sessionsLoading,
     loadSession,
-  } = useChatSessions();
+  } = useChatSessionsContext();
 
   const { data: session } = useSession();
-
-  const { context: vectorContext, isLoading: isContextLoading } =
-    useVectorContext(
-      input,
-      sessionId,
-      (session?.user?.id as string) || (session?.user?.email as string) || null
-    );
 
   const hasData = !!chatData;
   const rawData = chatData?.data || [];
@@ -1104,28 +1041,13 @@ function AgentPageContent() {
           setIsFirstMessage(true); // Assume new on error
         }
       } else {
-        // ✅ Create new session
-        console.log("🆕 Creating new session...");
-        try {
-          const newSession = await createSession();
-          if (newSession) {
-            console.log("✅ Created new session:", newSession.id);
-            setSessionId(newSession.id);
-            setIsNewSession(true);
-            setIsFirstMessage(true);
-
-
-            const url = new URL(window.location.href);
-            url.searchParams.set("session", newSession.id);
-            window.history.pushState({}, "", url.toString());
-          }
-        } catch (error) {
-          console.error("❌ Error creating session:", error);
-          const tempSessionId = `session_${Date.now()}`;
-          setSessionId(tempSessionId);
-          setIsNewSession(true);
-          setIsFirstMessage(true);
-        }
+        // No session in URL: show welcome and wait for first message to create session
+        console.log("📝 New chat – session will be created when you send the first message");
+        setSessionId(null);
+        setMessages([]);
+        setShowWelcome(true);
+        setIsFirstMessage(true);
+        setIsNewSession(true);
       }
     };
 
@@ -1222,7 +1144,7 @@ function AgentPageContent() {
 
     // Convert markdown to HTML-like JSX elements
     const lines = textContent.split("\n");
-    const elements: JSX.Element[] = [];
+    const elements: React.ReactElement[] = [];
     let currentList: string[] = [];
     let currentOrderedList: string[] = [];
     let inCodeBlock = false;
@@ -1762,19 +1684,29 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
     setIsLoading(true);
   
     try {
+      // Create session on first message if none exists (new chat from sidebar)
+      let effectiveSessionId: string | null = sessionId;
+      if (!effectiveSessionId || !currentSession) {
+        const newSession = await createSession();
+        if (!newSession) throw new Error('Failed to create session');
+        effectiveSessionId = newSession.id;
+        setSessionId(newSession.id);
+        setIsNewSession(true);
+        setIsFirstMessage(true);
+        const url = new URL(window.location.href);
+        url.searchParams.set("session", newSession.id);
+        window.history.pushState({}, "", url.toString());
+      }
+      if (!effectiveSessionId) throw new Error('No active session - cannot save messages');
+
       console.log('🚀 Sending message to AI:', {
         hasData,
-        sessionId,
+        sessionId: effectiveSessionId,
         currentSessionId: currentSession?.id,
         isFirstMessage,
         messageText: currentInput.substring(0, 50)
       });
-  
-  
-      if (!sessionId || !currentSession) {
-        throw new Error('No active session - cannot save messages');
-      }
-  
+
       // Check for PostgreSQL connection in metadata
       const hasPostgres = chatData?.metadata?.connectionString || chatData?.metadata?.dataType === 'PostgreSQL Database';
       const postgresConnectionString = chatData?.metadata?.connectionString;
@@ -1801,7 +1733,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
             database: chatData?.metadata?.database,
             tableCount: chatData?.metadata?.tableCount,
             schema: chatData?.metadata?.schema,
-            sessionId: sessionId
+            sessionId: effectiveSessionId
           }
         } : null,
         context: {
@@ -1812,7 +1744,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           handle_parsing_errors: true,
           user_id: session?.user?.id || (session?.user?.email as string) || 'anonymous',
           user_email: (session?.user?.email as string) || '', // For Arcade OAuth (needs email, not ID) - use empty string instead of null
-          session_id: sessionId,
+          session_id: effectiveSessionId,
           original_query: currentInput
         }
       };
@@ -1864,6 +1796,9 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
             ? result.web_sources.map((s: { title: string; url: string; snippet?: string }) => ({ title: s.title, url: s.url, snippet: s.snippet }))
             : extractWebSourcesFromContent(responseContent)),
         }),
+        ...(result.lead_gen_result && {
+          lead_gen_result: result.lead_gen_result,
+        }),
       };
 
       // If backend says the user sent a secret (e.g. Stripe key), redact it in the UI and in saved messages
@@ -1883,15 +1818,15 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
   
   
       console.log('💾 Starting message save process...');
-      console.log('   Session ID:', sessionId);
+      console.log('   Session ID:', effectiveSessionId);
       console.log('   Current Session:', currentSession?.id);
       console.log('   Is First Message:', isFirstMessage);
-  
+
       try {
         // ✅ Save user message FIRST
         console.log('💾 Saving user message...');
         const userMessageResult = await addMessage(
-          sessionId,
+          effectiveSessionId,
           'user',
           userContentToSave,
           false,
@@ -1903,7 +1838,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
 
         console.log('💾 Saving assistant message...');
         const assistantMessageResult = await addMessage(
-          sessionId,
+          effectiveSessionId,
           'assistant',
           responseContent,
           result.vector_context_used || false,
@@ -1915,6 +1850,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
               web_search_used: true,
               webSources: (result.web_sources || []).map((s: { title: string; url: string; snippet?: string }) => ({ title: s.title, url: s.url, snippet: s.snippet })),
             }),
+            ...(result.lead_gen_result && { lead_gen_result: result.lead_gen_result }),
           }
         );
         console.log('✅ Assistant message saved:', assistantMessageResult);
@@ -1923,7 +1859,7 @@ Ask me anything about your data and I'll analyze  "Analyze the key trends in thi
           console.log('🏷️ This is the first message - generating title...');
           try {
             await generateTitle(
-              sessionId,
+              effectiveSessionId,
               currentInput,
               responseContent,
               hasData,
@@ -2411,21 +2347,6 @@ Would you like to upload some data to analyze?`;
                 </p>
               </div>
 
-              {vectorContext && vectorContext.has_context && (
-                <div className="mb-6 p-4 bg-blue-500/10 rounded-lg max-w-2xl mx-auto">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Lightbulb className="h-4 w-4 text-yellow-400" />
-                    <span className="text-sm font-medium text-blue-400">
-                      AI Context Ready
-                    </span>
-                  </div>
-                  <p className="text-xs text-gray-300">
-                    I found {vectorContext.similar_analyses.length} similar
-                    analyses for your query
-                  </p>
-                </div>
-              )}
-
               <div className="relative max-w-3xl mx-auto">
                 <div
                   className={`relative group transition-all duration-300 ${
@@ -2440,7 +2361,7 @@ Would you like to upload some data to analyze?`;
                     placeholder={
                       hasData
                         ? `Ask anything about ${currentFile?.name}...`
-                        : "Upload data using the 📎 button, then ask me questions..."
+                        : "Upload data, or try: Get 25 Software Engineer leads"
                     }
                     className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[70px] max-h-[200px] text-lg rounded-3xl pl-8 pr-32 py-6 pb-20 border-0 focus:ring-2 focus:ring-blue-500/50 focus:border-0 transition-all duration-300 group-hover:bg-white/10 overflow-y-auto"
                     disabled={isLoading || fileLoading}
@@ -2465,13 +2386,6 @@ Would you like to upload some data to analyze?`;
                     }}
                   />
 
-                  {isContextLoading && (
-                    <div className="absolute top-3 right-28 flex items-center gap-1 text-xs text-blue-400">
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      <span>Finding context...</span>
-                    </div>
-                  )}
-
                   <div className="absolute bottom-4 right-4 flex items-center gap-2">
                     <Button
                       variant="ghost"
@@ -2495,7 +2409,7 @@ Would you like to upload some data to analyze?`;
                     </Button>
                   </div>
 
-                  {/* Add Sources Button - Left Side */}
+                  
                   <div className="absolute bottom-4 left-4">
                     <Button
                       variant="ghost"
@@ -2505,7 +2419,7 @@ Would you like to upload some data to analyze?`;
                       title="Upload Data"
                     >
                       <Paperclip className="h-4 w-4" />
-                      <span className="text-sm font-medium">Add Sources</span>
+                      <span className="text-sm font-medium">Sources</span>
                     </Button>
                   </div>
                 </div>
@@ -2635,47 +2549,6 @@ Would you like to upload some data to analyze?`;
         </div>
       </div>
 
-      {vectorContext && vectorContext.has_context && (
-        <div className="mx-auto px-4 py-2 max-w-4xl">
-          <div className="bg-blue-500/10 rounded-lg p-3">
-            <div className="flex items-center gap-2 mb-2">
-              <Lightbulb className="h-4 w-4 text-yellow-400" />
-              <span className="text-sm font-medium text-blue-400">
-                AI Context Suggestions
-              </span>
-            </div>
-
-            {vectorContext.similar_analyses.length > 0 && (
-              <div className="mb-3">
-                <h4 className="text-xs text-gray-400 mb-1">
-                  Similar Past Analyses:
-                </h4>
-                <div className="space-y-1">
-                  {vectorContext.similar_analyses
-                    .slice(0, 2)
-                    .map((analysis, index) => (
-                      <div
-                        key={index}
-                        className="text-xs bg-white/5 rounded p-2"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <BarChart3 className="h-3 w-3 text-green-400" />
-                          <span className="text-green-400">
-                            {analysis.analysis_type}
-                          </span>
-                          <span className="text-gray-500">
-                            ({Math.round((analysis.score ?? analysis.similarity_score ?? 0) * 100)}% similar)
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="flex-1 overflow-y-auto scrollbar-hidden p-6 relative z-10">
         <div
           className={`mx-auto space-y-8 transition-all duration-300 ${
@@ -2773,6 +2646,49 @@ Would you like to upload some data to analyze?`;
                           extractWebSourcesFromContent(message.content).length > 0,
                       })}
                     </div>
+
+                    {message.lead_gen_result && !message.lead_gen_result.error && message.lead_gen_result.rows?.length > 0 && (
+                      <div className="mt-4 rounded-xl border border-white/10 overflow-hidden bg-white/[0.02]">
+                        <div className="overflow-x-auto max-h-[min(70vh,28rem)] overflow-y-auto scrollbar-hidden">
+                          <table className="w-full text-sm border-collapse">
+                            <thead className="sticky top-0 z-10 bg-[#161819] border-b border-white/10">
+                              <tr>
+                                {message.lead_gen_result.columns.map((col, i) => (
+                                  <th key={i} className="text-left px-4 py-2.5 font-medium text-gray-300 whitespace-nowrap">
+                                    {col}
+                                  </th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {message.lead_gen_result.rows.map((row, ri) => (
+                                <tr key={ri} className="border-b border-white/5 hover:bg-white/5">
+                                  {row.map((cell, ci) => (
+                                    <td key={ci} className="px-4 py-2 text-gray-200">
+                                      {message.lead_gen_result!.columns[ci] === "LinkedIn" && cell && cell.startsWith("http") ? (
+                                        <a href={cell} target="_blank" rel="noopener noreferrer" className="text-purple-400 hover:underline truncate block max-w-[200px]">
+                                          View profile
+                                        </a>
+                                      ) : (
+                                        <span className="truncate block max-w-[220px]" title={cell}>{cell || "—"}</span>
+                                      )}
+                                    </td>
+                                  ))}
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        {message.lead_gen_result.total_entries != null && (
+                          <div className="px-4 py-2 text-xs text-gray-500 border-t border-white/10">
+                            Showing {message.lead_gen_result.rows.length} of {message.lead_gen_result.total_entries} total leads
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {message.lead_gen_result?.error && (
+                      <p className="mt-2 text-sm text-amber-400">{message.lead_gen_result.error}</p>
+                    )}
                     
                     {message.authorizationUrl && (
                       <div className="mt-4 p-4 rounded-xl bg-white/5">
@@ -2940,7 +2856,7 @@ Would you like to upload some data to analyze?`;
               placeholder={
                 hasData
                   ? `Ask anything about ${currentFile?.name}...`
-                  : "Upload data first using the attach button..."
+                  : "Ask anything, or try: Fetch 10 Product Manager leads"
               }
               className="w-full bg-white/5 backdrop-blur-sm text-white placeholder-gray-400 resize-none min-h-[60px] max-h-[160px] rounded-2xl pl-6 pr-32 py-4 pb-16 border-0 focus:ring-2 focus:ring-blue-500/50 focus:border-0 transition-all duration-300 overflow-y-auto"
               disabled={isLoading || fileLoading}
@@ -2965,13 +2881,6 @@ Would you like to upload some data to analyze?`;
               }}
             />
 
-            {isContextLoading && (
-              <div className="absolute top-3 right-28 flex items-center gap-1 text-xs text-blue-400">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                <span>Context...</span>
-              </div>
-            )}
-
             <div className="absolute bottom-3 right-3 flex items-center gap-2">
               <Button
                 variant="ghost"
@@ -2994,7 +2903,6 @@ Would you like to upload some data to analyze?`;
               </Button>
             </div>
 
-            {/* Add Sources Button - Left Side */}
             <div className="absolute bottom-3 left-3">
               <Button
                 variant="ghost"
@@ -3004,7 +2912,7 @@ Would you like to upload some data to analyze?`;
                 title="Upload Data"
               >
                 <Paperclip className="h-4 w-4" />
-                <span className="text-sm font-medium">Add Sources</span>
+                <span className="text-sm font-medium">Sources</span>
               </Button>
             </div>
           </div>

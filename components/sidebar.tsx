@@ -196,7 +196,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             <div className="px-4 py-3 border-b border-white/10">
               <Button
                 onClick={handleNewChat}
-                className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg "
+                className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg"
               >
                 <Plus className="w-4 h-4" />
                 <span className="font-medium">Open AI Agent</span>

@@ -11,14 +11,13 @@ import {
   X,
   Trash2,
   MessageSquare,
-  FileText,
   Plus,
   PanelLeftOpen,
   Search,
   Settings,
   LogOut,
 } from "lucide-react";
-import { useChatSessions } from "@/hooks/useChatSessions";
+import { useChatSessionsContext } from "@/contexts/ChatSessionsContext";
 import {
   Dialog,
   DialogContent,
@@ -55,7 +54,7 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
     deleteSession,
     isLoading,
     refreshSessions,
-  } = useChatSessions();
+  } = useChatSessionsContext();
 
   useEffect(() => {
     const handleTitleUpdate = () => refreshSessions();
@@ -87,14 +86,12 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
     if (isMobile) setIsMobileMenuOpen(false);
   };
 
-  const handleNewChat = useCallback(async () => {
-    const newSession = await createSession();
-    if (newSession) {
-      router.push(`/dashboard/agent?session=${newSession.id}`);
-      router.refresh();
-    }
+  const handleNewChat = useCallback(() => {
+    // Navigate to agent without creating a session; session is created on first message send
+    router.push("/dashboard/agent");
+    router.refresh();
     handleItemClick();
-  }, [createSession, router]);
+  }, [router]);
 
   const handleChatClick = async (sessionId: string) => {
     await loadSession(sessionId);
@@ -131,18 +128,6 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
     return text.substring(0, maxLength) + "...";
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffTime = Math.abs(now.getTime() - date.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return "Today";
-    if (diffDays === 1) return "Yesterday";
-    if (diffDays < 7) return `${diffDays} days ago`;
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
-    return `${Math.floor(diffDays / 30)} months ago`;
-  };
-
   const filteredSessions = sessions.filter((chatSession) => {
     if (!sessionSearch.trim()) return true;
     const q = sessionSearch.trim().toLowerCase();
@@ -151,6 +136,24 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
       chatSession.lastMessage?.toLowerCase().includes(q)
     );
   });
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  const today = filteredSessions.filter(
+    (s) => new Date(s.updatedAt) >= startOfToday
+  );
+  const last7Days = filteredSessions.filter((s) => {
+    const d = new Date(s.updatedAt);
+    return d >= sevenDaysAgo && d < startOfToday;
+  });
+  const older = filteredSessions.filter(
+    (s) => new Date(s.updatedAt) < sevenDaysAgo
+  );
+
+  const activeChatClass = "bg-purple-600/25 rounded-lg";
+  const inactiveChatClass = "hover:bg-white/5 rounded-lg";
 
   return (
     <>
@@ -256,7 +259,7 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
                 <Button
                   onClick={handleNewChat}
                   disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2"
                 >
                   <Plus className="w-4 h-4" />
                   {isLoading ? "Creating…" : "New Chat"}
@@ -266,11 +269,11 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
                     <input
                       type="text"
-                      placeholder="Search chats..."
+                      placeholder="Search your threads..."
                       value={sessionSearch}
                       onChange={(e) => setSessionSearch(e.target.value)}
                       className="w-full pl-8 pr-3 py-1.5 text-sm bg-white/5 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                      aria-label="Search chat sessions"
+                      aria-label="Search your threads"
                     />
                   </div>
                 )}
@@ -286,50 +289,103 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
                     </p>
                   </div>
                 ) : (
-                  <div className="space-y-1">
-                    {filteredSessions.map((chatSession) => (
-                      <div
-                        key={chatSession.id}
-                        onClick={() => handleChatClick(chatSession.id)}
-                        className={`group relative p-2 rounded-lg transition-all cursor-pointer ${
-                          currentSession?.id === chatSession.id
-                            ? "bg-white/10"
-                            : "hover:bg-white/5"
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className="flex-shrink-0 mt-0.5">
-                            {chatSession.hasData ? (
-                              <FileText className="w-4 h-4 text-green-400" />
-                            ) : (
-                              <MessageSquare className="w-4 h-4 text-gray-400" />
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <h4 className="text-sm font-medium text-white truncate">
-                                {truncateText(chatSession.title, 25)}
-                              </h4>
+                  <div className="space-y-4">
+                    {today.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 px-2 pb-1.5">
+                          Today
+                        </p>
+                        <div className="space-y-0.5">
+                          {today.map((chatSession) => (
+                            <div
+                              key={chatSession.id}
+                              onClick={() => handleChatClick(chatSession.id)}
+                              className={`group relative py-2 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-between ${
+                                currentSession?.id === chatSession.id
+                                  ? activeChatClass
+                                  : inactiveChatClass
+                              }`}
+                            >
+                              <span className={`text-sm font-medium truncate flex-1 min-w-0 ${currentSession?.id === chatSession.id ? "text-purple-300" : "text-white"}`}>
+                                {truncateText(chatSession.title || "New Chat", 40)}
+                              </span>
                               <button
                                 onClick={(e) => handleDeleteClick(e, chatSession.id)}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-gray-400 hover:text-red-400"
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-gray-400 hover:text-red-400 flex-shrink-0"
                                 aria-label="Delete chat"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
-                            {chatSession.lastMessage && (
-                              <p className="text-xs text-gray-500 truncate mt-1">
-                                {truncateText(chatSession.lastMessage, 35)}
-                              </p>
-                            )}
-                            <span className="text-xs text-gray-600 mt-1 block">
-                              {formatDate(chatSession.updatedAt)}
-                            </span>
-                          </div>
+                          ))}
                         </div>
                       </div>
-                    ))}
+                    )}
+                    {last7Days.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 px-2 pb-1.5">
+                          Last 7 Days
+                        </p>
+                        <div className="space-y-0.5">
+                          {last7Days.map((chatSession) => (
+                            <div
+                              key={chatSession.id}
+                              onClick={() => handleChatClick(chatSession.id)}
+                              className={`group relative py-2 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-between ${
+                                currentSession?.id === chatSession.id
+                                  ? activeChatClass
+                                  : inactiveChatClass
+                              }`}
+                            >
+                              <span className={`text-sm font-medium truncate flex-1 min-w-0 ${currentSession?.id === chatSession.id ? "text-purple-300" : "text-white"}`}>
+                                {truncateText(chatSession.title || "New Chat", 40)}
+                              </span>
+                              <button
+                                onClick={(e) => handleDeleteClick(e, chatSession.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-gray-400 hover:text-red-400 flex-shrink-0"
+                                aria-label="Delete chat"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {older.length > 0 && (
+                      <div>
+                        <p className="text-xs font-medium text-gray-500 px-2 pb-1.5">
+                          Older
+                        </p>
+                        <div className="space-y-0.5">
+                          {older.map((chatSession) => (
+                            <div
+                              key={chatSession.id}
+                              onClick={() => handleChatClick(chatSession.id)}
+                              className={`group relative py-2 px-2 rounded-lg transition-all cursor-pointer flex items-center justify-between ${
+                                currentSession?.id === chatSession.id
+                                  ? activeChatClass
+                                  : inactiveChatClass
+                              }`}
+                            >
+                              <span className={`text-sm font-medium truncate flex-1 min-w-0 ${currentSession?.id === chatSession.id ? "text-purple-300" : "text-white"}`}>
+                                {truncateText(chatSession.title || "New Chat", 40)}
+                              </span>
+                              <button
+                                onClick={(e) => handleDeleteClick(e, chatSession.id)}
+                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-gray-400 hover:text-red-400 flex-shrink-0"
+                                aria-label="Delete chat"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {today.length === 0 && last7Days.length === 0 && older.length === 0 && (
+                      <p className="text-sm text-gray-500 px-2">No threads match your search.</p>
+                    )}
                   </div>
                 )}
               </div>
@@ -433,7 +489,7 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
       />
 
       <Dialog open={!!deleteModalSessionId} onOpenChange={(open) => !open && setDeleteModalSessionId(null)}>
-        <DialogContent className="bg-[#1a1b1e] text-white max-w-md">
+        <DialogContent className="bg-[#1a1b1e] text-white max-w-md border-0 shadow-xl">
           <DialogHeader>
             <DialogTitle>Delete chat</DialogTitle>
             <DialogDescription className="text-gray-400">
@@ -442,9 +498,9 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
           </DialogHeader>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
-              variant="outline"
+              variant="ghost"
               onClick={() => setDeleteModalSessionId(null)}
-              className="border-white/20 text-white hover:bg-white/10"
+              className="text-white hover:bg-white/10"
             >
               Cancel
             </Button>
