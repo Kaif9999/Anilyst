@@ -182,8 +182,8 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
             )}
             
             {/* Top section - Logo */}
-            <div className="flex items-center px-4 py-4 border-b border-white/10 relative z-10">
-              <div className="w-8 h-8 flex items-center justify-center mr-3 ">
+            <div className="flex items-center justify-center px-4 py-4 border-b border-white/10 relative z-10">
+              <div className="w-8 h-8 flex items-center justify-center mr-3">
                 <Image src="/anilyst_logo.svg" alt="Anilyst Logo" width={25} height={25} />
               </div>
               

@@ -17,7 +17,6 @@ import {
   Search,
   Settings,
   LogOut,
-  BarChart3,
 } from "lucide-react";
 import { useChatSessions } from "@/hooks/useChatSessions";
 import {
@@ -221,11 +220,11 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
         {/* Expanded view */}
         {!isCollapsed && (
           <>
-            {/* Header row: collapse, logo, mode toggle */}
-            <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-3">
+            {/* Header row: collapse + centered logo/title */}
+            <div className="flex-shrink-0 flex items-center justify-center px-3 py-3 relative">
               <button
                 onClick={isMobile ? () => setIsMobileMenuOpen(false) : onToggle}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
+                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors flex-shrink-0 absolute left-3"
                 aria-label={isMobile ? "Close" : "Collapse sidebar"}
               >
                 {isMobile ? (
@@ -236,7 +235,7 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
               </button>
               <Link
                 href="/dashboard/agent"
-                className="flex-1 flex items-center justify-center min-w-0"
+                className="flex items-center justify-center min-w-0"
               >
                 <Image
                   src="/anilyst_logo.svg"
@@ -249,14 +248,6 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
                   Anilyst
                 </span>
               </Link>
-              <button
-                onClick={() => router.push("/dashboard/visualization")}
-                className="w-8 h-8 flex items-center justify-center hover:bg-white/10 rounded-lg transition-colors flex-shrink-0"
-                aria-label="Switch to Visualization"
-                title="Visualization"
-              >
-                <BarChart3 className="w-5 h-5 text-gray-400" />
-              </button>
             </div>
 
             {/* Body: New Chat, Search, Thread list */}
