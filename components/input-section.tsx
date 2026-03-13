@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { fetchWithCsrf } from "@/lib/api-client";
 import { Calendar, CandlestickChart, BarChart2, AlertCircle, FileSpreadsheet, FileText, Table, Info, Server, InfoIcon, CheckCircle, ServerCrash } from "lucide-react";
 import { motion } from "framer-motion";
 import { useToast } from "@/components/ui/use-toast";
@@ -222,31 +221,13 @@ export default function InputSection({
     });
   };
 
-  const getAiAnalysis = async (filePath: string, fileType: string) => {
+  const getAiAnalysis = async (_filePath: string, _fileType: string) => {
     setAnalyzing(true);
     try {
-      const response = await fetchWithCsrf("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          filePath,
-          type: fileType,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Error getting AI analysis");
-      }
-
-      const data = await response.json();
-      setAiAnalysis(data.analysis);
-      
+      // AI analysis is provided by the backend; use the AI Agent in the sidebar for analysis.
       toast({
-        title: "Analysis Complete",
-        description: "AI has analyzed your data. Check the analysis panel below.",
+        title: "AI Analysis",
+        description: "Use the AI Agent in the sidebar to analyze your data with the backend.",
       });
     } catch (error) {
       console.error("AI analysis error:", error);

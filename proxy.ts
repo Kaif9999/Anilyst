@@ -64,8 +64,6 @@ export default withAuth(proxy, {
 export const config = {
   matcher: [
     "/api/usage",
-    "/api/analyze",
-    "/api/query",
     "/api/visualize",
     "/api/upload",
     "/api/chat-sessions/:path*",

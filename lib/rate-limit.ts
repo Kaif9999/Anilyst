@@ -7,12 +7,10 @@ type Entry = { count: number; resetAt: number };
 
 const store = new Map<string, Entry>();
 const LIMITS: Record<string, { max: number; windowMs: number }> = {
-  "/api/analyze": { max: 10, windowMs: 60 * 1000 },      // 10 req/min
   "/api/upload": { max: 20, windowMs: 60 * 1000 },        // 20 req/min
   "/api/chat-sessions": { max: 60, windowMs: 60 * 1000 }, // 60 req/min
   "/api/vector": { max: 30, windowMs: 60 * 1000 },        // 30 req/min
   "/api/create-payment-link": { max: 10, windowMs: 60 * 1000 },
-  "/api/query": { max: 20, windowMs: 60 * 1000 },
   "/api/usage": { max: 60, windowMs: 60 * 1000 },
   "/api/visualize": { max: 20, windowMs: 60 * 1000 },
   default: { max: 60, windowMs: 60 * 1000 },
