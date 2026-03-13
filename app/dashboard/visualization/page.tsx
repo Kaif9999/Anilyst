@@ -234,7 +234,7 @@ function VisualizationPageContent() {
             {/* Main Content Area */}
             <div className="space-y-6">
               {/* Empty State */}
-              {!hasData() && !isProcessing && (
+              {!hasData && !isProcessing && (
                 <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}

@@ -2358,17 +2358,6 @@ Would you like to upload some data to analyze?`;
     return (
       <>
         <div className="h-screen bg-[#0f1112] text-white flex flex-col overflow-hidden relative">
-       
-          {isSidebarCollapsed && (
-            <button
-              onClick={toggleSidebar}
-              className="fixed top-8 left-20 z-50 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-lg p-2 transition-all duration-300 group shadow-lg hover:shadow-xl"
-              title="Open Sidebar"
-            >
-              <PanelLeftOpen className="w-5 h-5 text-gray-300 group-hover:text-white transition-colors" />
-            </button>
-          )}
-
           <div className={`backdrop-blur-sm sticky top-0 z-10 transition-all duration-800 ${
             isTransitioning ? 'opacity-0 -translate-y-4' : 'opacity-100 translate-y-0'
           }`}>
@@ -2618,16 +2607,6 @@ Would you like to upload some data to analyze?`;
 
   return (
     <div className="h-screen bg-[#0f1112] text-white flex flex-col overflow-hidden relative">
-      {isSidebarCollapsed && (
-        <button
-          onClick={toggleSidebar}
-          className="fixed top-8 left-20 z-50  hover:bg-white/20 backdrop-blur-sm rounded-lg p-2 transition-all duration-300"
-          title="Open Sidebar"
-        >
-          <PanelRightClose className="w-6 h-6 text-gray-300 group-hover:text-white transition-colors" />
-        </button>
-      )}
-
       <div className="flex flex-1 min-h-0 min-w-0">
         <div className={`flex-1 flex flex-col min-w-0 overflow-hidden transition-all duration-300`}>
       <div className="backdrop-blur-sm max-h-20 sticky top-0 z-10 hidden md:block">
