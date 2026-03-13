@@ -3014,7 +3014,7 @@ Would you like to upload some data to analyze?`;
 
         {/* Sources sidebar - slides in from right, chat shrinks when open */}
         <div
-          className={`flex-shrink-0 flex flex-col bg-[#0f0f0f] overflow-hidden transition-[width] duration-300 ease-out ${
+          className={`flex-shrink-0 flex flex-col bg-[#0f0f0f] overflow-hidden border-l border-white/10 transition-[width] duration-300 ease-out ${
             sourcesSidebarOpen && sourcesSidebarData ? "w-[380px]" : "w-0"
           }`}
           role="complementary"

@@ -120,7 +120,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           isMobile 
             ? isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full' 
             : 'translate-x-0'
-        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden ${
+        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden border-r border-white/10 ${
           isCollapsed && !isMobile ? 'w-16 bg-[#111314] ' : 'w-[260px] bg-[#111314] '
         }`}
       >
