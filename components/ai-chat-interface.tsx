@@ -2384,7 +2384,7 @@ Would you like to upload some data to analyze?`;
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center items-center p-8 overflow-y-auto relative z-10">
+          <div className="flex-1 flex flex-col justify-center items-center p-8 overflow-y-auto scrollbar-hidden relative z-10">
             <div
               className={`w-full text-center space-y-12 transition-all duration-800 ${
                 isSidebarCollapsed ? "max-w-5xl" : "max-w-4xl"
@@ -2676,7 +2676,7 @@ Would you like to upload some data to analyze?`;
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto p-6 relative z-10">
+      <div className="flex-1 overflow-y-auto scrollbar-hidden p-6 relative z-10">
         <div
           className={`mx-auto space-y-8 transition-all duration-300 ${
             isSidebarCollapsed ? "max-w-4xl" : "max-w-3xl"
@@ -3039,7 +3039,7 @@ Would you like to upload some data to analyze?`;
                 Sources for: {sourcesSidebarData.query}
               </p>
             )}
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 pb-4 space-y-6">
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hidden px-4 pb-4 space-y-6">
               {sourcesSidebarData.sources.map((source, i) => {
                 let domain = "";
                 try {

@@ -188,6 +188,16 @@
   scrollbar-color: rgba(255, 255, 255, 0.2) rgba(255, 255, 255, 0.05);
 }
 
+/* Utility: hide scrollbar but keep scroll behavior */
+.scrollbar-hidden {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Opera */
+}
+
 /* Optional: Add smooth scrolling to the entire site */
 html {
   scroll-behavior: smooth;
