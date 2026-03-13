@@ -179,7 +179,7 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
               ? "translate-x-0"
               : "-translate-x-full"
             : "translate-x-0"
-        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden ${
+        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden border-r border-white/10 ${
           isCollapsed && !isMobile
             ? "w-16 bg-[#111314]"
             : "w-[min(280px,85vw)] sm:w-[260px] bg-[#111314]"
@@ -285,7 +285,7 @@ function AgentChatSidebar({ isCollapsed, onToggle }: AgentChatSidebarProps) {
                 )}
               </div>
 
-              <div className="flex-1 min-h-0 overflow-y-auto px-2 py-2">
+              <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hidden px-2 py-2">
                 {sessions.length === 0 ? (
                   <div className="text-center py-8 px-4">
                     <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />

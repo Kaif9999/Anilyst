@@ -1,30 +1,19 @@
 "use client";
 
 import React, { useState, useEffect, Suspense } from 'react';
-import { usePathname, useSearchParams, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import Image from 'next/image';
 import { 
   User,
   Menu,
   X,
-  Trash2,
   MessageSquare,
   FileText,
   Plus,
   PanelRightOpen,
-  Search,
   Plug,
 } from 'lucide-react';
-import { useChatSessions } from '@/hooks/useChatSessions';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import UserProfileModal from './user-profile-modal';
 
@@ -36,37 +25,10 @@ interface SidebarProps {
 function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { data: session, status } = useSession();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [deleteModalSessionId, setDeleteModalSessionId] = useState<string | null>(null);
-  const [sessionSearch, setSessionSearch] = useState("");
-  
-  const {
-    sessions,
-    currentSession,
-    createSession,
-    loadSession,
-    deleteSession,
-    isLoading,
-    refreshSessions,
-  } = useChatSessions();
-
-  // ✅ Listen for title update events from chat interface
-  useEffect(() => {
-    const handleTitleUpdate = (event: CustomEvent) => {
-      console.log('🔔 Received title update event:', event.detail);
-      // Refresh sessions to get the updated title
-      refreshSessions();
-    };
-
-    window.addEventListener('chatTitleUpdated', handleTitleUpdate as EventListener);
-    return () => {
-      window.removeEventListener('chatTitleUpdated', handleTitleUpdate as EventListener);
-    };
-  }, [refreshSessions]);
 
   useEffect(() => {
     const checkIfMobile = () => {
@@ -86,39 +48,10 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
     }
   };
 
-  const handleNewChat = async () => {
-    const newSession = await createSession();
-    if (newSession) {
-      // ✅ Navigate to new session with clean state
-      router.push(`/dashboard/agent?session=${newSession.id}`);
-      
-      // ✅ Force refresh to ensure clean state
-      router.refresh();
-    }
-    handleItemClick();
-  };
-
-  const handleChatClick = async (sessionId: string) => {
-    // ✅ Load the session and navigate
-    await loadSession(sessionId);
-    router.push(`/dashboard/agent?session=${sessionId}`);
-    
-    // ✅ Force refresh to load messages
+  const handleNewChat = () => {
+    router.push("/dashboard/agent");
     router.refresh();
-    
     handleItemClick();
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent, sessionId: string) => {
-    e.stopPropagation();
-    setDeleteModalSessionId(sessionId);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (deleteModalSessionId) {
-      await deleteSession(deleteModalSessionId);
-      setDeleteModalSessionId(null);
-    }
   };
 
   const handleProfileClick = () => {
@@ -187,7 +120,7 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           isMobile 
             ? isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full' 
             : 'translate-x-0'
-        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden ${
+        } fixed inset-y-0 left-0 z-40 transition-all duration-300 ease-in-out min-h-screen flex flex-col text-white overflow-hidden border-r border-white/10 ${
           isCollapsed && !isMobile ? 'w-16 bg-[#111314] ' : 'w-[260px] bg-[#111314] '
         }`}
       >
@@ -259,114 +192,34 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               </span>
             </div>
             
-            {/* New Chat Button */}
+            {/* Go to AI Agent / New Chat */}
             <div className="px-4 py-3 border-b border-white/10">
               <Button
                 onClick={handleNewChat}
-                disabled={isLoading}
                 className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg py-2.5 flex items-center justify-center gap-2 transition-all duration-200 shadow-lg "
               >
                 <Plus className="w-4 h-4" />
-                <span className="font-medium">New Chat</span>
+                <span className="font-medium">Open AI Agent</span>
               </Button>
             </div>
 
-            {/* Chat History Section */}
+            {/* Placeholder section to fill vertical space */}
             <div className="flex-1 flex flex-col relative z-10 overflow-hidden">
-              {sessions.length > 0 && (
-                <div className="px-3 py-2 border-b border-white/10">
-                  <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
-                    <input
-                      type="text"
-                      placeholder="Search chats..."
-                      value={sessionSearch}
-                      onChange={(e) => setSessionSearch(e.target.value)}
-                      className="w-full pl-8 pr-3 py-1.5 text-sm bg-white/5 border border-white/10 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                      aria-label="Search chat sessions"
-                    />
-                  </div>
-                </div>
-              )}
-              {/* History List */}
-              <div className="flex-1 overflow-y-auto px-2 py-2">
-                <div className="space-y-1">
-                  {sessions.length === 0 ? (
-                    <div className="text-center py-8 px-4">
-                      <MessageSquare className="w-8 h-8 text-gray-600 mx-auto mb-2" />
-                      <p className="text-sm text-gray-500">No chats yet</p>
-                      <p className="text-xs text-gray-600 mt-1">Start a new conversation</p>
-                    </div>
-                  ) : (
-                    sessions
-                      .filter((chatSession) => {
-                        if (!sessionSearch.trim()) return true;
-                        const q = sessionSearch.trim().toLowerCase();
-                        return (
-                          chatSession.title?.toLowerCase().includes(q) ||
-                          chatSession.lastMessage?.toLowerCase().includes(q)
-                        );
-                      })
-                      .map((chatSession) => (
-                      <div
-                        key={chatSession.id}
-                        onClick={() => handleChatClick(chatSession.id)}
-                        className={`group relative p-2 rounded-lg transition-all duration-200 cursor-pointer ${
-                          currentSession?.id === chatSession.id
-                            ? 'bg-white/10'
-                            : 'hover:bg-white/5 hover:rounded-xl bg-black/10'
-                        }`}
-                      >
-                        <div className="flex items-start gap-2">
-                          <div className="flex-shrink-0 mt-0.5">
-                            {chatSession.hasData ? (
-                              <FileText className="w-4 h-4 text-green-400" />
-                            ) : (
-                              <MessageSquare className="w-4 h-4 text-gray-400" />
-                            )}
-                          </div>
-                          
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-1">
-                              <h4 className="text-sm font-medium text-white truncate">
-                                {truncateText(chatSession.title, 25)}
-                              </h4>
-                              <button
-                                onClick={(e) => handleDeleteClick(e, chatSession.id)}
-                                className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded transition-all text-gray-400 hover:text-red-400"
-                                aria-label="Delete chat"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                            
-                            {chatSession.lastMessage && (
-                              <p className="text-xs text-gray-500 truncate mt-1">
-                                {truncateText(chatSession.lastMessage, 35)}
-                              </p>
-                            )}
-                            
-                            <div className="flex items-center gap-2 mt-2">
-                              <span className="text-xs text-gray-600">
-                                {formatDate(chatSession.updatedAt)}
-                              </span>
-                              {chatSession.hasData && chatSession.dataFileName && (
-                                <span className="text-xs text-green-500/70 flex items-center gap-1">
-                                  <FileText className="w-3 h-3" />
-                                  {truncateText(chatSession.dataFileName, 15)}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
+              <div className="flex-1 overflow-y-auto scrollbar-hidden px-4 py-4">
+                <div className="text-sm text-gray-500 space-y-2">
+                  <p>Use the AI Agent to analyze your data and chats.</p>
+                  <p className="flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-gray-500" />
+                    <span>Open the agent from here, or upload data on the relevant pages.</span>
+                  </p>
+                  <p className="flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-gray-500" />
+                    <span>Uploaded files and analysis live in the agent view.</span>
+                  </p>
                 </div>
               </div>
             </div>
-            
-         
+
             <div className="px-4 pb-4 space-y-3 relative z-10 border-t border-white/10 pt-4">
               <button
                 onClick={() => { router.push("/dashboard/integrations"); handleItemClick(); }}
@@ -418,32 +271,6 @@ function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 
       />
-
-      <Dialog open={!!deleteModalSessionId} onOpenChange={(open) => !open && setDeleteModalSessionId(null)}>
-        <DialogContent className="bg-[#1a1b1e] text-white max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete chat</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Are you sure you want to delete this chat? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteModalSessionId(null)}
-              className="border-white/20 text-white hover:bg-white/10"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              Delete
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
