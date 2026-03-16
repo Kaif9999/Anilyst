@@ -1,58 +1,94 @@
 "use client"
+
 import { useState } from "react"
 import { motion } from "framer-motion"
 import Link from "next/link"
-import { Check, Brain, Menu, X, ArrowRight, Mail, Linkedin, Twitter, Github } from "lucide-react"
+import { Check, ArrowRight } from "lucide-react"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import Navbar from "./Navbar"
 import Footer from "./Footer"
-import { useSession } from "next-auth/react"
-import { toast } from "@/components/ui/use-toast"
+
+const PLANS = [
+  {
+    name: "Pro",
+    monthlyPrice: 25,
+    description: "Perfect for individuals and small projects",
+    features: [
+      "Unlimited visualizations",
+      "Unlimited analyses",
+      "Data export",
+      "Web & mobile access",
+      "Email support",
+    ],
+    cta: "Get Pro",
+    checkoutUrl: "https://checkout.dodopayments.com/buy/YOUR_PRO_PRODUCT_ID?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F",
+    popular: false,
+  },
+  {
+    name: "Premium",
+    monthlyPrice: 49,
+    description: "For teams and power users",
+    features: [
+      "Everything in Pro",
+      "Priority support",
+      "Beta access",
+      "Advanced analytics",
+      "API access",
+      "Dedicated account manager",
+    ],
+    cta: "Get Premium",
+    checkoutUrl: "https://checkout.dodopayments.com/buy/YOUR_PREMIUM_PRODUCT_ID?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F",
+    popular: true,
+  },
+] as const
 
 export default function Pricing() {
   const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly")
-  const { data: session } = useSession()
-  const [isLoading, setIsLoading] = useState(false)
-  
-  const getPrice = (basePrice: number) => {
-    return billingInterval === "yearly" ? basePrice * 0.8 : basePrice
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+
+  const getMonthlyPrice = (basePrice: number) => {
+    return billingInterval === "yearly" ? Math.round(basePrice * 0.6 * 100) / 100 : basePrice
   }
 
-  const handleProSubscription = () => {
-    setIsLoading(true);
-    window.location.href = "https://checkout.dodopayments.com/buy/pdt_17wlMmBaE7Klqk5QnB0Up?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F";
-  };
+  const getYearlyTotal = (basePrice: number) => {
+    return Math.round(basePrice * 12 * 0.6)
+  }
 
-  const handleLifetimeSubscription = () => {
-    setIsLoading(true);
-    window.location.href = "https://checkout.dodopayments.com/buy/pdt_6iGXPJ0iAZjGLv0lINYR4?quantity=1&redirect_url=https://anilyst.tech%2Fmain%2F";
-  };
+  const handleSubscribe = (url: string, planName: string) => {
+    setLoadingPlan(planName)
+    window.location.href = url
+  }
 
   return (
     <div className="relative min-h-screen bg-black overflow-hidden">
+      <Navbar />
 
-        <Navbar />
-
-      <div className="relative z-10 container mx-auto px-4 py-24">
+      <div className="relative z-10 container mx-auto px-4 pt-28 pb-20 md:pt-36 md:pb-28">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.5 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl font-bold mb-6 py-16 pb-4 text-white">Plans & Pricing</h1>
-          <p className="text-xl text-gray-200 max-w-2xl mx-auto">
-            Choose the perfect plan for your data analysis needs
+          <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
+            Simple pricing
+          </h1>
+          <p className="text-gray-400 max-w-md mx-auto">
+            Two plans. No hidden fees. Cancel anytime.
           </p>
         </motion.div>
 
-        {/* Billing Toggle with modern pill design */}
-        <div className="flex justify-center mb-16">
-          <div className="p-1.5 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-lg rounded-full border border-gray-400 shadow-xl">
+        {/* Billing Toggle - Sliding pill */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.1 }}
+          className="flex justify-center mb-12"
+        >
+          <div className="p-1.5 bg-gradient-to-r from-pink-500/10 via-purple-500/10 to-pink-500/10 backdrop-blur-lg rounded-full border border-white/20 shadow-xl">
             <RadioGroup
-              defaultValue="monthly"
               value={billingInterval}
-              onValueChange={(value) => setBillingInterval(value as "monthly" | "yearly")}
+              onValueChange={(v) => setBillingInterval(v as "monthly" | "yearly")}
               className="relative grid grid-cols-2 w-[340px] gap-0.5"
             >
               {/* Sliding Background */}
@@ -75,8 +111,8 @@ export default function Pricing() {
                 <label
                   htmlFor="monthly"
                   className={`relative flex flex-col items-center justify-center px-4 py-2.5 rounded-full cursor-pointer transition-all duration-200 ${
-                    billingInterval === "monthly" 
-                      ? "text-white" 
+                    billingInterval === "monthly"
+                      ? "text-white"
                       : "text-gray-400 hover:text-white/90"
                   }`}
                 >
@@ -93,235 +129,98 @@ export default function Pricing() {
                 <label
                   htmlFor="yearly"
                   className={`relative flex flex-col items-center justify-center px-4 py-2.5 rounded-full cursor-pointer transition-all duration-200 ${
-                    billingInterval === "yearly" 
-                      ? "text-white" 
+                    billingInterval === "yearly"
+                      ? "text-white"
                       : "text-gray-400 hover:text-white/90"
                   }`}
                 >
                   <span className="font-medium text-[13px] tracking-wide">Yearly</span>
-                  <motion.div 
-                    className="flex items-center gap-1 text-[10px] mt-0.5"
-                    initial={false}
-                    animate={{ 
-                      opacity: billingInterval === "yearly" ? 1 : 0.9
-                    }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <span className="text-green-300 tracking-wide">Save 20%</span>
-                    <span className="text-white/30 text-[8px]">•</span>
-                    <span className="text-purple-300 tracking-wide">2 months free</span>
-                  </motion.div>
+                  <span className="text-green-300 text-[10px] mt-0.5 tracking-wide">
+                    Save 40%
+                  </span>
                 </label>
               </div>
             </RadioGroup>
           </div>
-        </div>
+        </motion.div>
 
         {/* Pricing Cards */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-7xl mx-auto">
-          {/* Free Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="relative bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
-          >
-            <h3 className="text-2xl font-bold text-white mb-4">Free</h3>
-            <p className="text-gray-300 mb-6">
-              If you are a student or a hobbyist, you can use the free plan.
-            </p>
-            <div className="mb-6">
-              <div className="text-4xl font-bold text-white">$0</div>
-              {/* <div className="text-xl text-gray-300">Pricing</div> */}
-            </div>
-            <div className="space-y-4">
-              <p className="font-medium text-white">For students and hobbyists</p>
-              <ul className="space-y-3 text-gray-300">
-                {[
-                  { feature: "1 Free Visualizations per day", available: true },
-                  { feature: "4 Free Analyses per day", available: true },
-                  { feature: "Advanced Features", available: false },
-                  { feature: "Customization", available: false },
-                  { feature: "Support", available: false },
-                  { feature: "Data Export", available: false },
-                  { feature: "Only Web View", available: true }
-                ].map((item, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    {item.available ? (
-                      <Check className="w-5 h-5 text-green-400" />
-                    ) : (
-                      <X className="w-5 h-5 text-red-400" />
-                    )}
-                    <span>{item.feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </motion.div>
-
-          {/* Pro Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="relative rounded-2xl p-8 backdrop-blur-lg min-h-[750px] -mt-4 group"
-          >
-            {/* Animated gradient border */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 animate-gradient-x" />
-            <div className="absolute inset-[1px] rounded-2xl bg-black/90 backdrop-blur-xl" />
-            
-            {/* Content container */}
-            <div className="relative z-10">
-              {/* Most Popular Label */}
-              <div className="flex items-center justify-center gap-2 mb-6 text-white/90">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                  <path d="M8 0L9.79611 6.20389L16 8L9.79611 9.79611L8 16L6.20389 9.79611L0 8L6.20389 6.20389L8 0Z" />
-                </svg>
-                <span className="text-sm font-medium">Most popular</span>
-              </div>
-
-              <h3 className="text-2xl font-bold text-white mb-4">Pro</h3>
-              <p className="text-gray-300 mb-6">
-                Small Businesses and Startups, Data Analysts and Students
-              </p>
-              <div className="mb-6">
-                <motion.div 
-                  className="text-4xl font-bold text-white"
-                  initial={false}
-                  animate={{ 
-                    scale: [1, 1.05, 1],
-                    opacity: [1, 0.8, 1] 
-                  }}
-                  transition={{ duration: 0.3 }}
-                  key={billingInterval}
-                >
-                  ${getPrice(10)}
-                  <span className="text-lg font-normal text-gray-400">
-                    /{billingInterval === "yearly" ? "mo" : "mo"}
-                  </span>
-                </motion.div>
-                <div className="text-gray-300">
-                  {billingInterval === "yearly" ? (
-                    <>
-                      <span className="text-green-400">$96/year (Save 20%)</span>
-                      <span className="block text-sm text-gray-400 mt-1">Billed yearly</span>
-                    </>
-                  ) : (
-                    "Billed monthly"
-                  )}
-                </div>
-              </div>
-              <button 
-                onClick={handleProSubscription}
-                disabled={isLoading}
-                className="w-full py-3 px-4 rounded-xl bg-white text-black hover:bg-white/90 transition-colors mb-8 disabled:opacity-50"
-              >
-                {isLoading ? "Processing..." : "Upgrade to Pro"}
-              </button>
-              <div className="space-y-4">
-                <p className="font-medium text-white">Everything in Free, plus:</p>
-                <ul className="space-y-3 text-gray-300">
-                  {[
-                    "Unlimited Visualizations",
-                    "Unlimited Analyses per day",
-                    "Priority Support",
-                    "Beta Access",
-                    "Data Export",
-                  
-                  ].map((feature, i) => (
-                    <li key={i} className="flex items-center gap-3">
-                      <Check className="w-5 h-5 text-blue-400" />
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Lifetime Plan */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6 }}
-            className="relative bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
-          >
-            <h3 className="text-2xl font-bold text-white mb-4">Lifetime</h3>
-            <p className="text-gray-300 mb-6">
-              Buy once, use forever
-            </p>
-            <div className="mb-6">
-              <motion.div 
-                className="text-4xl font-bold text-white"
-                initial={false}
-                animate={{ 
-                  scale: [1, 1.05, 1],
-                  opacity: [1, 0.8, 1] 
-                }}
-                transition={{ duration: 0.3 }}
-                key={billingInterval}
-              >
-                $250
-                <span className="text-lg font-normal text-gray-400">
-                  /lifetime
-                </span>
-              </motion.div>
-              <div className="text-gray-300">
-                One-time payment
-              </div>
-            </div>
-            <button 
-              onClick={handleLifetimeSubscription}
-              disabled={isLoading}
-              className="w-full py-3 px-4 rounded-xl bg-white text-black border border-white/20 hover:bg-white/90 transition-colors mb-8 disabled:opacity-50"
+        <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {PLANS.map((plan, i) => (
+            <motion.div
+              key={plan.name}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 + i * 0.1 }}
+              className={`relative rounded-2xl p-8 border transition-all ${
+                plan.popular
+                  ? "bg-white/[0.07] border-violet-500/50 shadow-lg shadow-violet-500/10"
+                  : "bg-white/[0.04] border-white/10 hover:border-white/20"
+              }`}
             >
-              {isLoading ? "Processing..." : "Get Lifetime Access"}
-            </button>
-            <div className="space-y-4">
-              <p className="font-medium text-white">Everything in Pro, for lifetime:</p>
-              <ul className="space-y-3 text-gray-300">
-                {[
-                  "Unlimited Visualizations",
-                  "Unlimited Analyses",
-                  "Priority Support",
-                  "Beta Access",
-                  "Data Export",
-                  "Lifetime Updates",
-                  "Priority Support",
-                  "Dedicated Account Manager",
-                  "Enterprise-grade Security",
-                ].map((feature, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <Check className="w-5 h-5 text-yellow-400" />
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-violet-500/30 text-violet-300 border border-violet-500/30">
+                    Most popular
+                  </span>
+                </div>
+              )}
+
+              <div className="mb-6">
+                <h3 className="text-xl font-bold text-white mb-1">{plan.name}</h3>
+                <p className="text-sm text-gray-400">{plan.description}</p>
+              </div>
+
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-white">
+                    ${getMonthlyPrice(plan.monthlyPrice)}
+                  </span>
+                  <span className="text-gray-500">/mo</span>
+                </div>
+                {billingInterval === "yearly" && (
+                  <p className="text-sm text-gray-400 mt-1">
+                    ${getYearlyTotal(plan.monthlyPrice)}/year billed annually
+                  </p>
+                )}
+              </div>
+
+              <button
+                onClick={() => handleSubscribe(plan.checkoutUrl, plan.name)}
+                disabled={!!loadingPlan}
+                className={`w-full py-3.5 rounded-xl font-medium transition-all mb-6 disabled:opacity-50 ${
+                  plan.popular
+                    ? "bg-violet-500 text-white hover:bg-violet-600"
+                    : "bg-white text-black hover:bg-gray-100"
+                }`}
+              >
+                {loadingPlan === plan.name ? "Redirecting..." : plan.cta}
+              </button>
+
+              <ul className="space-y-3">
+                {plan.features.map((feature, j) => (
+                  <li key={j} className="flex items-center gap-3 text-gray-300 text-sm">
+                    <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                     <span>{feature}</span>
                   </li>
                 ))}
               </ul>
-            </div>
-          </motion.div>
+            </motion.div>
+          ))}
         </div>
       </div>
 
-      {/* Call to Action */}
-      <section className="relative z-10 py-24 bg-black">
-        <div className="container mx-auto px-4">
-          <motion.div
-            className="text-center"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-8">Ready to Transform Your Data Analysis?</h2>
-            <p className="text-xl text-gray-200 mb-12 max-w-2xl mx-auto px-4">
-              Join thousands of data scientists and analysts who have already discovered the power of AI-driven
-              analysis.
-            </p>
-            <Link href="/signup">
-              <button className="px-8 py-4 bg-white text-gray-900 rounded-lg text-lg font-medium hover:bg-gray-100 transition-colors inline-flex items-center gap-2">
-                Get Started Now <ArrowRight className="w-5 h-5" />
-              </button>
-            </Link>
-          </motion.div>
+      {/* CTA */}
+      <section className="relative z-10 py-20 border-t border-white/5">
+        <div className="container mx-auto px-4 text-center">
+          <p className="text-gray-400 mb-6">
+            Questions? <a href="mailto:kaifmohd5000@gmail.com?subject=Anilyst Pricing" className="text-violet-400 hover:text-violet-300">Contact us</a>
+          </p>
+          <Link href="/signup">
+            <button className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-white/10 text-white hover:bg-white/15 transition-colors border border-white/10">
+              Create free account <ArrowRight className="w-4 h-4" />
+            </button>
+          </Link>
         </div>
       </section>
 
@@ -329,4 +228,3 @@ export default function Pricing() {
     </div>
   )
 }
-
