@@ -8,7 +8,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import Navbar from "./Navbar"
 import Footer from "./Footer"
 
-// Update checkoutUrl with your Dodo product IDs for $25 and $49 plans
 const PLANS = [
   {
     name: "Pro",
